@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Codex Usage</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">C</span>
+      <div><strong>Codex Usage</strong><span>observatoire local</span></div>
+    </div>
+    <nav class="periods" aria-label="Période">
+      <button data-period="today" data-i18n="period.today" class="active">Aujourd’hui</button>
+      <button data-period="7d" data-i18n="period.7d">7 jours</button>
+      <button data-period="30d" data-i18n="period.30d">30 jours</button>
+      <button data-period="all" data-i18n="period.all">Tout</button>
+    </nav>
+    <div class="actions">
+      <select id="languageSelect" class="language-select" aria-label="Langue">
+        <option value="fr">FR</option>
+        <option value="en">EN</option>
+        <option value="de">DE</option>
+      </select>
+      <button id="pricingButton" class="icon-button" title="Configurer les tarifs" aria-label="Configurer les tarifs">$</button>
+      <button id="refreshButton" class="refresh-button"><span>↻</span> <span data-i18n="action.refresh">Actualiser</span></button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow" id="periodLabel">AUJOURD’HUI</p>
+        <h1 data-i18n="hero.title">L’essentiel de votre activité Codex.</h1>
+        <p class="subtitle" id="freshness">Chargement des sessions locales…</p>
+      </div>
+      <div class="privacy-pill"><span></span> <span data-i18n="hero.privacy">Données locales uniquement</span></div>
+    </section>
+
+    <section class="kpi-grid" id="kpis" aria-label="Indicateurs principaux"></section>
+
+    <section class="dashboard-grid">
+      <article class="panel activity-panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow" data-i18n="section.load">CHARGE</p><h2 data-i18n="chart.tokens">Tokens dans le temps</h2></div>
+          <div class="legend"><span class="dot fresh"></span><span data-i18n="token.fresh">Non cachés</span> <span class="dot cached"></span><span data-i18n="token.cache">Cache</span> <span class="dot output"></span><span data-i18n="token.output">Sortie</span></div>
+        </div>
+        <div id="tokenChart" class="token-chart"></div>
+      </article>
+
+      <article class="panel mix-panel">
+        <div class="panel-heading"><div><p class="eyebrow" data-i18n="section.distribution">RÉPARTITION</p><h2 data-i18n="chart.footprint">Empreinte tokens</h2></div></div>
+        <div id="tokenMix" class="token-mix"></div>
+      </article>
+
+      <article class="panel rhythm-panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow" data-i18n="section.rhythm">RYTHME</p><h2 data-i18n="chart.calls">Appels modèle</h2></div>
+          <strong id="peakLabel" class="panel-stat">—</strong>
+        </div>
+        <div id="callChart" class="call-chart"></div>
+      </article>
+
+      <article class="panel insight-panel">
+        <div class="panel-heading"><div><p class="eyebrow" data-i18n="section.signal">SIGNAL</p><h2 data-i18n="insight.title">À retenir</h2></div></div>
+        <div id="insights" class="insights"></div>
+      </article>
+    </section>
+
+    <section class="panel conversations-panel">
+      <div class="panel-heading table-heading">
+        <div><p class="eyebrow" data-i18n="section.conversations">CONVERSATIONS</p><h2 data-i18n="table.title">Où partent les tokens ?</h2></div>
+        <div class="table-tools">
+          <select id="modelFilter" aria-label="Filtrer par modèle"><option value="all">Tous les modèles</option></select>
+          <input id="searchInput" type="search" placeholder="Rechercher…" data-i18n-placeholder="search.placeholder" aria-label="Rechercher une conversation">
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th data-i18n="table.conversation">Conversation</th><th data-i18n="table.model">Modèle</th><th data-i18n="table.exchanges">Échanges</th><th data-i18n="table.calls">Appels</th><th>Tokens</th><th data-i18n="table.duration">Durée</th><th data-i18n="table.cost">Coût estimé</th></tr></thead>
+          <tbody id="conversationRows"></tbody>
+        </table>
+      </div>
+      <div class="table-footer"><span id="tableCount">—</span><span data-i18n="table.hint">Cliquez sur une ligne pour le détail</span></div>
+    </section>
+  </main>
+
+  <aside id="detailDrawer" class="drawer" aria-hidden="true">
+    <div class="drawer-backdrop" data-close-drawer></div>
+    <section class="drawer-card" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <button class="drawer-close" data-close-drawer aria-label="Fermer">×</button>
+      <div id="drawerContent"></div>
+    </section>
+  </aside>
+
+  <dialog id="pricingDialog">
+    <form method="dialog" class="pricing-form">
+      <div class="dialog-heading"><div><p class="eyebrow" data-i18n="pricing.simulation">SIMULATION</p><h2 data-i18n="pricing.title">Tarifs théoriques</h2></div><button value="cancel" class="drawer-close" aria-label="Fermer">×</button></div>
+      <p class="dialog-copy" data-i18n="pricing.copy">Prix en dollars par million de tokens. Les modèles sans tarif public utilisent le tarif de référence. Ces montants simulent l’API standard et ne représentent pas votre abonnement Codex.</p>
+      <div id="pricingRows" class="pricing-rows"></div>
+      <div class="dialog-actions"><button id="resetPricing" type="button" class="secondary-button" data-i18n="pricing.reset">Valeurs par défaut</button><button id="savePricing" value="default" class="primary-button" data-i18n="pricing.save">Enregistrer</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

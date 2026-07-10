@@ -1,0 +1,16 @@
+{
+  "name": "codex-usage-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A private, local dashboard for Codex token usage, model calls, timing, and theoretical cost.",
+  "type": "module",
+  "scripts": {
+    "build": "node --check server.mjs && node --check src/analyzer.mjs && node --check public/app.js",
+    "check": "npm run build && npm test",
+    "start": "node server.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
