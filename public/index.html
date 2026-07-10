@@ -75,16 +75,39 @@
         <div><p class="eyebrow" data-i18n="section.conversations">CONVERSATIONS</p><h2 data-i18n="table.title">Où partent les tokens ?</h2></div>
         <div class="table-tools">
           <select id="modelFilter" aria-label="Filtrer par modèle"><option value="all">Tous les modèles</option></select>
+          <select id="usageFilter" aria-label="Filtrer par consommation">
+            <option value="0" data-i18n="filter.usageAll">Tous les volumes</option>
+            <option value="100000">≥ 100k tokens</option>
+            <option value="1000000">≥ 1M tokens</option>
+            <option value="10000000">≥ 10M tokens</option>
+          </select>
           <input id="searchInput" type="search" placeholder="Rechercher…" data-i18n-placeholder="search.placeholder" aria-label="Rechercher une conversation">
+          <button id="resetTableFilters" class="filter-reset" data-i18n="filter.reset">Réinitialiser</button>
         </div>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th data-i18n="table.conversation">Conversation</th><th data-i18n="table.model">Modèle</th><th data-i18n="table.exchanges">Échanges</th><th data-i18n="table.calls">Appels</th><th>Tokens</th><th data-i18n="table.duration">Durée</th><th data-i18n="table.cost">Coût estimé</th></tr></thead>
+          <thead><tr>
+            <th><button class="sort-button" data-sort="title"><span data-i18n="table.conversation">Conversation</span><i></i></button></th>
+            <th><button class="sort-button" data-sort="model"><span data-i18n="table.model">Modèle</span><i></i></button></th>
+            <th><button class="sort-button" data-sort="exchanges"><span data-i18n="table.exchanges">Échanges</span><i></i></button></th>
+            <th><button class="sort-button" data-sort="calls"><span data-i18n="table.calls">Appels</span><i></i></button></th>
+            <th><button class="sort-button" data-sort="tokens"><span>Tokens</span><i></i></button></th>
+            <th><button class="sort-button" data-sort="duration"><span data-i18n="table.duration">Durée</span><i></i></button></th>
+            <th><button class="sort-button" data-sort="cost"><span data-i18n="table.cost">Coût estimé</span><i></i></button></th>
+          </tr></thead>
           <tbody id="conversationRows"></tbody>
         </table>
       </div>
-      <div class="table-footer"><span id="tableCount">—</span><span data-i18n="table.hint">Cliquez sur une ligne pour le détail</span></div>
+      <div class="table-footer">
+        <span id="tableCount">—</span>
+        <div class="page-size"><label for="pageSizeSelect" data-i18n="pagination.perPage">Par page</label><select id="pageSizeSelect"><option>10</option><option selected>25</option><option>50</option><option>100</option></select></div>
+        <nav class="pagination" aria-label="Pagination">
+          <button id="previousPage" data-i18n-aria="pagination.previous" aria-label="Page précédente">←</button>
+          <span id="pageIndicator">—</span>
+          <button id="nextPage" data-i18n-aria="pagination.next" aria-label="Page suivante">→</button>
+        </nav>
+      </div>
     </section>
   </main>
 

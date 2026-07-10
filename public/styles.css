@@ -84,13 +84,21 @@ h1 { margin: 0; font-size: clamp(29px, 4vw, 48px); letter-spacing: -.045em; line
 .insight strong { display: block; font-size: 11px; }.insight span { color: var(--muted); font-size: 10px; line-height: 1.45; }
 .conversations-panel { margin-top: 12px; }
 .table-heading { min-height: 80px; }
-.table-tools { display: flex; gap: 8px; }
+.table-tools { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 select, input[type="search"] { height: 35px; padding: 0 11px; color: #ced2cd; background: #0d100e; border: 1px solid var(--line); border-radius: 8px; outline: none; font-size: 11px; }
 input[type="search"] { width: 210px; }
+.filter-reset { height: 35px; padding: 0 11px; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 8px; font-size: 10px; cursor: pointer; }
+.filter-reset:hover { color: var(--text); border-color: #444b46; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 th { padding: 11px 20px; color: #6f756f; background: #101311; font-size: 9px; text-align: right; text-transform: uppercase; letter-spacing: .09em; }
 th:first-child, th:nth-child(2) { text-align: left; }
+.sort-button { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 0; color: inherit; background: transparent; border: 0; text-transform: inherit; letter-spacing: inherit; font-size: inherit; cursor: pointer; white-space: nowrap; }
+th:first-child .sort-button, th:nth-child(2) .sort-button { justify-content: flex-start; }
+.sort-button:hover, .sort-button.active { color: var(--lime); }
+.sort-button i { width: 8px; font-style: normal; }
+.sort-button.active i::after { content: "↓"; }
+.sort-button.active[data-direction="asc"] i::after { content: "↑"; }
 td { padding: 15px 20px; border-top: 1px solid #232725; text-align: right; font-size: 11px; white-space: nowrap; }
 td:first-child, td:nth-child(2) { text-align: left; }
 tbody tr { cursor: pointer; transition: background .15s; } tbody tr:hover { background: #1a1e1b; }
@@ -98,7 +106,13 @@ tbody tr { cursor: pointer; transition: background .15s; } tbody tr:hover { back
 .conversation-date { color: var(--muted); font-size: 9px; margin-top: 4px; }
 .model-pill { display: inline-block; padding: 4px 7px; background: #252a27; color: #c5cbc5; border-radius: 6px; font-size: 9px; }
 .cost { color: var(--lime); font-weight: 700; }
-.table-footer { display: flex; justify-content: space-between; padding: 13px 20px; color: var(--muted); font-size: 9px; border-top: 1px solid var(--line); }
+.table-footer { min-height: 58px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 18px; padding: 10px 20px; color: var(--muted); font-size: 9px; border-top: 1px solid var(--line); }
+.page-size { display: flex; align-items: center; gap: 8px; }
+.page-size select { width: 66px; height: 32px; }
+.pagination { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.pagination button { width: 32px; height: 32px; display: grid; place-items: center; color: var(--text); background: #1a1e1b; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.pagination button:disabled { opacity: .3; cursor: default; }
+#pageIndicator { min-width: 74px; text-align: center; }
 .empty { padding: 50px 20px !important; text-align: center !important; color: var(--muted); }
 .drawer { position: fixed; inset: 0; z-index: 50; visibility: hidden; }
 .drawer[aria-hidden="false"] { visibility: visible; }
@@ -121,4 +135,4 @@ dialog { width: min(690px, calc(100vw - 28px)); color: var(--text); background: 
 .toast { position: fixed; left: 50%; bottom: 25px; z-index: 80; transform: translate(-50%, 20px); opacity: 0; padding: 9px 14px; color: #111; background: var(--lime); border-radius: 9px; font-size: 11px; font-weight: 700; transition: .2s; }.toast.show { opacity: 1; transform: translate(-50%, 0); }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 1050px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); }.dashboard-grid { grid-template-columns: 1fr; }.mix-panel { grid-row: auto; }.donut-wrap { max-width: 420px; }.topbar { grid-template-columns: 1fr auto; }.periods { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 30; box-shadow: 0 8px 35px #000; }.actions { grid-column: 2; } }
-@media (max-width: 680px) { main { width: calc(100% - 24px); padding-top: 32px; }.topbar { padding: 0 12px; }.refresh-button { width: 38px; overflow: hidden; padding: 0 10px; font-size: 0; }.refresh-button span { font-size: 16px; }.hero { align-items: flex-start; }.privacy-pill { display: none; }.kpi-grid { grid-template-columns: repeat(2, 1fr); }.kpi:last-child { grid-column: span 2; }.legend { display: none; }.token-chart { gap: 3px; padding-left: 10px; padding-right: 10px; }.table-tools { width: 100%; margin-top: 14px; }.table-heading { align-items: flex-start; flex-direction: column; }.table-tools input { flex: 1; min-width: 0; }.pricing-row { grid-template-columns: 1fr repeat(3, 68px); }.drawer-card { padding: 25px 18px; }.detail-kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 680px) { main { width: calc(100% - 24px); padding-top: 32px; }.topbar { padding: 0 12px; }.refresh-button { width: 38px; overflow: hidden; padding: 0 10px; font-size: 0; }.refresh-button span { font-size: 16px; }.hero { align-items: flex-start; }.privacy-pill { display: none; }.kpi-grid { grid-template-columns: repeat(2, 1fr); }.kpi:last-child { grid-column: span 2; }.legend { display: none; }.token-chart { gap: 3px; padding-left: 10px; padding-right: 10px; }.table-tools { width: 100%; margin-top: 14px; justify-content: stretch; }.table-heading { align-items: flex-start; flex-direction: column; }.table-tools input { flex: 1; min-width: 130px; }.table-tools select { flex: 1; }.filter-reset { flex: 1 0 100%; }.table-footer { grid-template-columns: 1fr auto; }.page-size { display: none; }.pagination { justify-self: end; }.pricing-row { grid-template-columns: 1fr repeat(3, 68px); }.drawer-card { padding: 25px 18px; }.detail-kpis { grid-template-columns: repeat(2, 1fr); } }

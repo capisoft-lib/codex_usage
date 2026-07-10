@@ -12,7 +12,7 @@ The dashboard focuses on a concise set of signals:
 - activity charts by hour, day, or month;
 - filters by model, period, and conversation name.
 
-The interface is available in English, French, and German. The selected language and custom pricing stay in the browser's local storage.
+The interface is available in English, French, and German. The selected language and custom pricing stay in the browser's local storage. The latest usage analysis is also cached locally for one minute, so reloading the dashboard does not reread session data unnecessarily; use **Refresh** to bypass the cache immediately.
 
 ## Requirements
 
