@@ -2,17 +2,17 @@
 
 A small, privacy-conscious local dashboard for understanding Codex usage. It reads Codex session metadata from your machine and turns it into useful daily, weekly, monthly, and per-conversation metrics.
 
-The dashboard focuses on a concise set of signals:
+The dashboard is organized around the questions that matter first:
 
-- input, cached input, output, reasoning, and total tokens;
-- model calls and user turns;
-- turn duration, median duration, and p95 duration;
-- theoretical API cost by period and conversation;
-- cache effectiveness and high-usage conversations;
-- activity charts by hour, day, or month;
-- filters by model, period, and conversation name.
+- API-equivalent cost, visible immediately and split between fresh input, cached input, and output;
+- active projects, cost share by project, and one-click project filtering;
+- cost activity by hour, day, or month;
+- exact token totals, cache rate, model calls, turns, and duration;
+- API-equivalent cost by conversation;
+- estimated ChatGPT Codex credits, including per-call Fast mode multipliers;
+- filters by project, model, period, usage, and conversation name.
 
-The interface is available in English, French, and German. The selected language and custom pricing stay in the browser's local storage. The latest usage analysis is also cached locally for one minute, so reloading the dashboard does not reread session data unnecessarily; use **Refresh** to bypass the cache immediately.
+The interface is available in English, French, and German. The selected language and custom pricing stay in the browser's local storage. The server refreshes usage in the background and persists its complete per-session analysis, so the dashboard can render immediately instead of processing all sessions during a page request. Unchanged files reuse their stored analysis; only new or modified sessions are parsed again. An open page checks for a newer snapshot every 15 seconds; use **Refresh** to force a check immediately.
 
 ## Requirements
 
@@ -37,6 +37,37 @@ npm start
 ```
 
 Open [http://127.0.0.1:4317](http://127.0.0.1:4317) in your browser.
+
+## Docker
+
+The image is based on Node Alpine, runs as a non-root user, and reads the Codex directory through a read-only mount. A small named volume keeps the generated snapshot between container restarts.
+
+Copy `.env.example` to `.env`, then set `CODEX_DATA_PATH` to the absolute path of your local `.codex` directory. On Windows, for example:
+
+```powershell
+Copy-Item .env.example .env
+# Edit .env and set CODEX_DATA_PATH=C:/Users/your-name/.codex
+docker compose up -d --build
+```
+
+On macOS or Linux:
+
+```bash
+cp .env.example .env
+# Edit .env and set CODEX_DATA_PATH=/home/your-name/.codex
+docker compose up -d --build
+```
+
+Then open [http://127.0.0.1:4317](http://127.0.0.1:4317). Useful commands:
+
+```bash
+docker compose logs -f dashboard
+docker compose down
+```
+
+`docker compose down` keeps the named storage volume. Avoid `docker compose down -v` unless you intentionally want to delete the persisted analysis.
+
+The first start still needs one complete indexing pass. Later page loads and container restarts use the persisted per-session storage while a lightweight incremental pass runs in the background. Writes replace the stored snapshot atomically. This storage contains derived metadata and token counters only; message and reasoning contents are never copied into it.
 
 ### Windows
 
@@ -69,6 +100,8 @@ The server supports these optional environment variables:
 | `HOST` | `127.0.0.1` | Network interface used by the local HTTP server. |
 | `PORT` | `4317` | HTTP port used by the dashboard. |
 | `CODEX_HOME` | `$HOME/.codex` | Location of the Codex data directory. |
+| `REFRESH_INTERVAL_MS` | `15000` | Delay between background checks, in milliseconds (minimum 1000). |
+| `SNAPSHOT_PATH` | `.cache/usage-snapshot.json` | Persisted precomputed snapshot; set to an empty string to disable it. |
 
 Windows PowerShell example:
 
@@ -86,7 +119,14 @@ PORT=8080 CODEX_HOME=/path/to/.codex npm start
 
 ## Pricing estimates
 
-The displayed cost is a theoretical simulation based on standard API token pricing. It is not a bill and does not represent the cost of a ChatGPT or Codex subscription.
+The dashboard displays two deliberately separate measurements:
+
+- **Codex credits** use the official ChatGPT Codex token rate card. Each model call inherits the `service_tier` recorded in the session; `priority` and `fast` calls receive the documented Fast multiplier (currently 2.5x for GPT-5.6/GPT-5.5 and 2x for GPT-5.4).
+- **API-equivalent cost** simulates standard API pricing in US dollars. Fast multipliers do not apply to API-key usage.
+
+Calls for models absent from the official Codex credit rate card are reported as unrated instead of silently using a reference model. Credit rates and Fast multipliers are implemented in `public/usage-pricing.js` and covered by automated tests.
+
+The displayed cost is an estimate based on standard API token pricing. It is not a bill and does not represent the cost of a ChatGPT or Codex subscription.
 
 Public model prices are preconfigured. Internal or unpublished Codex model identifiers use a clearly marked reference price until you configure an exact rate in the pricing dialog. Custom values are stored only in your browser's local storage.
 
@@ -97,6 +137,8 @@ fresh input × input price
 + cached input × cached-input price
 + output × output price
 ```
+
+For GPT-5.6 calls above 272k input tokens, the documented 2x input and 1.5x output multipliers are applied to the full request. The session logs do not expose enough information to identify cache writes or every separately billed tool call, so those fees are explicitly excluded from the estimate. Current GPT-5.6 rates and the long-context rule are sourced from the [official OpenAI model documentation](https://developers.openai.com/api/docs/models/gpt-5.6-sol).
 
 Reasoning tokens are shown separately when available, but are already included in output usage and are not charged twice.
 
@@ -147,10 +189,12 @@ npm run check
 
 The project intentionally uses only Node.js built-in modules and browser-native HTML, CSS, and JavaScript.
 
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes, especially its privacy requirements for fixtures, logs, and local Codex data.
+
 ## Project structure
 
 ```text
-public/             Browser interface and translations
+public/             Browser interface, pricing logic, and translations
 src/analyzer.mjs    Read-only Codex session parser
 test/               Parser and privacy regression tests
 server.mjs          Local HTTP server

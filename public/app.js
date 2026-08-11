@@ -1,72 +1,70 @@
-const DEFAULT_PRICING = {
-  reference: { input: 5, cached: 0.5, output: 30, label: "Référence (GPT-5.5)" },
-  models: {
-    "gpt-5.5": { input: 5, cached: 0.5, output: 30 },
-    "gpt-5.5-pro": { input: 30, cached: 30, output: 180 },
-    "gpt-5.4": { input: 2.5, cached: 0.25, output: 15 },
-    "gpt-5.4-pro": { input: 30, cached: 30, output: 180 },
-    "gpt-5.2": { input: 1.75, cached: 0.175, output: 14 },
-    "gpt-5": { input: 1.25, cached: 0.125, output: 10 },
-  },
-};
+import { codexCreditsOfCalls, fastMultiplierFor, usageProfilesOfCalls } from "./usage-pricing.js";
+import { DEFAULT_API_PRICING, apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 
-// Keep the last analysis locally for a short time. Session files remain the source
-// of truth; the refresh button always bypasses this cache.
+// Paint the last browser snapshot immediately, then replace it from the server's
+// background-refreshed snapshot. Session files remain the source of truth.
 const USAGE_CACHE_KEY = "codex-usage-data";
-const USAGE_CACHE_MAX_AGE_MS = 60_000;
+const USAGE_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1_000;
+const POLL_INTERVAL_MS = 15_000;
 
 const I18N = {
   fr: {
     "period.today": "Aujourd’hui", "period.7d": "7 jours", "period.30d": "30 jours", "period.all": "Tout",
     "period.todayLabel": "Aujourd’hui", "period.7dLabel": "7 derniers jours", "period.30dLabel": "30 derniers jours", "period.allLabel": "Tout l’historique local",
-    "action.refresh": "Actualiser", "action.pricing": "Configurer les tarifs", "hero.title": "L’essentiel de votre activité Codex.", "hero.privacy": "Données locales uniquement",
-    "section.load": "CHARGE", "section.distribution": "RÉPARTITION", "section.rhythm": "RYTHME", "section.signal": "SIGNAL", "section.conversations": "CONVERSATIONS",
+    "action.refresh": "Actualiser", "action.pricing": "Configurer les tarifs", "hero.title": "Coûts et activité", "hero.privacy": "Données locales uniquement",
+    "section.load": "ACTIVITÉ", "section.distribution": "RÉPARTITION", "section.rhythm": "RYTHME", "section.signal": "SIGNAL", "section.conversations": "DÉTAIL",
     "chart.tokens": "Tokens dans le temps", "chart.footprint": "Empreinte tokens", "chart.calls": "Appels modèle",
     "token.fresh": "Non cachés", "token.cache": "Cache", "token.output": "Sortie", "token.freshLong": "Entrée fraîche", "token.cacheLong": "Entrée cache",
-    "insight.title": "À retenir", "table.title": "Où partent les tokens ?", "table.conversation": "Conversation", "table.model": "Modèle", "table.exchanges": "Échanges", "table.calls": "Appels", "table.duration": "Durée", "table.cost": "Coût estimé", "table.hint": "Cliquez sur une ligne pour le détail",
-    "search.placeholder": "Rechercher…", "model.all": "Tous les modèles", "filter.usage": "Filtrer par consommation", "filter.usageAll": "Tous les volumes", "filter.reset": "Réinitialiser", "conversation.untitled": "Conversation sans titre", "conversation.none": "Aucune conversation pour ces filtres.",
-    "kpi.cost": "Coût théorique", "kpi.prices": "tarifs API configurés", "kpi.referenceCalls": "{n} appels au tarif de référence", "kpi.tokens": "Tokens", "kpi.cacheRate": "{n} % des entrées en cache", "kpi.calls": "Appels modèle", "kpi.tokensPerCall": "{n} tokens / appel", "kpi.noCall": "aucun appel", "kpi.exchanges": "Échanges", "kpi.conversations": "{n} conversation{s}", "kpi.median": "Durée médiane", "kpi.p95": "p95 {value}", "kpi.completed": "échanges terminés",
+    "insight.title": "À retenir", "table.title": "Conversations", "table.conversation": "Conversation", "table.project": "Projet", "table.model": "Configuration", "table.exchange": "échange", "table.exchanges": "Échanges", "table.calls": "Appels", "table.duration": "Durée", "table.cost": "Coût API", "table.hint": "Cliquez sur une ligne pour le détail",
+    "search.placeholder": "Rechercher…", "model.all": "Tous les modèles", "filter.folderAll": "Tous les dossiers", "filter.folderSelected": "{n} dossier{s}", "filter.folder": "Filtrer par projet ou dossier", "filter.usage": "Filtrer par consommation", "filter.usageAll": "Tous les volumes", "filter.reset": "Réinitialiser", "conversation.untitled": "Conversation sans titre", "conversation.none": "Aucune conversation pour ces filtres.",
+    "kpi.credits": "Crédits Codex", "kpi.officialRates": "tarifs officiels par token", "kpi.fastPremium": "Prime Fast", "kpi.fastCalls": "{n} appels Fast détectés", "kpi.fastUsage": "{n} appels Fast · prime {premium}", "kpi.standardUsage": "tarification Codex Standard", "kpi.unrated": "{n} appels non tarifés", "kpi.cost": "Équivalent API", "kpi.prices": "tarifs API configurés", "kpi.referenceCalls": "{n} appels au tarif de référence", "kpi.tokens": "Tokens traités", "kpi.cacheRate": "{n} % des entrées en cache", "kpi.calls": "Appels modèle", "kpi.tokensPerCall": "{n} tokens / appel", "kpi.noCall": "aucun appel", "kpi.exchanges": "Échanges", "kpi.conversations": "{n} conversation{s}", "kpi.projects": "Projets actifs", "kpi.median": "Durée médiane", "kpi.p95": "p95 {value}", "kpi.completed": "échanges terminés",
+    "cost.estimate": "ESTIMATION API", "cost.officialCoverage": "{n} % des appels tarifés", "cost.referenceCoverage": "{n} appels au tarif de référence", "cost.longContext": "{n} appels > 272 k · majoration incluse", "cost.standardContext": "Aucun appel > 272 k tokens", "cost.disclaimer": "Hors frais d’outils et écritures de cache", "cost.fresh": "Entrée fraîche", "cost.cached": "Entrée cache", "cost.output": "Sortie", "cost.config": "Ajuster les tarifs",
+    "projects.label": "PROJETS", "projects.title": "Coût par projet", "projects.hint": "Cliquez sur un projet pour filtrer", "projects.none": "Aucun projet sur cette période", "projects.unknown": "Sans projet", "projects.filter": "Filtrer sur {name}", "chart.cost": "Coût API dans le temps", "chart.costHint": "Ventilé par type de token",
     "calls.peak": "pic {label} · {n}", "calls.none": "aucun appel", "calls.count": "{n} appels", "calls.one": "1 appel",
-    "insight.dominant": "Conversation dominante", "insight.dominantText": "{title} concentre {n} % des tokens.", "insight.cache": "Cache utile", "insight.cacheText": "{n} % des tokens d’entrée ont bénéficié du cache.", "insight.longest": "Échange le plus long", "insight.longestText": "{duration} avec {calls}.", "insight.noCompleted": "Aucun échange terminé sur la période.", "insight.quiet": "Période calme", "insight.quietText": "Aucun appel modèle trouvé sur cette période.",
+    "insight.dominant": "Conversation dominante", "insight.dominantText": "{title} concentre {n} % des tokens.", "insight.cache": "Cache utile", "insight.cacheText": "{n} % des tokens d’entrée ont bénéficié du cache.", "insight.fast": "Prime Fast", "insight.fastText": "{n} appels Fast ajoutent {premium} au tarif Standard.", "insight.longest": "Échange le plus long", "insight.longestText": "{duration} avec {calls}.", "insight.noCompleted": "Aucun échange terminé sur la période.", "insight.quiet": "Période calme", "insight.quietText": "Aucun appel modèle trouvé sur cette période.",
     "table.count": "{n} conversation{s}", "table.range": "{start}–{end} sur {total}", "pagination.perPage": "Par page", "pagination.page": "Page {page} / {pages}", "pagination.previous": "Page précédente", "pagination.next": "Page suivante",
-    "detail.label": "DÉTAIL CONVERSATION", "detail.unknownModel": "modèle inconnu", "detail.cost": "Coût estimé", "detail.calls": "Appels", "detail.exchanges": "Échanges", "detail.cache": "Cache input", "detail.duration": "Durée cumulée", "detail.periodExchanges": "Échanges de la période", "detail.noExchange": "Aucun échange.", "detail.cwd": "Dossier de travail", "detail.id": "Identifiant", "detail.unknown": "Non renseigné",
-    "pricing.simulation": "SIMULATION", "pricing.title": "Tarifs théoriques", "pricing.copy": "Prix en dollars par million de tokens. Les modèles sans tarif public utilisent le tarif de référence. Ces montants simulent l’API standard et ne représentent pas votre abonnement Codex.", "pricing.reset": "Valeurs par défaut", "pricing.save": "Enregistrer", "pricing.model": "Modèle", "pricing.input": "Entrée", "pricing.reference": "Référence (GPT-5.5)", "pricing.saved": "Tarifs enregistrés",
+    "detail.label": "DÉTAIL CONVERSATION", "detail.unknownModel": "modèle inconnu", "detail.configuration": "Configuration détectée", "detail.credits": "Crédits Codex", "detail.cost": "Coût API théorique", "detail.calls": "Appels", "detail.exchanges": "Échanges", "detail.cache": "Cache input", "detail.duration": "Durée cumulée", "detail.periodExchanges": "Échanges de la période", "detail.noExchange": "Aucun échange.", "detail.cwd": "Dossier de travail", "detail.id": "Identifiant", "detail.unknown": "Non renseigné", "fast.badge": "Fast ×{n}", "mode.standard": "Standard", "effort.low": "Low", "effort.medium": "Medium", "effort.high": "High", "effort.xhigh": "Extra-high", "effort.unknown": "Effort inconnu", "profile.more": "+{n} autre{s}",
+    "pricing.simulation": "ESTIMATION", "pricing.title": "Tarifs API", "pricing.copy": "Prix en dollars par million de tokens. Les tarifs GPT-5.6 officiels et les majorations long contexte sont appliqués. Les frais d’outils et d’écriture de cache ne sont pas observables dans les sessions locales.", "pricing.reset": "Valeurs officielles", "pricing.save": "Enregistrer", "pricing.model": "Modèle", "pricing.input": "Entrée", "pricing.reference": "Référence (GPT-5.6 Sol)", "pricing.saved": "Tarifs enregistrés",
     "freshness": "{n} sessions indexées · relevé {time}", "refresh.done": "Sessions actualisées", "load.error": "Impossible de lire les sessions : {error}", "load.errorToast": "Erreur de chargement",
     "duration.seconds": "{n} s", "duration.minutes": "{m} min {s} s",
   },
   en: {
     "period.today": "Today", "period.7d": "7 days", "period.30d": "30 days", "period.all": "All",
     "period.todayLabel": "Today", "period.7dLabel": "Last 7 days", "period.30dLabel": "Last 30 days", "period.allLabel": "All local history",
-    "action.refresh": "Refresh", "action.pricing": "Configure prices", "hero.title": "The essentials of your Codex activity.", "hero.privacy": "Local data only",
-    "section.load": "LOAD", "section.distribution": "DISTRIBUTION", "section.rhythm": "PACE", "section.signal": "SIGNAL", "section.conversations": "CONVERSATIONS",
+    "action.refresh": "Refresh", "action.pricing": "Configure prices", "hero.title": "Costs and activity", "hero.privacy": "Local data only",
+    "section.load": "ACTIVITY", "section.distribution": "DISTRIBUTION", "section.rhythm": "PACE", "section.signal": "SIGNAL", "section.conversations": "DETAIL",
     "chart.tokens": "Tokens over time", "chart.footprint": "Token footprint", "chart.calls": "Model calls",
     "token.fresh": "Uncached", "token.cache": "Cache", "token.output": "Output", "token.freshLong": "Fresh input", "token.cacheLong": "Cached input",
-    "insight.title": "Key takeaways", "table.title": "Where do the tokens go?", "table.conversation": "Conversation", "table.model": "Model", "table.exchanges": "Turns", "table.calls": "Calls", "table.duration": "Duration", "table.cost": "Estimated cost", "table.hint": "Click a row for details",
-    "search.placeholder": "Search…", "model.all": "All models", "filter.usage": "Filter by usage", "filter.usageAll": "All usage levels", "filter.reset": "Reset", "conversation.untitled": "Untitled conversation", "conversation.none": "No conversations match these filters.",
-    "kpi.cost": "Theoretical cost", "kpi.prices": "configured API prices", "kpi.referenceCalls": "{n} calls use reference pricing", "kpi.tokens": "Tokens", "kpi.cacheRate": "{n}% of input was cached", "kpi.calls": "Model calls", "kpi.tokensPerCall": "{n} tokens / call", "kpi.noCall": "no calls", "kpi.exchanges": "Turns", "kpi.conversations": "{n} conversation{s}", "kpi.median": "Median duration", "kpi.p95": "p95 {value}", "kpi.completed": "completed turns",
+    "insight.title": "Key takeaways", "table.title": "Conversations", "table.conversation": "Conversation", "table.project": "Project", "table.model": "Configuration", "table.exchange": "turn", "table.exchanges": "Turns", "table.calls": "Calls", "table.duration": "Duration", "table.cost": "API cost", "table.hint": "Click a row for details",
+    "search.placeholder": "Search…", "model.all": "All models", "filter.folderAll": "All folders", "filter.folderSelected": "{n} folder{s}", "filter.folder": "Filter by project or folder", "filter.usage": "Filter by usage", "filter.usageAll": "All usage levels", "filter.reset": "Reset", "conversation.untitled": "Untitled conversation", "conversation.none": "No conversations match these filters.",
+    "kpi.credits": "Codex credits", "kpi.officialRates": "official per-token rates", "kpi.fastPremium": "Fast premium", "kpi.fastCalls": "{n} Fast calls detected", "kpi.fastUsage": "{n} Fast calls · {premium} premium", "kpi.standardUsage": "Standard Codex pricing", "kpi.unrated": "{n} unrated calls", "kpi.cost": "API equivalent", "kpi.prices": "configured API prices", "kpi.referenceCalls": "{n} calls use reference pricing", "kpi.tokens": "Tokens processed", "kpi.cacheRate": "{n}% of input was cached", "kpi.calls": "Model calls", "kpi.tokensPerCall": "{n} tokens / call", "kpi.noCall": "no calls", "kpi.exchanges": "Turns", "kpi.conversations": "{n} conversation{s}", "kpi.projects": "Active projects", "kpi.median": "Median duration", "kpi.p95": "p95 {value}", "kpi.completed": "completed turns",
+    "cost.estimate": "API ESTIMATE", "cost.officialCoverage": "{n}% of calls priced", "cost.referenceCoverage": "{n} calls use the reference rate", "cost.longContext": "{n} calls > 272k · surcharge included", "cost.standardContext": "No calls above 272k tokens", "cost.disclaimer": "Excludes tool fees and cache writes", "cost.fresh": "Fresh input", "cost.cached": "Cached input", "cost.output": "Output", "cost.config": "Adjust rates",
+    "projects.label": "PROJECTS", "projects.title": "Cost by project", "projects.hint": "Click a project to filter", "projects.none": "No project in this period", "projects.unknown": "No project", "projects.filter": "Filter on {name}", "chart.cost": "API cost over time", "chart.costHint": "Split by token type",
     "calls.peak": "peak {label} · {n}", "calls.none": "no calls", "calls.count": "{n} calls", "calls.one": "1 call",
-    "insight.dominant": "Dominant conversation", "insight.dominantText": "{title} accounts for {n}% of tokens.", "insight.cache": "Effective cache", "insight.cacheText": "{n}% of input tokens were served from cache.", "insight.longest": "Longest turn", "insight.longestText": "{duration} with {calls}.", "insight.noCompleted": "No completed turns in this period.", "insight.quiet": "Quiet period", "insight.quietText": "No model calls found in this period.",
+    "insight.dominant": "Dominant conversation", "insight.dominantText": "{title} accounts for {n}% of tokens.", "insight.cache": "Effective cache", "insight.cacheText": "{n}% of input tokens were served from cache.", "insight.fast": "Fast premium", "insight.fastText": "{n} Fast calls add {premium} over Standard pricing.", "insight.longest": "Longest turn", "insight.longestText": "{duration} with {calls}.", "insight.noCompleted": "No completed turns in this period.", "insight.quiet": "Quiet period", "insight.quietText": "No model calls found in this period.",
     "table.count": "{n} conversation{s}", "table.range": "{start}–{end} of {total}", "pagination.perPage": "Per page", "pagination.page": "Page {page} / {pages}", "pagination.previous": "Previous page", "pagination.next": "Next page",
-    "detail.label": "CONVERSATION DETAILS", "detail.unknownModel": "unknown model", "detail.cost": "Estimated cost", "detail.calls": "Calls", "detail.exchanges": "Turns", "detail.cache": "Input cache", "detail.duration": "Total duration", "detail.periodExchanges": "Turns in this period", "detail.noExchange": "No turns.", "detail.cwd": "Working directory", "detail.id": "Identifier", "detail.unknown": "Not available",
-    "pricing.simulation": "SIMULATION", "pricing.title": "Theoretical prices", "pricing.copy": "Prices in US dollars per million tokens. Models without public pricing use the reference rate. These amounts simulate the standard API and do not represent your Codex subscription.", "pricing.reset": "Reset defaults", "pricing.save": "Save", "pricing.model": "Model", "pricing.input": "Input", "pricing.reference": "Reference (GPT-5.5)", "pricing.saved": "Prices saved",
+    "detail.label": "CONVERSATION DETAILS", "detail.unknownModel": "unknown model", "detail.configuration": "Detected configuration", "detail.credits": "Codex credits", "detail.cost": "Theoretical API cost", "detail.calls": "Calls", "detail.exchanges": "Turns", "detail.cache": "Input cache", "detail.duration": "Total duration", "detail.periodExchanges": "Turns in this period", "detail.noExchange": "No turns.", "detail.cwd": "Working directory", "detail.id": "Identifier", "detail.unknown": "Not available", "fast.badge": "Fast ×{n}", "mode.standard": "Standard", "effort.low": "Low", "effort.medium": "Medium", "effort.high": "High", "effort.xhigh": "Extra-high", "effort.unknown": "Unknown effort", "profile.more": "+{n} more",
+    "pricing.simulation": "ESTIMATE", "pricing.title": "API rates", "pricing.copy": "Prices in US dollars per million tokens. Official GPT-5.6 rates and long-context surcharges are applied. Tool and cache-write fees are not observable in local sessions.", "pricing.reset": "Official defaults", "pricing.save": "Save", "pricing.model": "Model", "pricing.input": "Input", "pricing.reference": "Reference (GPT-5.6 Sol)", "pricing.saved": "Prices saved",
     "freshness": "{n} sessions indexed · updated {time}", "refresh.done": "Sessions refreshed", "load.error": "Unable to read sessions: {error}", "load.errorToast": "Loading error",
     "duration.seconds": "{n}s", "duration.minutes": "{m}m {s}s",
   },
   de: {
     "period.today": "Heute", "period.7d": "7 Tage", "period.30d": "30 Tage", "period.all": "Alle",
     "period.todayLabel": "Heute", "period.7dLabel": "Letzte 7 Tage", "period.30dLabel": "Letzte 30 Tage", "period.allLabel": "Gesamter lokaler Verlauf",
-    "action.refresh": "Aktualisieren", "action.pricing": "Preise konfigurieren", "hero.title": "Das Wesentliche Ihrer Codex-Aktivität.", "hero.privacy": "Nur lokale Daten",
-    "section.load": "AUSLASTUNG", "section.distribution": "VERTEILUNG", "section.rhythm": "RHYTHMUS", "section.signal": "SIGNAL", "section.conversations": "KONVERSATIONEN",
+    "action.refresh": "Aktualisieren", "action.pricing": "Preise konfigurieren", "hero.title": "Kosten und Aktivität", "hero.privacy": "Nur lokale Daten",
+    "section.load": "AKTIVITÄT", "section.distribution": "VERTEILUNG", "section.rhythm": "RHYTHMUS", "section.signal": "SIGNAL", "section.conversations": "DETAIL",
     "chart.tokens": "Tokens im Zeitverlauf", "chart.footprint": "Token-Verteilung", "chart.calls": "Modellaufrufe",
     "token.fresh": "Nicht gecacht", "token.cache": "Cache", "token.output": "Ausgabe", "token.freshLong": "Frische Eingabe", "token.cacheLong": "Gecachte Eingabe",
-    "insight.title": "Das Wichtigste", "table.title": "Wohin gehen die Tokens?", "table.conversation": "Konversation", "table.model": "Modell", "table.exchanges": "Runden", "table.calls": "Aufrufe", "table.duration": "Dauer", "table.cost": "Geschätzte Kosten", "table.hint": "Zeile anklicken für Details",
-    "search.placeholder": "Suchen…", "model.all": "Alle Modelle", "filter.usage": "Nach Nutzung filtern", "filter.usageAll": "Alle Nutzungsstufen", "filter.reset": "Zurücksetzen", "conversation.untitled": "Unbenannte Konversation", "conversation.none": "Keine Konversationen für diese Filter.",
-    "kpi.cost": "Theoretische Kosten", "kpi.prices": "konfigurierte API-Preise", "kpi.referenceCalls": "{n} Aufrufe zum Referenzpreis", "kpi.tokens": "Tokens", "kpi.cacheRate": "{n} % der Eingabe aus Cache", "kpi.calls": "Modellaufrufe", "kpi.tokensPerCall": "{n} Tokens / Aufruf", "kpi.noCall": "keine Aufrufe", "kpi.exchanges": "Runden", "kpi.conversations": "{n} Konversation{s}", "kpi.median": "Median-Dauer", "kpi.p95": "p95 {value}", "kpi.completed": "abgeschlossene Runden",
+    "insight.title": "Das Wichtigste", "table.title": "Konversationen", "table.conversation": "Konversation", "table.project": "Projekt", "table.model": "Konfiguration", "table.exchange": "Runde", "table.exchanges": "Runden", "table.calls": "Aufrufe", "table.duration": "Dauer", "table.cost": "API-Kosten", "table.hint": "Zeile anklicken für Details",
+    "search.placeholder": "Suchen…", "model.all": "Alle Modelle", "filter.folderAll": "Alle Ordner", "filter.folderSelected": "{n} Ordner", "filter.folder": "Nach Projekt oder Ordner filtern", "filter.usage": "Nach Nutzung filtern", "filter.usageAll": "Alle Nutzungsstufen", "filter.reset": "Zurücksetzen", "conversation.untitled": "Unbenannte Konversation", "conversation.none": "Keine Konversationen für diese Filter.",
+    "kpi.credits": "Codex-Credits", "kpi.officialRates": "offizielle Token-Tarife", "kpi.fastPremium": "Fast-Aufpreis", "kpi.fastCalls": "{n} Fast-Aufrufe erkannt", "kpi.fastUsage": "{n} Fast-Aufrufe · {premium} Aufpreis", "kpi.standardUsage": "Standard-Codex-Tarif", "kpi.unrated": "{n} Aufrufe ohne Tarif", "kpi.cost": "API-Äquivalent", "kpi.prices": "konfigurierte API-Preise", "kpi.referenceCalls": "{n} Aufrufe zum Referenzpreis", "kpi.tokens": "Verarbeitete Tokens", "kpi.cacheRate": "{n} % der Eingabe aus Cache", "kpi.calls": "Modellaufrufe", "kpi.tokensPerCall": "{n} Tokens / Aufruf", "kpi.noCall": "keine Aufrufe", "kpi.exchanges": "Runden", "kpi.conversations": "{n} Konversation{s}", "kpi.projects": "Aktive Projekte", "kpi.median": "Median-Dauer", "kpi.p95": "p95 {value}", "kpi.completed": "abgeschlossene Runden",
+    "cost.estimate": "API-SCHÄTZUNG", "cost.officialCoverage": "{n} % der Aufrufe tarifiert", "cost.referenceCoverage": "{n} Aufrufe zum Referenztarif", "cost.longContext": "{n} Aufrufe > 272k · Aufpreis enthalten", "cost.standardContext": "Keine Aufrufe über 272k Tokens", "cost.disclaimer": "Ohne Tool-Gebühren und Cache-Schreibvorgänge", "cost.fresh": "Frische Eingabe", "cost.cached": "Cache-Eingabe", "cost.output": "Ausgabe", "cost.config": "Tarife anpassen",
+    "projects.label": "PROJEKTE", "projects.title": "Kosten nach Projekt", "projects.hint": "Projekt anklicken zum Filtern", "projects.none": "Kein Projekt in diesem Zeitraum", "projects.unknown": "Ohne Projekt", "projects.filter": "Nach {name} filtern", "chart.cost": "API-Kosten im Zeitverlauf", "chart.costHint": "Nach Token-Typ aufgeteilt",
     "calls.peak": "Spitze {label} · {n}", "calls.none": "keine Aufrufe", "calls.count": "{n} Aufrufe", "calls.one": "1 Aufruf",
-    "insight.dominant": "Dominante Konversation", "insight.dominantText": "{title} verursacht {n} % der Tokens.", "insight.cache": "Effektiver Cache", "insight.cacheText": "{n} % der Eingabe-Tokens kamen aus dem Cache.", "insight.longest": "Längste Runde", "insight.longestText": "{duration} mit {calls}.", "insight.noCompleted": "Keine abgeschlossene Runde in diesem Zeitraum.", "insight.quiet": "Ruhiger Zeitraum", "insight.quietText": "Keine Modellaufrufe in diesem Zeitraum.",
+    "insight.dominant": "Dominante Konversation", "insight.dominantText": "{title} verursacht {n} % der Tokens.", "insight.cache": "Effektiver Cache", "insight.cacheText": "{n} % der Eingabe-Tokens kamen aus dem Cache.", "insight.fast": "Fast-Aufpreis", "insight.fastText": "{n} Fast-Aufrufe erhöhen den Standardtarif um {premium}.", "insight.longest": "Längste Runde", "insight.longestText": "{duration} mit {calls}.", "insight.noCompleted": "Keine abgeschlossene Runde in diesem Zeitraum.", "insight.quiet": "Ruhiger Zeitraum", "insight.quietText": "Keine Modellaufrufe in diesem Zeitraum.",
     "table.count": "{n} Konversation{s}", "table.range": "{start}–{end} von {total}", "pagination.perPage": "Pro Seite", "pagination.page": "Seite {page} / {pages}", "pagination.previous": "Vorherige Seite", "pagination.next": "Nächste Seite",
-    "detail.label": "KONVERSATIONSDETAILS", "detail.unknownModel": "unbekanntes Modell", "detail.cost": "Geschätzte Kosten", "detail.calls": "Aufrufe", "detail.exchanges": "Runden", "detail.cache": "Eingabe-Cache", "detail.duration": "Gesamtdauer", "detail.periodExchanges": "Runden im Zeitraum", "detail.noExchange": "Keine Runden.", "detail.cwd": "Arbeitsverzeichnis", "detail.id": "Kennung", "detail.unknown": "Nicht verfügbar",
-    "pricing.simulation": "SIMULATION", "pricing.title": "Theoretische Preise", "pricing.copy": "Preise in US-Dollar pro Million Tokens. Modelle ohne öffentlichen Preis verwenden den Referenztarif. Diese Beträge simulieren die Standard-API und entsprechen nicht Ihrem Codex-Abonnement.", "pricing.reset": "Standardwerte", "pricing.save": "Speichern", "pricing.model": "Modell", "pricing.input": "Eingabe", "pricing.reference": "Referenz (GPT-5.5)", "pricing.saved": "Preise gespeichert",
+    "detail.label": "KONVERSATIONSDETAILS", "detail.unknownModel": "unbekanntes Modell", "detail.configuration": "Erkannte Konfiguration", "detail.credits": "Codex-Credits", "detail.cost": "Theoretische API-Kosten", "detail.calls": "Aufrufe", "detail.exchanges": "Runden", "detail.cache": "Eingabe-Cache", "detail.duration": "Gesamtdauer", "detail.periodExchanges": "Runden im Zeitraum", "detail.noExchange": "Keine Runden.", "detail.cwd": "Arbeitsverzeichnis", "detail.id": "Kennung", "detail.unknown": "Nicht verfügbar", "fast.badge": "Fast ×{n}", "mode.standard": "Standard", "effort.low": "Low", "effort.medium": "Medium", "effort.high": "High", "effort.xhigh": "Extra-high", "effort.unknown": "Unbekannter Aufwand", "profile.more": "+{n} weitere",
+    "pricing.simulation": "SCHÄTZUNG", "pricing.title": "API-Tarife", "pricing.copy": "Preise in US-Dollar pro Million Tokens. Offizielle GPT-5.6-Tarife und Langkontext-Aufpreise werden angewendet. Tool- und Cache-Schreibgebühren sind in lokalen Sitzungen nicht sichtbar.", "pricing.reset": "Offizielle Werte", "pricing.save": "Speichern", "pricing.model": "Modell", "pricing.input": "Eingabe", "pricing.reference": "Referenz (GPT-5.6 Sol)", "pricing.saved": "Preise gespeichert",
     "freshness": "{n} Sitzungen indexiert · Stand {time}", "refresh.done": "Sitzungen aktualisiert", "load.error": "Sitzungen konnten nicht gelesen werden: {error}", "load.errorToast": "Ladefehler",
     "duration.seconds": "{n} s", "duration.minutes": "{m} min {s} s",
   },
@@ -77,6 +75,7 @@ const state = {
   period: "today",
   query: "",
   model: "all",
+  folders: new Set(),
   usageThreshold: 0,
   page: 1,
   pageSize: 25,
@@ -91,12 +90,12 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 const locale = () => ({ fr: "fr-FR", en: "en-US", de: "de-DE" })[state.language];
 const t = (key, values = {}) => (I18N[state.language]?.[key] || I18N.fr[key] || key).replace(/\{(\w+)\}/g, (_, name) => values[name] ?? "");
 const formatInt = (value) => new Intl.NumberFormat(locale(), { maximumFractionDigits: 0 }).format(value);
-const formatCompact = (value) => new Intl.NumberFormat(locale(), { notation: "compact", maximumFractionDigits: 1 }).format(value);
+const formatCompact = (value) => new Intl.NumberFormat(locale(), { notation: "compact", maximumFractionDigits: 2 }).format(value);
 const formatDate = (value) => new Intl.DateTimeFormat(locale(), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(value);
 
 function loadPricing() {
-  try { return JSON.parse(localStorage.getItem("codex-usage-pricing")) || structuredClone(DEFAULT_PRICING); }
-  catch { return structuredClone(DEFAULT_PRICING); }
+  try { return mergeApiPricing(JSON.parse(localStorage.getItem("codex-usage-pricing")) || {}); }
+  catch { return mergeApiPricing(); }
 }
 
 function loadUsageCache() {
@@ -124,36 +123,77 @@ function dateRange() {
   return { start, end };
 }
 
-function inRange(timestamp) {
+function inRange(timestamp, range = dateRange()) {
   const time = Date.parse(timestamp);
-  const { start, end } = dateRange();
+  const { start, end } = range;
   return Number.isFinite(time) && time >= start.getTime() && time <= end.getTime();
 }
 
 function zeroUsage() { return { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningOutputTokens: 0, totalTokens: 0 }; }
 function sumUsage(items) { return items.reduce((sum, item) => { for (const key of Object.keys(sum)) sum[key] += item.usage?.[key] || 0; return sum; }, zeroUsage()); }
 
-function priceFor(model) {
-  if (state.pricing.models[model]) return { ...state.pricing.models[model], exact: true };
-  const key = Object.keys(state.pricing.models).sort((a, b) => b.length - a.length).find((name) => model === name || model.startsWith(`${name}-`));
-  return key ? { ...state.pricing.models[key], exact: true } : { ...state.pricing.reference, exact: false };
+function modelPriceFor(model) {
+  return apiPriceFor(state.pricing, model);
+}
+
+function effortPriceKey(model, effort) { return `${model}::${effort}`; }
+
+function priceFor(model, effort = null) {
+  return apiPriceFor(state.pricing, model, effort);
 }
 
 function costOfCalls(calls) {
-  let cost = 0; let estimatedCalls = 0;
-  for (const call of calls) {
-    const price = priceFor(call.model || "unknown");
-    const usage = call.usage || zeroUsage();
-    const fresh = Math.max(0, usage.inputTokens - usage.cachedInputTokens);
-    cost += (fresh * price.input + usage.cachedInputTokens * price.cached + usage.outputTokens * price.output) / 1_000_000;
-    if (!price.exact) estimatedCalls += 1;
-  }
-  return { cost, estimatedCalls };
+  return apiCostOfCalls(calls, state.pricing);
 }
 
 function formatCost(value) {
   const digits = value < 0.01 ? 4 : value < 1 ? 3 : 2;
   return new Intl.NumberFormat(locale(), { style: "currency", currency: "USD", minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
+}
+
+function formatCredits(value) {
+  return `${new Intl.NumberFormat(locale(), { minimumFractionDigits: value < 1 ? 3 : 2, maximumFractionDigits: value < 1 ? 3 : 2 }).format(value)} cr`;
+}
+
+function creditSummaryMeta(summary) {
+  const parts = [];
+  if (summary.fastCalls) parts.push(t("kpi.fastUsage", { n: formatInt(summary.fastCalls), premium: formatCredits(summary.fastPremiumCredits) }));
+  else parts.push(t("kpi.standardUsage"));
+  if (summary.unratedCalls) parts.push(t("kpi.unrated", { n: formatInt(summary.unratedCalls) }));
+  return parts.join(" · ");
+}
+
+function fastBadge(model, serviceTier) {
+  const multiplier = fastMultiplierFor(model, serviceTier);
+  return fastMultiplierBadge(multiplier);
+}
+
+function fastMultiplierBadge(multiplier) {
+  return multiplier > 1 ? `<span class="fast-badge">${t("fast.badge", { n: multiplier })}</span>` : "";
+}
+
+function effortLabel(effort) {
+  const normalized = String(effort || "").toLowerCase();
+  if (!normalized) return t("effort.unknown");
+  const key = `effort.${normalized}`;
+  const translated = t(key);
+  return translated === key ? normalized : translated;
+}
+
+function usageProfileMarkup(profile, { showCalls = true } = {}) {
+  const modeBadge = profile.fast
+    ? fastMultiplierBadge(profile.multiplier)
+    : `<span class="standard-badge">${t("mode.standard")}</span>`;
+  const calls = profile.calls === 1 ? t("calls.one") : t("calls.count", { n: formatInt(profile.calls) });
+  return `<div class="usage-profile${profile.fast ? " is-fast" : ""}"><span class="model-pill">${escapeHtml(profile.model)}</span><span class="effort-badge">${escapeHtml(effortLabel(profile.effort))}</span>${modeBadge}${showCalls ? `<span class="profile-calls">${calls}</span>` : ""}</div>`;
+}
+
+function usageProfilesMarkup(calls, { limit = Infinity, compact = false } = {}) {
+  const profiles = usageProfilesOfCalls(calls);
+  const visible = profiles.slice(0, limit);
+  const remaining = profiles.length - visible.length;
+  const more = remaining > 0 ? `<span class="profile-more">${t("profile.more", { n: remaining, s: pluralSuffix(remaining) })}</span>` : "";
+  return `<div class="usage-profiles${compact ? " compact" : ""}">${visible.map((profile) => usageProfileMarkup(profile)).join("")}${more}</div>`;
 }
 
 function formatDuration(ms) {
@@ -166,22 +206,37 @@ function formatDuration(ms) {
 
 function pluralSuffix(count) { return count === 1 ? "" : state.language === "de" ? "en" : "s"; }
 function sessionTitle(session) { return session.title === "Conversation sans titre" ? t("conversation.untitled") : session.title; }
+function projectName(session) {
+  const parts = String(session.cwd || "").replace(/\\/g, "/").split("/").filter(Boolean);
+  return parts.at(-1) || t("projects.unknown");
+}
 
-function percentile(values, ratio) {
-  if (!values.length) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * ratio))];
+function projectGroups(sessions) {
+  const groups = new Map();
+  for (const session of sessions) {
+    const name = projectName(session);
+    const group = groups.get(name) || { name, paths: new Set(), sessions: [], calls: [] };
+    group.paths.add(session.cwd || "");
+    group.sessions.push(session);
+    group.calls.push(...session.calls);
+    groups.set(name, group);
+  }
+  return [...groups.values()]
+    .map((group) => ({ ...group, paths: [...group.paths], cost: costOfCalls(group.calls) }))
+    .sort((left, right) => right.cost.cost - left.cost.cost);
 }
 
 function scopedSessions() {
   if (!state.data) return [];
+  const range = dateRange();
   return state.data.sessions.map((session) => {
-    const calls = session.calls.filter((call) => inRange(call.timestamp) && (state.model === "all" || call.model === state.model));
-    const turns = session.turns.filter((turn) => inRange(turn.startedAt) && (state.model === "all" || turn.model === state.model));
+    if (state.folders.size && !state.folders.has(session.cwd || "")) return null;
+    const calls = session.calls.filter((call) => inRange(call.timestamp, range) && (state.model === "all" || call.model === state.model));
+    const turns = session.turns.filter((turn) => inRange(turn.startedAt, range) && (state.model === "all" || turn.model === state.model));
     return { ...session, calls, turns, usage: sumUsage(calls), modelCalls: calls.length, exchanges: turns.length, durationMs: turns.reduce((sum, turn) => sum + (turn.durationMs || 0), 0) };
   // Ignore heartbeat/maintenance sessions that complete without a model call;
   // they otherwise swamp the conversation view with zero-token rows.
-  }).filter((session) => session.calls.length);
+  }).filter((session) => session?.calls.length);
 }
 
 function allScopedCalls(sessions = scopedSessions()) { return sessions.flatMap((session) => session.calls); }
@@ -191,27 +246,76 @@ function render() {
   const calls = allScopedCalls(sessions);
   const turns = sessions.flatMap((session) => session.turns);
   const usage = sumUsage(calls);
-  renderKpis(sessions, calls, turns, usage);
-  renderTokenChart(calls);
-  renderTokenMix(usage);
-  renderCallChart(calls);
-  renderInsights(sessions, calls, turns, usage);
+  renderCostSummary(calls);
+  renderKpis(sessions, calls, usage);
+  renderProjects(sessions);
+  renderCostChart(calls);
   renderTable(sessions);
   renderFreshness();
 }
 
-function renderKpis(sessions, calls, turns, usage) {
+function renderCostSummary(calls) {
   const cost = costOfCalls(calls);
-  const durations = turns.map((turn) => turn.durationMs).filter(Boolean);
-  const cacheRate = usage.inputTokens ? usage.cachedInputTokens / usage.inputTokens : 0;
-  const cards = [
-    [t("kpi.cost"), formatCost(cost.cost), cost.estimatedCalls ? t("kpi.referenceCalls", { n: cost.estimatedCalls }) : t("kpi.prices"), "$"],
-    [t("kpi.tokens"), formatCompact(usage.totalTokens), t("kpi.cacheRate", { n: Math.round(cacheRate * 100) }), "◫"],
-    [t("kpi.calls"), formatInt(calls.length), calls.length ? t("kpi.tokensPerCall", { n: formatCompact(usage.totalTokens / calls.length) }) : t("kpi.noCall"), "↗"],
-    [t("kpi.exchanges"), formatInt(turns.length), t("kpi.conversations", { n: sessions.length, s: pluralSuffix(sessions.length) }), "↔"],
-    [t("kpi.median"), formatDuration(percentile(durations, .5)), durations.length ? t("kpi.p95", { value: formatDuration(percentile(durations, .95)) }) : t("kpi.completed"), "◷"],
+  const coverage = Math.round(cost.officialCoverage * 100);
+  const coverageText = cost.estimatedCalls
+    ? t("cost.referenceCoverage", { n: formatInt(cost.estimatedCalls) })
+    : t("cost.officialCoverage", { n: coverage });
+  const contextText = cost.longContextCalls
+    ? t("cost.longContext", { n: formatInt(cost.longContextCalls) })
+    : t("cost.standardContext");
+  const parts = [
+    { label: t("cost.fresh"), value: cost.freshInputCost, color: "var(--accent)" },
+    { label: t("cost.cached"), value: cost.cachedInputCost, color: "var(--cached)" },
+    { label: t("cost.output"), value: cost.outputCost, color: "var(--output)" },
   ];
-  $("#kpis").innerHTML = cards.map(([label, value, meta, icon]) => `<article class="kpi"><span class="kpi-label">${label}<b class="kpi-icon">${icon}</b></span><strong class="kpi-value">${value}</strong><span class="kpi-meta">${meta}</span></article>`).join("");
+  $("#costSummary").innerHTML = `
+    <div class="cost-topline"><p class="eyebrow">${t("cost.estimate")}</p><span class="cost-coverage">${escapeHtml(coverageText)}</span></div>
+    <strong class="cost-value">${formatCost(cost.cost)}</strong>
+    <p class="cost-caption">${escapeHtml(contextText)}</p>
+    <div class="cost-breakdown">${parts.map((part) => {
+      const share = cost.cost ? Math.max(2, part.value / cost.cost * 100) : 0;
+      return `<div class="cost-part"><span>${escapeHtml(part.label)}</span><strong>${formatCost(part.value)}</strong><i style="--share:${share}%;--part-color:${part.color}"></i></div>`;
+    }).join("")}</div>
+    <div class="cost-footnote"><span>${t("cost.disclaimer")}</span><button class="cost-config" type="button">${t("cost.config")}</button></div>`;
+  $("#costSummary .cost-config").addEventListener("click", openPricing);
+}
+
+function renderKpis(sessions, calls, usage) {
+  const credits = codexCreditsOfCalls(calls);
+  const cacheRate = usage.inputTokens ? usage.cachedInputTokens / usage.inputTokens : 0;
+  const projects = projectGroups(sessions);
+  const cards = [
+    [t("kpi.projects"), formatInt(projects.length), t("kpi.conversations", { n: sessions.length, s: pluralSuffix(sessions.length) }), "P"],
+    [t("kpi.credits"), formatCredits(credits.credits), creditSummaryMeta(credits), "◇"],
+    [t("kpi.tokens"), formatCompact(usage.totalTokens), `${formatInt(usage.totalTokens)} · ${t("kpi.cacheRate", { n: Math.round(cacheRate * 100) })}`, "T"],
+    [t("kpi.calls"), formatInt(calls.length), calls.length ? t("kpi.tokensPerCall", { n: formatCompact(usage.totalTokens / calls.length) }) : t("kpi.noCall"), "↗"],
+  ];
+  $("#kpis").innerHTML = cards.map(([label, value, meta, icon]) => `<article class="kpi"><span class="kpi-label">${label}<b class="kpi-icon">${icon}</b></span><strong class="kpi-value">${value}</strong><span class="kpi-meta" title="${escapeHtml(meta)}">${meta}</span></article>`).join("");
+}
+
+function renderProjects(sessions) {
+  const groups = projectGroups(sessions);
+  const total = groups.reduce((sum, group) => sum + group.cost.cost, 0);
+  const max = Math.max(0.0001, ...groups.map((group) => group.cost.cost));
+  const visible = groups.slice(0, 6);
+  if (!visible.length) {
+    $("#projectBreakdown").innerHTML = `<div class="project-empty">${t("projects.none")}</div>`;
+    return;
+  }
+  $("#projectBreakdown").innerHTML = visible.map((group, index) => {
+    const active = state.folders.size === group.paths.length && group.paths.every((folder) => state.folders.has(folder));
+    const share = total ? group.cost.cost / total * 100 : 0;
+    return `<button class="project-row${active ? " active" : ""}" type="button" data-project-index="${index}" aria-pressed="${active}" aria-label="${escapeHtml(t("projects.filter", { name: group.name }))}"><span class="project-name">${escapeHtml(group.name)}</span><span class="project-value">${formatCost(group.cost.cost)}</span><span class="project-meta">${formatInt(group.sessions.length)} · ${new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(share)} %</span><span class="project-track"><span class="project-bar" style="width:${group.cost.cost / max * 100}%"></span></span></button>`;
+  }).join("");
+  $$("#projectBreakdown .project-row").forEach((row) => row.addEventListener("click", () => {
+    const group = visible[Number(row.dataset.projectIndex)];
+    const active = state.folders.size === group.paths.length && group.paths.every((folder) => state.folders.has(folder));
+    state.folders = active ? new Set() : new Set(group.paths);
+    state.page = 1;
+    $$("#folderFilterOptions input").forEach((input) => { input.checked = state.folders.has(input.value); });
+    updateFolderFilterSummary();
+    render();
+  }));
 }
 
 function bucketsFor(calls) {
@@ -235,52 +339,31 @@ function bucketsFor(calls) {
   return buckets;
 }
 
-function renderTokenChart(calls) {
-  const buckets = bucketsFor(calls).map((bucket) => ({ ...bucket, usage: sumUsage(bucket.calls) }));
-  const max = Math.max(1, ...buckets.map((bucket) => bucket.usage.totalTokens));
-  $("#tokenChart").innerHTML = buckets.map((bucket, index) => {
-    const usage = bucket.usage; const fresh = Math.max(0, usage.inputTokens - usage.cachedInputTokens);
-    const freshHeight = fresh / max * 205; const cachedHeight = usage.cachedInputTokens / max * 205; const outputHeight = usage.outputTokens / max * 205;
+function renderCostChart(calls) {
+  const buckets = bucketsFor(calls).map((bucket) => ({ ...bucket, cost: costOfCalls(bucket.calls) }));
+  const max = Math.max(0.0001, ...buckets.map((bucket) => bucket.cost.cost));
+  $("#costChart").innerHTML = buckets.map((bucket, index) => {
+    const freshHeight = bucket.cost.freshInputCost / max * 205;
+    const cachedHeight = bucket.cost.cachedInputCost / max * 205;
+    const outputHeight = bucket.cost.outputCost / max * 205;
     const showLabel = buckets.length <= 12 || index % Math.ceil(buckets.length / 8) === 0;
-    return `<div class="chart-column" data-tip="${bucket.label} · ${formatCompact(usage.totalTokens)} tokens"><div class="chart-stack"><i class="chart-segment" style="height:${freshHeight}px;background:var(--lime)"></i><i class="chart-segment" style="height:${cachedHeight}px;background:var(--lime-2)"></i><i class="chart-segment" style="height:${outputHeight}px;background:var(--orange)"></i></div><label>${showLabel ? bucket.label : ""}</label></div>`;
+    return `<div class="chart-column" data-tip="${escapeHtml(bucket.label)} · ${formatCost(bucket.cost.cost)}"><div class="chart-stack"><i class="chart-segment" style="height:${freshHeight}px;background:var(--accent)"></i><i class="chart-segment" style="height:${cachedHeight}px;background:var(--cached)"></i><i class="chart-segment" style="height:${outputHeight}px;background:var(--output)"></i></div><label>${showLabel ? escapeHtml(bucket.label) : ""}</label></div>`;
   }).join("");
-}
-
-function renderTokenMix(usage) {
-  const total = Math.max(1, usage.totalTokens); const fresh = Math.max(0, usage.inputTokens - usage.cachedInputTokens);
-  const values = [{ name: t("token.freshLong"), value: fresh, color: "var(--lime)" }, { name: t("token.cacheLong"), value: usage.cachedInputTokens, color: "var(--lime-2)" }, { name: t("token.output"), value: usage.outputTokens, color: "var(--orange)" }];
-  let cursor = 0; const stops = values.map((item) => { const start = cursor; cursor += item.value / total * 100; return `${item.color} ${start}% ${cursor}%`; }).join(",");
-  $("#tokenMix").innerHTML = `<div class="donut-wrap"><div class="donut" style="background:conic-gradient(${stops || "#252a27 0 100%"})"></div><div class="mix-list">${values.map((item) => `<div class="mix-item"><i style="background:${item.color}"></i><div><span>${item.name}</span><strong>${formatCompact(item.value)} · ${Math.round(item.value / total * 100)} %</strong></div></div>`).join("")}</div></div>`;
-}
-
-function renderCallChart(calls) {
-  const buckets = bucketsFor(calls); const max = Math.max(1, ...buckets.map((bucket) => bucket.calls.length));
-  const peak = buckets.reduce((best, bucket) => bucket.calls.length > best.calls.length ? bucket : best, buckets[0] || { calls: [], label: "—" });
-  $("#peakLabel").textContent = peak.calls.length ? t("calls.peak", { label: peak.label, n: peak.calls.length }) : t("calls.none");
-  $("#callChart").innerHTML = buckets.map((bucket, index) => `<div class="call-bar-wrap" title="${bucket.label} · ${bucket.calls.length === 1 ? t("calls.one") : t("calls.count", { n: bucket.calls.length })}"><div class="call-bar" style="height:${bucket.calls.length / max * 112}px"></div><span>${buckets.length <= 12 || index % Math.ceil(buckets.length / 8) === 0 ? bucket.label : ""}</span></div>`).join("");
-}
-
-function renderInsights(sessions, calls, turns, usage) {
-  const top = [...sessions].sort((a, b) => b.usage.totalTokens - a.usage.totalTokens)[0];
-  const cacheRate = usage.inputTokens ? Math.round(usage.cachedInputTokens / usage.inputTokens * 100) : 0;
-  const long = [...turns].filter((turn) => turn.durationMs).sort((a, b) => b.durationMs - a.durationMs)[0];
-  const items = calls.length ? [
-    ["↑", t("insight.dominant"), top ? t("insight.dominantText", { title: sessionTitle(top), n: Math.round(top.usage.totalTokens / Math.max(1, usage.totalTokens) * 100) }) : "—"],
-    ["◫", t("insight.cache"), t("insight.cacheText", { n: cacheRate })],
-    ["◷", t("insight.longest"), long ? t("insight.longestText", { duration: formatDuration(long.durationMs), calls: long.calls === 1 ? t("calls.one") : t("calls.count", { n: long.calls }) }) : t("insight.noCompleted")],
-  ] : [["·", t("insight.quiet"), t("insight.quietText")]];
-  $("#insights").innerHTML = items.map(([icon, title, text]) => `<div class="insight"><div class="insight-icon">${icon}</div><div><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></div></div>`).join("");
 }
 
 function renderTable(sessions) {
   const query = normalizeSearch(state.query);
   const prepared = sessions.map((session) => ({
     ...session,
+    tableProject: projectName(session),
     tableModel: [...new Set(session.calls.map((call) => call.model))].join(", ") || session.models.join(", ") || "unknown",
+    tableProfiles: usageProfilesOfCalls(session.calls),
     tableCost: costOfCalls(session.calls),
+    tableCredits: codexCreditsOfCalls(session.calls),
   }));
   const filtered = prepared.filter((session) => {
-    const haystack = normalizeSearch(`${sessionTitle(session)} ${session.tableModel} ${session.cwd || ""}`);
+    const profileSearch = session.tableProfiles.map((profile) => `${profile.model} ${effortLabel(profile.effort)} ${profile.fast ? "fast" : "standard"}`).join(" ");
+    const haystack = normalizeSearch(`${sessionTitle(session)} ${session.tableModel} ${profileSearch} ${session.cwd || ""}`);
     return session.usage.totalTokens >= state.usageThreshold && (!query || haystack.includes(query));
   });
   filtered.sort((left, right) => compareSessions(left, right) * (state.sortDirection === "asc" ? 1 : -1));
@@ -289,9 +372,9 @@ function renderTable(sessions) {
   state.page = Math.min(Math.max(1, state.page), totalPages);
   const startIndex = (state.page - 1) * state.pageSize;
   const visible = filtered.slice(startIndex, startIndex + state.pageSize);
-  $("#conversationRows").innerHTML = visible.length ? visible.map((session) => {
-    return `<tr data-session-id="${escapeHtml(session.id)}"><td><div class="conversation-name">${escapeHtml(sessionTitle(session))}</div><div class="conversation-date">${formatDate(new Date(session.updatedAt))}</div></td><td><span class="model-pill">${escapeHtml(session.tableModel)}</span></td><td>${session.exchanges}</td><td>${session.modelCalls}</td><td>${formatCompact(session.usage.totalTokens)}</td><td>${formatDuration(session.durationMs)}</td><td class="cost">${formatCost(session.tableCost.cost)}${session.tableCost.estimatedCalls ? " ≈" : ""}</td></tr>`;
-  }).join("") : `<tr><td colspan="7" class="empty">${t("conversation.none")}</td></tr>`;
+  $("#conversationRows").innerHTML = visible.length ? visible.map((session) =>
+    `<tr data-session-id="${escapeHtml(session.id)}" tabindex="0"><td><div class="conversation-name">${escapeHtml(sessionTitle(session))}</div><div class="conversation-date">${formatDate(new Date(session.updatedAt))} · ${formatInt(session.exchanges)} ${session.exchanges === 1 ? t("table.exchange") : t("table.exchanges").toLocaleLowerCase(locale())} · ${formatDuration(session.durationMs)}</div></td><td><span class="project-pill" title="${escapeHtml(session.cwd || session.tableProject)}">${escapeHtml(session.tableProject)}</span></td><td>${usageProfilesMarkup(session.calls, { limit: 2, compact: true })}</td><td>${formatInt(session.modelCalls)}</td><td title="${formatInt(session.usage.totalTokens)} tokens">${formatCompact(session.usage.totalTokens)}</td><td><div class="cost-stack"><strong>${formatCost(session.tableCost.cost)}${session.tableCost.estimatedCalls ? " ≈" : ""}</strong><span>${formatCredits(session.tableCredits.credits)} Codex</span></div></td></tr>`
+  ).join("") : `<tr><td colspan="6" class="empty">${t("conversation.none")}</td></tr>`;
   const rangeStart = filtered.length ? startIndex + 1 : 0;
   const rangeEnd = Math.min(startIndex + visible.length, filtered.length);
   $("#tableCount").textContent = t("table.range", { start: rangeStart, end: rangeEnd, total: filtered.length });
@@ -304,7 +387,14 @@ function renderTable(sessions) {
     button.dataset.direction = active ? state.sortDirection : "";
     button.closest("th").setAttribute("aria-sort", active ? (state.sortDirection === "asc" ? "ascending" : "descending") : "none");
   });
-  $$("#conversationRows tr[data-session-id]").forEach((row) => row.addEventListener("click", () => openDrawer(row.dataset.sessionId)));
+  $$("#conversationRows tr[data-session-id]").forEach((row) => {
+    row.addEventListener("click", () => openDrawer(row.dataset.sessionId));
+    row.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openDrawer(row.dataset.sessionId);
+    });
+  });
 }
 
 function normalizeSearch(value) {
@@ -314,6 +404,7 @@ function normalizeSearch(value) {
 function compareSessions(left, right) {
   const values = {
     title: [sessionTitle(left), sessionTitle(right)],
+    project: [left.tableProject, right.tableProject],
     model: [left.tableModel, right.tableModel],
     exchanges: [left.exchanges, right.exchanges],
     calls: [left.modelCalls, right.modelCalls],
@@ -327,8 +418,33 @@ function compareSessions(left, right) {
 
 function openDrawer(id) {
   const session = scopedSessions().find((item) => item.id === id); if (!session) return;
-  const cost = costOfCalls(session.calls); const usage = session.usage;
-  $("#drawerContent").innerHTML = `<p class="eyebrow">${t("detail.label")}</p><h2 id="drawerTitle" class="drawer-title">${escapeHtml(sessionTitle(session))}</h2><p class="drawer-subtitle">${formatDate(new Date(session.startedAt))} · ${escapeHtml(session.models.join(", ") || t("detail.unknownModel"))}</p><div class="detail-kpis"><div class="detail-kpi"><span>${t("detail.cost")}</span><strong class="cost">${formatCost(cost.cost)}</strong></div><div class="detail-kpi"><span>Tokens</span><strong>${formatCompact(usage.totalTokens)}</strong></div><div class="detail-kpi"><span>${t("detail.calls")}</span><strong>${session.modelCalls}</strong></div><div class="detail-kpi"><span>${t("detail.exchanges")}</span><strong>${session.exchanges}</strong></div><div class="detail-kpi"><span>${t("detail.cache")}</span><strong>${usage.inputTokens ? Math.round(usage.cachedInputTokens / usage.inputTokens * 100) : 0} %</strong></div><div class="detail-kpi"><span>${t("detail.duration")}</span><strong>${formatDuration(session.durationMs)}</strong></div></div><div class="detail-section"><h3>${t("detail.periodExchanges")}</h3>${session.turns.map((turn, index) => `<div class="turn-row"><strong>#${index + 1} · ${escapeHtml(turn.model)}</strong><span>${turn.calls === 1 ? t("calls.one") : t("calls.count", { n: turn.calls })}</span><span>${formatDuration(turn.durationMs)}</span></div>`).join("") || `<p class="drawer-subtitle">${t("detail.noExchange")}</p>`}</div><div class="detail-section"><h3>${t("detail.cwd")}</h3><div class="path-box">${escapeHtml(session.cwd || t("detail.unknown"))}</div></div><div class="detail-section"><h3>${t("detail.id")}</h3><div class="path-box">${escapeHtml(session.id)}</div></div>`;
+  const cost = costOfCalls(session.calls); const credits = codexCreditsOfCalls(session.calls); const usage = session.usage;
+  const turns = session.turns.map((turn, index) => {
+    const effort = `<span class="effort-badge">${escapeHtml(effortLabel(turn.effort))}</span>`;
+    const mode = fastBadge(turn.model, turn.serviceTier) || `<span class="standard-badge">${t("mode.standard")}</span>`;
+    const calls = turn.calls === 1 ? t("calls.one") : t("calls.count", { n: turn.calls });
+    return `<div class="turn-row"><div class="turn-identity"><strong>#${index + 1}</strong><span class="model-pill">${escapeHtml(turn.model)}</span>${effort}</div><span>${mode}</span><span>${calls}</span><span>${formatDuration(turn.durationMs)}</span></div>`;
+  }).join("") || `<p class="drawer-subtitle">${t("detail.noExchange")}</p>`;
+  $("#drawerContent").innerHTML = `
+    <p class="eyebrow">${t("detail.label")}</p>
+    <h2 id="drawerTitle" class="drawer-title">${escapeHtml(sessionTitle(session))}</h2>
+    <p class="drawer-subtitle">${formatDate(new Date(session.startedAt))}</p>
+    <section class="configuration-summary" aria-label="${escapeHtml(t("detail.configuration"))}">
+      <span class="configuration-label">${t("detail.configuration")}</span>
+      ${usageProfilesMarkup(session.calls)}
+    </section>
+    <div class="detail-kpis">
+      <div class="detail-kpi"><span>${t("detail.cost")}</span><strong class="cost">${formatCost(cost.cost)}</strong><small>${cost.estimatedCalls ? t("cost.referenceCoverage", { n: cost.estimatedCalls }) : t("cost.officialCoverage", { n: 100 })}</small></div>
+      <div class="detail-kpi"><span>${t("detail.credits")}</span><strong class="credits">${formatCredits(credits.credits)}</strong><small>${creditSummaryMeta(credits)}</small></div>
+      <div class="detail-kpi"><span>Tokens</span><strong>${formatCompact(usage.totalTokens)}</strong><small>${formatInt(usage.totalTokens)}</small></div>
+      <div class="detail-kpi"><span>${t("detail.calls")}</span><strong>${session.modelCalls}</strong></div>
+      <div class="detail-kpi"><span>${t("detail.exchanges")}</span><strong>${session.exchanges}</strong></div>
+      <div class="detail-kpi"><span>${t("detail.cache")}</span><strong>${usage.inputTokens ? Math.round(usage.cachedInputTokens / usage.inputTokens * 100) : 0} %</strong></div>
+      <div class="detail-kpi"><span>${t("detail.duration")}</span><strong>${formatDuration(session.durationMs)}</strong></div>
+    </div>
+    <div class="detail-section"><h3>${t("detail.periodExchanges")}</h3>${turns}</div>
+    <div class="detail-section"><h3>${t("detail.cwd")}</h3><div class="path-box">${escapeHtml(session.cwd || t("detail.unknown"))}</div></div>
+    <div class="detail-section"><h3>${t("detail.id")}</h3><div class="path-box">${escapeHtml(session.id)}</div></div>`;
   $("#detailDrawer").setAttribute("aria-hidden", "false"); document.body.style.overflow = "hidden";
 }
 
@@ -344,37 +460,84 @@ function populateModels() {
   $("#modelFilter").value = state.model;
 }
 
+function populateFolders() {
+  const folders = [...new Set(state.data.sessions.map((session) => session.cwd).filter(Boolean))].sort((left, right) => left.localeCompare(right, locale(), { sensitivity: "base" }));
+  state.folders = new Set([...state.folders].filter((folder) => folders.includes(folder)));
+  $("#folderFilterOptions").innerHTML = folders.map((folder) => `<label class="folder-filter-option" title="${escapeHtml(folder)}"><input type="checkbox" value="${escapeHtml(folder)}" ${state.folders.has(folder) ? "checked" : ""}><span>${escapeHtml(folder)}</span></label>`).join("");
+  updateFolderFilterSummary();
+}
+
+function updateFolderFilterSummary() {
+  const selected = state.folders.size;
+  const summary = $("#folderFilterSummary");
+  summary.textContent = selected ? t("filter.folderSelected", { n: selected, s: pluralSuffix(selected) }) : t("filter.folderAll");
+  summary.setAttribute("aria-label", t("filter.folder"));
+}
+
 function openPricing() {
   const models = [...new Set(state.data.sessions.flatMap((session) => session.models))].sort();
-  const rows = [{ key: "reference", label: t("pricing.reference"), values: state.pricing.reference }, ...models.map((model) => ({ key: model, label: model, values: priceFor(model) }))];
-  $("#pricingRows").innerHTML = `<div class="pricing-row pricing-labels"><span>${t("pricing.model")}</span><span>${t("pricing.input")}</span><span>${t("token.cache")}</span><span>${t("token.output")}</span></div>${rows.map((row) => `<div class="pricing-row" data-price-key="${escapeHtml(row.key)}"><label title="${escapeHtml(row.label)}">${escapeHtml(row.label)}${row.key !== "reference" && !state.pricing.models[row.key] ? " ≈" : ""}</label><input type="number" min="0" step="0.001" value="${row.values.input}"><input type="number" min="0" step="0.001" value="${row.values.cached}"><input type="number" min="0" step="0.001" value="${row.values.output}"></div>`).join("")}`;
+  const effortCalls = [...new Map(state.data.sessions.flatMap((session) => session.calls)
+    .filter((call) => call.effort)
+    .map((call) => [effortPriceKey(call.model, call.effort), call])).values()];
+  const rows = [
+    { type: "reference", key: "reference", label: t("pricing.reference"), values: state.pricing.reference },
+    ...models.map((model) => ({ type: "model", key: model, label: `${model} (model)`, values: modelPriceFor(model) })),
+    ...effortCalls.map((call) => ({ type: "effort", key: effortPriceKey(call.model, call.effort), label: `${call.model} (thinking: ${call.effort})`, values: priceFor(call.model, call.effort) })),
+  ];
+  $("#pricingRows").innerHTML = `<div class="pricing-row pricing-labels"><span>${t("pricing.model")}</span><span>${t("pricing.input")}</span><span>${t("token.cache")}</span><span>${t("token.output")}</span></div>${rows.map((row) => `<div class="pricing-row" data-price-type="${row.type}" data-price-key="${escapeHtml(row.key)}"><label title="${escapeHtml(row.label)}">${escapeHtml(row.label)}${row.type === "effort" && !state.pricing.effortOverrides?.[row.key] ? " ≈" : ""}</label><input type="number" min="0" step="0.001" value="${row.values.input}"><input type="number" min="0" step="0.001" value="${row.values.cached}"><input type="number" min="0" step="0.001" value="${row.values.output}"></div>`).join("")}`;
   $("#pricingDialog").showModal();
 }
 
 function savePricing() {
   const pricing = structuredClone(state.pricing);
+  pricing.effortOverrides ||= {};
   $$(".pricing-row[data-price-key]").forEach((row) => {
     const [input, cached, output] = [...row.querySelectorAll("input")].map((field) => Math.max(0, Number(field.value) || 0));
-    if (row.dataset.priceKey === "reference") pricing.reference = { ...pricing.reference, input, cached, output };
+    if (row.dataset.priceType === "reference") pricing.reference = { ...pricing.reference, input, cached, output };
+    else if (row.dataset.priceType === "effort") pricing.effortOverrides[row.dataset.priceKey] = { input, cached, output };
     else pricing.models[row.dataset.priceKey] = { input, cached, output };
   });
-  state.pricing = pricing; localStorage.setItem("codex-usage-pricing", JSON.stringify(pricing)); render(); toast(t("pricing.saved"));
+  state.pricing = pricing;
+  localStorage.setItem("codex-usage-pricing", JSON.stringify(pricing));
+  render();
+  toast(t("pricing.saved"));
 }
 
-async function loadData(force = false) {
-  const cachedData = !force && loadUsageCache();
-  if (cachedData) {
-    state.data = cachedData;
-    populateModels();
-    render();
-    return;
+function applyUsageData(data) {
+  const changed = state.data?.generatedAt !== data.generatedAt;
+  state.data = data;
+  saveUsageCache(data);
+  if (!changed) return;
+  populateModels();
+  populateFolders();
+  render();
+}
+
+let dataRequest = null;
+
+async function loadData(force = false, silent = false) {
+  if (!force && !state.data) {
+    const cachedData = loadUsageCache();
+    if (cachedData) applyUsageData(cachedData);
   }
-  $("#refreshButton").classList.add("loading");
+  if (dataRequest) return dataRequest;
+  if (!silent) $("#refreshButton").classList.add("loading");
+  dataRequest = (async () => {
   try {
     const response = await fetch(`/api/usage${force ? "?refresh=1" : ""}`); if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    state.data = await response.json(); saveUsageCache(state.data); populateModels(); render(); if (force) toast(t("refresh.done"));
-  } catch (error) { $("#freshness").textContent = t("load.error", { error: error.message }); toast(t("load.errorToast")); }
-  finally { $("#refreshButton").classList.remove("loading"); }
+    applyUsageData(await response.json());
+    if (force) toast(t("refresh.done"));
+  } catch (error) {
+    if (!silent || !state.data) {
+      $("#freshness").textContent = t("load.error", { error: error.message });
+      toast(t("load.errorToast"));
+    }
+  } finally {
+    $("#refreshButton").classList.remove("loading");
+    dataRequest = null;
+  }
+  })();
+  return dataRequest;
 }
 
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]); }
@@ -390,11 +553,20 @@ function applyTranslations() {
   $("#pricingButton").setAttribute("aria-label", t("action.pricing"));
   $("#modelFilter").setAttribute("aria-label", t("table.model"));
   $("#usageFilter").setAttribute("aria-label", t("filter.usage"));
+  updateFolderFilterSummary();
   $("#searchInput").setAttribute("aria-label", t("search.placeholder"));
 }
 
 $$('[data-period]').forEach((button) => button.addEventListener("click", () => { $$('[data-period]').forEach((item) => item.classList.remove("active")); button.classList.add("active"); state.period = button.dataset.period; state.page = 1; render(); }));
 $("#modelFilter").addEventListener("change", (event) => { state.model = event.target.value; state.page = 1; render(); });
+$("#folderFilterOptions").addEventListener("change", (event) => {
+  const folder = event.target.value;
+  if (!folder) return;
+  if (event.target.checked) state.folders.add(folder); else state.folders.delete(folder);
+  state.page = 1;
+  updateFolderFilterSummary();
+  render();
+});
 $("#usageFilter").addEventListener("change", (event) => { state.usageThreshold = Number(event.target.value); state.page = 1; renderTable(scopedSessions()); });
 $("#searchInput").addEventListener("input", (event) => { state.query = event.target.value; state.page = 1; renderTable(scopedSessions()); });
 $("#pageSizeSelect").addEventListener("change", (event) => { state.pageSize = Number(event.target.value); state.page = 1; renderTable(scopedSessions()); });
@@ -403,13 +575,14 @@ $("#nextPage").addEventListener("click", () => { state.page += 1; renderTable(sc
 $$(".sort-button").forEach((button) => button.addEventListener("click", () => {
   const key = button.dataset.sort;
   if (state.sortKey === key) state.sortDirection = state.sortDirection === "asc" ? "desc" : "asc";
-  else { state.sortKey = key; state.sortDirection = ["title", "model"].includes(key) ? "asc" : "desc"; }
+  else { state.sortKey = key; state.sortDirection = ["title", "project", "model"].includes(key) ? "asc" : "desc"; }
   state.page = 1;
   renderTable(scopedSessions());
 }));
 $("#resetTableFilters").addEventListener("click", () => {
   state.query = "";
   state.model = "all";
+  state.folders.clear();
   state.usageThreshold = 0;
   state.sortKey = "tokens";
   state.sortDirection = "desc";
@@ -417,20 +590,49 @@ $("#resetTableFilters").addEventListener("click", () => {
   $("#searchInput").value = "";
   $("#modelFilter").value = "all";
   $("#usageFilter").value = "0";
+  $$("#folderFilterOptions input").forEach((input) => { input.checked = false; });
+  updateFolderFilterSummary();
   render();
 });
 $("#languageSelect").addEventListener("change", (event) => {
   state.language = event.target.value;
   localStorage.setItem("codex-usage-language", state.language);
   applyTranslations();
-  if (state.data) { populateModels(); render(); }
+  if (state.data) { populateModels(); populateFolders(); render(); }
 });
-$("#refreshButton").addEventListener("click", () => loadData(true));
+$("#refreshButton").addEventListener("click", async () => {
+  if (dataRequest) await dataRequest;
+  await loadData(true);
+});
 $("#pricingButton").addEventListener("click", openPricing);
 $("#savePricing").addEventListener("click", savePricing);
-$("#resetPricing").addEventListener("click", () => { state.pricing = structuredClone(DEFAULT_PRICING); localStorage.setItem("codex-usage-pricing", JSON.stringify(state.pricing)); $("#pricingDialog").close(); openPricing(); render(); });
+$("#resetPricing").addEventListener("click", () => { state.pricing = mergeApiPricing(DEFAULT_API_PRICING); localStorage.setItem("codex-usage-pricing", JSON.stringify(state.pricing)); $("#pricingDialog").close(); openPricing(); render(); });
 $$('[data-close-drawer]').forEach((element) => element.addEventListener("click", () => { $("#detailDrawer").setAttribute("aria-hidden", "true"); document.body.style.overflow = ""; }));
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") { $("#detailDrawer").setAttribute("aria-hidden", "true"); document.body.style.overflow = ""; } });
 
 applyTranslations();
 loadData();
+setInterval(() => {
+  if (!document.hidden) void pollForNewData();
+}, POLL_INTERVAL_MS);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) void pollForNewData();
+});
+
+let pollRequest = null;
+
+async function pollForNewData() {
+  if (!state.data || pollRequest) return;
+  pollRequest = (async () => {
+    try {
+      const response = await fetch("/api/health");
+      if (!response.ok) return;
+      const status = await response.json();
+      if (status.generatedAt && status.generatedAt !== state.data.generatedAt) {
+        await loadData(false, true);
+      }
+    } catch { /* Keep displaying the last snapshot during a transient failure. */ }
+    finally { pollRequest = null; }
+  })();
+  return pollRequest;
+}

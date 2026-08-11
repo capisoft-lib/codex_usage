@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>Codex Usage</title>
+  <title>Codex Usage — Coûts et activité</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">C</span>
-      <div><strong>Codex Usage</strong><span>observatoire local</span></div>
+      <div><strong>Codex Usage</strong><span>tableau de bord local</span></div>
     </div>
     <nav class="periods" aria-label="Période">
       <button data-period="today" data-i18n="period.today" class="active">Aujourd’hui</button>
@@ -34,46 +34,45 @@
     <section class="hero">
       <div>
         <p class="eyebrow" id="periodLabel">AUJOURD’HUI</p>
-        <h1 data-i18n="hero.title">L’essentiel de votre activité Codex.</h1>
+        <h1 data-i18n="hero.title">Coûts et activité</h1>
+      </div>
+      <div class="hero-status">
+        <div class="privacy-pill"><span></span> <span data-i18n="hero.privacy">Données locales uniquement</span></div>
         <p class="subtitle" id="freshness">Chargement des sessions locales…</p>
       </div>
-      <div class="privacy-pill"><span></span> <span data-i18n="hero.privacy">Données locales uniquement</span></div>
     </section>
 
-    <section class="kpi-grid" id="kpis" aria-label="Indicateurs principaux"></section>
+    <section class="summary-grid" aria-label="Synthèse de la période">
+      <article class="panel cost-card" id="costSummary"></article>
+      <section class="kpi-grid" id="kpis" aria-label="Indicateurs principaux"></section>
+    </section>
 
-    <section class="dashboard-grid">
+    <section class="analysis-grid">
+      <article class="panel projects-panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow" data-i18n="projects.label">PROJETS</p><h2 data-i18n="projects.title">Coût par projet</h2></div>
+          <span class="panel-hint" data-i18n="projects.hint">Cliquez sur un projet pour filtrer</span>
+        </div>
+        <div id="projectBreakdown" class="project-breakdown"></div>
+      </article>
+
       <article class="panel activity-panel">
         <div class="panel-heading">
-          <div><p class="eyebrow" data-i18n="section.load">CHARGE</p><h2 data-i18n="chart.tokens">Tokens dans le temps</h2></div>
-          <div class="legend"><span class="dot fresh"></span><span data-i18n="token.fresh">Non cachés</span> <span class="dot cached"></span><span data-i18n="token.cache">Cache</span> <span class="dot output"></span><span data-i18n="token.output">Sortie</span></div>
+          <div><p class="eyebrow" data-i18n="section.load">ACTIVITÉ</p><h2 data-i18n="chart.cost">Coût API dans le temps</h2></div>
+          <div class="legend"><span class="dot fresh"></span><span data-i18n="cost.fresh">Entrée fraîche</span> <span class="dot cached"></span><span data-i18n="cost.cached">Cache</span> <span class="dot output"></span><span data-i18n="cost.output">Sortie</span></div>
         </div>
-        <div id="tokenChart" class="token-chart"></div>
-      </article>
-
-      <article class="panel mix-panel">
-        <div class="panel-heading"><div><p class="eyebrow" data-i18n="section.distribution">RÉPARTITION</p><h2 data-i18n="chart.footprint">Empreinte tokens</h2></div></div>
-        <div id="tokenMix" class="token-mix"></div>
-      </article>
-
-      <article class="panel rhythm-panel">
-        <div class="panel-heading">
-          <div><p class="eyebrow" data-i18n="section.rhythm">RYTHME</p><h2 data-i18n="chart.calls">Appels modèle</h2></div>
-          <strong id="peakLabel" class="panel-stat">—</strong>
-        </div>
-        <div id="callChart" class="call-chart"></div>
-      </article>
-
-      <article class="panel insight-panel">
-        <div class="panel-heading"><div><p class="eyebrow" data-i18n="section.signal">SIGNAL</p><h2 data-i18n="insight.title">À retenir</h2></div></div>
-        <div id="insights" class="insights"></div>
+        <div id="costChart" class="cost-chart"></div>
       </article>
     </section>
 
     <section class="panel conversations-panel">
       <div class="panel-heading table-heading">
-        <div><p class="eyebrow" data-i18n="section.conversations">CONVERSATIONS</p><h2 data-i18n="table.title">Où partent les tokens ?</h2></div>
+        <div><p class="eyebrow" data-i18n="section.conversations">DÉTAIL</p><h2 data-i18n="table.title">Conversations</h2></div>
         <div class="table-tools">
+          <details id="folderFilter" class="folder-filter">
+            <summary id="folderFilterSummary" aria-label="Filtrer par projet ou dossier">Tous les dossiers</summary>
+            <div id="folderFilterOptions" class="folder-filter-options"></div>
+          </details>
           <select id="modelFilter" aria-label="Filtrer par modèle"><option value="all">Tous les modèles</option></select>
           <select id="usageFilter" aria-label="Filtrer par consommation">
             <option value="0" data-i18n="filter.usageAll">Tous les volumes</option>
@@ -89,12 +88,11 @@
         <table>
           <thead><tr>
             <th><button class="sort-button" data-sort="title"><span data-i18n="table.conversation">Conversation</span><i></i></button></th>
-            <th><button class="sort-button" data-sort="model"><span data-i18n="table.model">Modèle</span><i></i></button></th>
-            <th><button class="sort-button" data-sort="exchanges"><span data-i18n="table.exchanges">Échanges</span><i></i></button></th>
+            <th><button class="sort-button" data-sort="project"><span data-i18n="table.project">Projet</span><i></i></button></th>
+            <th><button class="sort-button" data-sort="model"><span data-i18n="table.model">Configuration</span><i></i></button></th>
             <th><button class="sort-button" data-sort="calls"><span data-i18n="table.calls">Appels</span><i></i></button></th>
             <th><button class="sort-button" data-sort="tokens"><span>Tokens</span><i></i></button></th>
-            <th><button class="sort-button" data-sort="duration"><span data-i18n="table.duration">Durée</span><i></i></button></th>
-            <th><button class="sort-button" data-sort="cost"><span data-i18n="table.cost">Coût estimé</span><i></i></button></th>
+            <th><button class="sort-button" data-sort="cost"><span data-i18n="table.cost">Coût API</span><i></i></button></th>
           </tr></thead>
           <tbody id="conversationRows"></tbody>
         </table>

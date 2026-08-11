@@ -1,0 +1,27 @@
+services:
+  dashboard:
+    build: .
+    container_name: codex-usage-dashboard
+    restart: unless-stopped
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:4317:4317"
+    environment:
+      REFRESH_INTERVAL_MS: ${REFRESH_INTERVAL_MS:-15000}
+    volumes:
+      - type: bind
+        source: ${CODEX_DATA_PATH:?Définissez CODEX_DATA_PATH vers votre dossier .codex}
+        target: /codex-data
+        read_only: true
+      - type: volume
+        source: usage-cache
+        target: /app-cache
+    tmpfs:
+      - /tmp
+
+volumes:
+  usage-cache:
+    name: codex-usage-dashboard-storage

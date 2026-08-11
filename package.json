@@ -5,7 +5,7 @@
   "description": "A private, local dashboard for Codex token usage, model calls, timing, and theoretical cost.",
   "type": "module",
   "scripts": {
-    "build": "node --check server.mjs && node --check src/analyzer.mjs && node --check public/app.js",
+    "build": "node --check server.mjs && node --check src/analyzer.mjs && node --check src/usage-store.mjs && node --check public/api-pricing.js && node --check public/usage-pricing.js && node --check public/app.js",
     "check": "npm run build && npm test",
     "start": "node server.mjs",
     "test": "node --test"

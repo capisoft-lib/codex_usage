@@ -12,6 +12,8 @@ const EMPTY_USAGE = Object.freeze({
   totalTokens: 0,
 });
 
+export const ANALYZER_VERSION = 2;
+
 function number(value) {
   return Number.isFinite(Number(value)) ? Number(value) : 0;
 }
@@ -73,7 +75,7 @@ export async function loadThreadNames(codexHome) {
   return names;
 }
 
-function createTurn(id, timestamp, model, effort) {
+function createTurn(id, timestamp, model, effort, serviceTier) {
   return {
     id,
     startedAt: timestamp,
@@ -81,6 +83,7 @@ function createTurn(id, timestamp, model, effort) {
     durationMs: null,
     model: model || "unknown",
     effort: effort || null,
+    serviceTier: serviceTier || "default",
     calls: 0,
     usage: { ...EMPTY_USAGE },
   };
@@ -93,6 +96,7 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
   let currentTurnId = null;
   let currentModel = "unknown";
   let currentEffort = null;
+  let currentServiceTier = "default";
   let userMessages = 0;
   let assistantMessages = 0;
   const turns = new Map();
@@ -131,10 +135,12 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
         currentTurnId = payload.turn_id || currentTurnId;
         currentModel = payload.model || currentModel;
         currentEffort = payload.effort || currentEffort;
+        currentServiceTier = payload.service_tier || currentServiceTier;
         const turn = turns.get(currentTurnId);
         if (turn) {
           turn.model = currentModel;
           turn.effort = currentEffort;
+          turn.serviceTier = currentServiceTier;
         }
         continue;
       }
@@ -142,12 +148,16 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
       if (row.type !== "event_msg") continue;
       const payload = row.payload || {};
 
-      if (payload.type === "task_started") {
+      if (payload.type === "thread_settings_applied") {
+        currentServiceTier = payload.thread_settings?.service_tier || currentServiceTier;
+        const turn = currentTurnId ? turns.get(currentTurnId) : null;
+        if (turn && turn.calls === 0) turn.serviceTier = currentServiceTier;
+      } else if (payload.type === "task_started") {
         currentTurnId = payload.turn_id || `turn-${turns.size + 1}`;
         if (!turns.has(currentTurnId)) {
           // `started_at` has existed both as Unix seconds and ISO text. The event
           // timestamp is stable across the observed formats and is preferable.
-          turns.set(currentTurnId, createTurn(currentTurnId, timestamp || payload.started_at, currentModel, currentEffort));
+          turns.set(currentTurnId, createTurn(currentTurnId, timestamp || payload.started_at, currentModel, currentEffort, currentServiceTier));
         }
       } else if (payload.type === "user_message") {
         userMessages += 1;
@@ -161,6 +171,8 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
           timestamp,
           turnId: currentTurnId,
           model,
+          effort: turn?.effort || currentEffort || null,
+          serviceTier: turn?.serviceTier || currentServiceTier || "default",
           usage,
         });
         if (turn) {
@@ -220,13 +232,30 @@ export async function analyzeCodexUsage(options = {}) {
   const fileLists = await Promise.all(roots.map(walkJsonl));
   const files = fileLists.flat();
   const sessions = [];
-  const concurrency = Math.max(1, Math.min(16, Number(options.concurrency) || 8));
+  const previousSessions = options.previousData?.analyzerVersion === ANALYZER_VERSION
+    ? options.previousData.sessions || []
+    : [];
+  const previousByFile = new Map(previousSessions
+    .filter((session) => session.filePath)
+    .map((session) => [session.filePath, session]));
+  const concurrency = Math.max(1, Math.min(32, Number(options.concurrency) || 16));
   let cursor = 0;
   await Promise.all(Array.from({ length: concurrency }, async () => {
     while (cursor < files.length) {
       const file = files[cursor++];
       try {
-        sessions.push(await parseSessionFile(file, names));
+        const info = await stat(file);
+        const previous = previousByFile.get(file);
+        if (previous && previous.fileSize === info.size && previous.fileModifiedAtMs === info.mtimeMs) {
+          const title = names.get(previous.id) || previous.title || "Conversation sans titre";
+          sessions.push(title === previous.title ? previous : { ...previous, title });
+        } else {
+          sessions.push({
+            ...await parseSessionFile(file, names),
+            fileSize: info.size,
+            fileModifiedAtMs: info.mtimeMs,
+          });
+        }
       } catch (error) {
         sessions.push({ filePath: file, error: error.message });
       }
@@ -241,6 +270,7 @@ export async function analyzeCodexUsage(options = {}) {
   }
 
   return {
+    analyzerVersion: ANALYZER_VERSION,
     generatedAt: new Date().toISOString(),
     codexHome,
     sessions: [...unique.values()].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))),
@@ -253,12 +283,17 @@ export async function usageFingerprint(codexHome = process.env.CODEX_HOME || pat
   const files = (await Promise.all(roots.map(walkJsonl))).flat();
   let latest = 0;
   let bytes = 0;
-  for (const file of files) {
-    try {
-      const info = await stat(file);
-      latest = Math.max(latest, info.mtimeMs);
-      bytes += info.size;
-    } catch { /* File may move to archives while scanning. */ }
-  }
+  let cursor = 0;
+  const concurrency = Math.min(64, Math.max(1, files.length));
+  await Promise.all(Array.from({ length: concurrency }, async () => {
+    while (cursor < files.length) {
+      const file = files[cursor++];
+      try {
+        const info = await stat(file);
+        latest = Math.max(latest, info.mtimeMs);
+        bytes += info.size;
+      } catch { /* File may move to archives while scanning. */ }
+    }
+  }));
   return `${files.length}:${latest}:${bytes}`;
 }

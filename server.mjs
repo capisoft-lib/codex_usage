@@ -3,11 +3,16 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { analyzeCodexUsage, usageFingerprint } from "./src/analyzer.mjs";
+import { UsageStore } from "./src/usage-store.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(root, "public");
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 4317);
+const refreshIntervalMs = Math.max(1_000, Number(process.env.REFRESH_INTERVAL_MS || 15_000));
+const snapshotPath = process.env.SNAPSHOT_PATH === ""
+  ? null
+  : process.env.SNAPSHOT_PATH || path.join(root, ".cache", "usage-snapshot.json");
 const mime = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -15,18 +20,12 @@ const mime = {
   ".svg": "image/svg+xml",
 };
 
-let cache = { fingerprint: null, data: null, checkedAt: 0 };
-
-async function getUsage(force = false) {
-  const now = Date.now();
-  if (!force && cache.data && now - cache.checkedAt < 1500) return cache.data;
-  const fingerprint = await usageFingerprint();
-  cache.checkedAt = now;
-  if (!force && cache.data && fingerprint === cache.fingerprint) return cache.data;
-  const data = await analyzeCodexUsage();
-  cache = { fingerprint, data, checkedAt: Date.now() };
-  return data;
-}
+const usageStore = new UsageStore({
+  analyze: (previousData) => analyzeCodexUsage({ previousData }),
+  fingerprint: usageFingerprint,
+  snapshotPath,
+  refreshIntervalMs,
+});
 
 function send(response, status, body, contentType) {
   response.writeHead(status, {
@@ -41,12 +40,13 @@ const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, `http://${request.headers.host || `${host}:${port}`}`);
     if (url.pathname === "/api/usage") {
-      const data = await getUsage(url.searchParams.get("refresh") === "1");
-      send(response, 200, JSON.stringify(data), "application/json; charset=utf-8");
+      const body = await usageStore.getSerializedUsage(url.searchParams.get("refresh") === "1");
+      send(response, 200, body, "application/json; charset=utf-8");
       return;
     }
     if (url.pathname === "/api/health") {
-      send(response, 200, JSON.stringify({ ok: true }), "application/json; charset=utf-8");
+      const status = usageStore.status();
+      send(response, status.ready ? 200 : 503, JSON.stringify(status), "application/json; charset=utf-8");
       return;
     }
 
@@ -64,7 +64,19 @@ const server = createServer(async (request, response) => {
   }
 });
 
+await usageStore.loadSnapshot();
+usageStore.start();
+
 server.listen(port, host, () => {
   console.log(`Codex Usage Dashboard: http://${host}:${port}`);
   console.log("Lecture locale uniquement — aucune donnée n’est envoyée ailleurs.");
+  console.log(`Actualisation en arrière-plan toutes les ${refreshIntervalMs / 1000} s.`);
 });
+
+function shutdown() {
+  usageStore.stop();
+  server.close(() => process.exit(0));
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
