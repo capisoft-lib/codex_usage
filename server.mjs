@@ -79,7 +79,7 @@ await usageStore.loadSnapshot();
 usageStore.start();
 
 server.listen(port, host, () => {
-  console.log(`Codex Usage Dashboard: http://${host}:${port}`);
+  console.log(`Local Usage Dashboard for Codex: http://${host}:${port}`);
   console.log("Lecture locale uniquement — aucune donnée n’est envoyée ailleurs.");
   console.log(`Actualisation en arrière-plan toutes les ${refreshIntervalMs / 1000} s.`);
 });

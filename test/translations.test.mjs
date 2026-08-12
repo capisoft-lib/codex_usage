@@ -55,7 +55,7 @@ test("fully translates every label used by the runtime", async () => {
     readFile(new URL("../public/index.html", import.meta.url), "utf8"),
   ]);
   const requiredKeys = [...new Set([...messageKeysIn(app), ...attributeKeysIn(html), ...dynamicKeys])].sort();
-  const englishBody = app.match(/\n  en: \{([\s\S]*?)\n  \},\n  de:/)?.[1];
+  const englishBody = app.match(/\r?\n  en: \{([\s\S]*?)\r?\n  \},\r?\n  de:/)?.[1];
   assert.ok(englishBody, "English reference catalogue not found");
   const english = vm.runInNewContext(`({${englishBody}\n})`);
 

@@ -1,9 +1,11 @@
 FROM node:22-alpine
 
 LABEL org.opencontainers.image.source="https://github.com/capisoft-lib/codex_usage" \
-      org.opencontainers.image.title="Codex Usage Dashboard" \
-      org.opencontainers.image.description="Private local dashboard for Codex usage, token activity, and cost estimates" \
-      org.opencontainers.image.version="1.0.1"
+      org.opencontainers.image.documentation="https://github.com/capisoft-lib/codex_usage#readme" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later" \
+      org.opencontainers.image.title="Local Usage Dashboard for Codex" \
+      org.opencontainers.image.description="Independent local dashboard for Codex usage, token activity, and cost estimates" \
+      org.opencontainers.image.version="1.0.2"
 
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
@@ -17,7 +19,7 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-COPY --chown=node:node package.json server.mjs ./
+COPY --chown=node:node package.json server.mjs LICENSE ./
 COPY --chown=node:node public ./public
 COPY --chown=node:node src ./src
 

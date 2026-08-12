@@ -11,7 +11,7 @@ const POLL_INTERVAL_MS = 15_000;
 
 const I18N = {
   fr: {
-    "app.title": "Codex Usage — Coûts et activité", "brand.tagline": "tableau de bord local", "nav.period": "Période", "action.language": "Langue", "action.close": "Fermer", "summary.label": "Synthèse de la période", "summary.kpis": "Indicateurs principaux",
+    "app.title": "Local Usage — Coûts et activité", "brand.tagline": "pour Codex · local", "license.independent": "Projet libre et indépendant pour les données locales Codex.", "license.source": "Code source", "nav.period": "Période", "action.language": "Langue", "action.close": "Fermer", "summary.label": "Synthèse de la période", "summary.kpis": "Indicateurs principaux",
     "period.today": "Aujourd’hui", "period.7d": "7 jours", "period.30d": "30 jours", "period.all": "Tout",
     "period.todayLabel": "Aujourd’hui", "period.7dLabel": "7 derniers jours", "period.30dLabel": "30 derniers jours", "period.allLabel": "Tout l’historique local",
     "action.refresh": "Actualiser", "action.pricing": "Configurer les tarifs", "hero.title": "Coûts et activité", "hero.privacy": "Données locales uniquement",
@@ -32,7 +32,7 @@ const I18N = {
     "duration.seconds": "{n} s", "duration.minutes": "{m} min {s} s",
   },
   en: {
-    "app.title": "Codex Usage — Costs and activity", "brand.tagline": "local dashboard", "nav.period": "Period", "action.language": "Language", "action.close": "Close", "summary.label": "Period summary", "summary.kpis": "Key indicators",
+    "app.title": "Local Usage — Costs and activity", "brand.tagline": "for Codex · local", "license.independent": "Independent free software for local Codex data.", "license.source": "Source code", "nav.period": "Period", "action.language": "Language", "action.close": "Close", "summary.label": "Period summary", "summary.kpis": "Key indicators",
     "period.today": "Today", "period.7d": "7 days", "period.30d": "30 days", "period.all": "All",
     "period.todayLabel": "Today", "period.7dLabel": "Last 7 days", "period.30dLabel": "Last 30 days", "period.allLabel": "All local history",
     "action.refresh": "Refresh", "action.pricing": "Configure prices", "hero.title": "Costs and activity", "hero.privacy": "Local data only",
@@ -53,7 +53,7 @@ const I18N = {
     "duration.seconds": "{n}s", "duration.minutes": "{m}m {s}s",
   },
   de: {
-    "app.title": "Codex Usage — Kosten und Aktivität", "brand.tagline": "lokales Dashboard", "nav.period": "Zeitraum", "action.language": "Sprache", "action.close": "Schließen", "summary.label": "Zusammenfassung des Zeitraums", "summary.kpis": "Wichtigste Kennzahlen",
+    "app.title": "Local Usage — Kosten und Aktivität", "brand.tagline": "für Codex · lokal", "license.independent": "Unabhängige freie Software für lokale Codex-Daten.", "license.source": "Quellcode", "nav.period": "Zeitraum", "action.language": "Sprache", "action.close": "Schließen", "summary.label": "Zusammenfassung des Zeitraums", "summary.kpis": "Wichtigste Kennzahlen",
     "period.today": "Heute", "period.7d": "7 Tage", "period.30d": "30 Tage", "period.all": "Alle",
     "period.todayLabel": "Heute", "period.7dLabel": "Letzte 7 Tage", "period.30dLabel": "Letzte 30 Tage", "period.allLabel": "Gesamter lokaler Verlauf",
     "action.refresh": "Aktualisieren", "action.pricing": "Preise konfigurieren", "hero.title": "Kosten und Aktivität", "hero.privacy": "Nur lokale Daten",

@@ -1,5 +1,7 @@
 # Contributing
 
+By submitting a contribution, you agree to license it under `AGPL-3.0-or-later` and confirm that you have the right to do so. Contributions must not include third-party logos, trademarks, or other assets unless their compatible license and attribution are documented.
+
 Contributions that make the dashboard clearer, more accurate, or safer are welcome.
 
 ## Development workflow

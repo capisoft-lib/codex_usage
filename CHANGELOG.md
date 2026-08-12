@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.2 — 2026-08-12
+
+- Released the complete project as AGPL-3.0-or-later free software.
+- Replaced the third-party OpenAI artwork with an original project icon covered by the project license.
+- Repositioned Codex as a compatibility reference under the independent Local Usage identity.
+- Added persistent source-code and license links to the web interface.
+- Added license metadata and the license text to published container images.
+
 ## 1.0.1 — 2026-08-12
 
 - Added API-equivalent cost, Codex credit, token, model-call, project, and conversation views.

@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="public/icon.svg" width="96" height="96" alt="Codex Usage Dashboard icon">
+  <img src="public/icon.svg" width="96" height="96" alt="Local Usage Dashboard icon">
 </p>
 
-# Codex Usage Dashboard
+# Local Usage Dashboard for Codex
 
 A small, privacy-conscious local dashboard for understanding Codex usage. It reads Codex session metadata from your machine and turns it into useful daily, weekly, monthly, and per-conversation metrics.
 
-[**Release 1.0.1**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.0.1) · [Docker Hub](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [GitHub Container Registry](https://github.com/capisoft-lib/codex_usage/pkgs/container/codex-usage-dashboard) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
+[**Release 1.0.2**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.0.2) · [AGPL-3.0-or-later](LICENSE) · [Docker Hub](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [GitHub Container Registry](https://github.com/capisoft-lib/codex_usage/pkgs/container/codex-usage-dashboard) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
 
 The dashboard is organized around the questions that matter first:
 
@@ -20,9 +20,9 @@ The dashboard is organized around the questions that matter first:
 
 The interface is available in French, English, German, Spanish, Italian, Portuguese, Japanese, Russian, and Simplified Chinese. On the first visit, the dashboard follows the browser language when it is supported; an explicit selection and custom pricing stay in the browser's local storage. The server refreshes usage in the background and persists its complete per-session analysis, so the dashboard can render immediately instead of processing all sessions during a page request. Unchanged files reuse their stored analysis; only new or modified sessions are parsed again. An open page checks for a newer snapshot every 15 seconds; use **Refresh** to force a check immediately.
 
-## Branding
+## Independence and branding
 
-The app icon combines the [official OpenAI monoblossom](https://developers.openai.com/assets/OpenAI-black-monoblossom.svg), used to identify Codex, with a small usage-chart badge unique to this dashboard. The Codex and OpenAI names and the monoblossom remain OpenAI branding. Codex Usage Dashboard is an independent project and is not an official OpenAI product.
+Local Usage is an independent free-software project and is not affiliated with, endorsed by, or sponsored by OpenAI. Its chart icon is original project artwork and is licensed with the rest of the repository under AGPL-3.0-or-later. “Codex” and “OpenAI” are referenced only to describe compatibility; their names and trademarks remain the property of their respective owner and are not part of this project's branding.
 
 ## Requirements
 
@@ -80,16 +80,16 @@ The image is based on Node Alpine, runs as a non-root user with all Linux capabi
 The public image is available from [Docker Hub](https://hub.docker.com/r/capitaine/codex-usage-dashboard) for Linux AMD64 and ARM64:
 
 ```text
-capitaine/codex-usage-dashboard:1.0.1
+capitaine/codex-usage-dashboard:1.0.2
 ```
 
-Use the versioned tag for reproducible installs. The `latest` tag follows the newest published release. No Docker Hub login, repository clone, or local image build is required. The same release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.1`.
+Use the versioned tag for reproducible installs. The `latest` tag follows the newest published release. No Docker Hub login, repository clone, or local image build is required. The same release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.2`.
 
 On Windows PowerShell:
 
 ```powershell
 $codexData = Join-Path $env:USERPROFILE ".codex"
-$image = "capitaine/codex-usage-dashboard:1.0.1"
+$image = "capitaine/codex-usage-dashboard:1.0.2"
 
 docker pull $image
 docker volume create codex-usage-dashboard-storage
@@ -113,7 +113,7 @@ docker run -d `
 On macOS or Linux:
 
 ```bash
-IMAGE="capitaine/codex-usage-dashboard:1.0.1"
+IMAGE="capitaine/codex-usage-dashboard:1.0.2"
 
 docker pull "$IMAGE"
 docker volume create codex-usage-dashboard-storage
@@ -308,16 +308,21 @@ The project intentionally uses only Node.js built-in modules and browser-native 
 
 Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes, especially its privacy requirements for fixtures, logs, and local Codex data.
 
-## Sharing and license
+## Free-software license
 
 The GitHub repository and the published Docker images are public and designed to be shared without local Codex sessions, credentials, caches, or machine-specific paths. The image metadata does identify its public Docker Hub namespace and source GitHub repository so users can trace where the software comes from.
 
-No open-source license has been selected yet. The source is publicly visible and the published image can be pulled and run, but reuse, modification, and redistribution rights are not granted until the repository owner adds a license.
+The complete project—including its original icon and documentation—is free software licensed under [GNU AGPL version 3 or any later version](LICENSE). You may use, study, modify, redistribute, and sell the software. Modified versions that are distributed must remain under the same license, and a modified version used through a computer network must offer its corresponding source code to its users.
+
+Copyright © 2026 capisoft-lib and contributors.
+
+The license does not grant rights to third-party names or trademarks. This repository contains no OpenAI logo artwork; references to Codex and OpenAI describe compatibility only.
 
 ## Project structure
 
 ```text
 public/             Browser interface, icon, locale catalogues, and pricing logic
+LICENSE             GNU Affero General Public License version 3
 src/analyzer.mjs    Read-only Codex session parser
 src/public-usage.mjs Browser API privacy boundary and allowlist
 test/               Parser and privacy regression tests

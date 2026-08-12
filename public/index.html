@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>Codex Usage — Coûts et activité</title>
+  <title>Local Usage — Coûts et activité</title>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
 </head>
@@ -12,7 +12,7 @@
   <header class="topbar">
     <div class="brand">
       <img class="brand-mark" src="/icon.svg" alt="" aria-hidden="true">
-      <div><strong>Codex Usage</strong><span data-i18n="brand.tagline">tableau de bord local</span></div>
+      <div><strong>Local Usage</strong><span data-i18n="brand.tagline">pour Codex · local</span></div>
     </div>
     <nav class="periods" aria-label="Période" data-i18n-aria="nav.period">
       <button data-period="today" data-i18n="period.today" class="active">Aujourd’hui</button>
@@ -132,6 +132,11 @@
       <div class="dialog-actions"><button id="resetPricing" type="button" class="secondary-button" data-i18n="pricing.reset">Valeurs par défaut</button><button id="savePricing" value="default" class="primary-button" data-i18n="pricing.save">Enregistrer</button></div>
     </form>
   </dialog>
+
+  <footer class="site-footer">
+    <span data-i18n="license.independent">Projet libre et indépendant pour les données locales Codex.</span>
+    <span class="site-footer-links"><a href="https://github.com/capisoft-lib/codex_usage" data-i18n="license.source">Code source</a><i aria-hidden="true">·</i><a href="https://github.com/capisoft-lib/codex_usage/blob/main/LICENSE" rel="license">AGPL-3.0-or-later</a></span>
+  </footer>
 
   <div id="toast" class="toast" role="status"></div>
   <script type="module" src="/app.js"></script>

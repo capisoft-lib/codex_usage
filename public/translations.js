@@ -11,7 +11,7 @@ export const LOCALE_TAGS = Object.freeze({
 });
 
 const es = {
-  "app.title": "Codex Usage — Costes y actividad", "brand.tagline": "panel local", "nav.period": "Periodo", "action.language": "Idioma", "action.close": "Cerrar", "action.refresh": "Actualizar", "action.pricing": "Configurar precios", "summary.label": "Resumen del periodo", "summary.kpis": "Indicadores principales",
+  "app.title": "Local Usage — Costes y actividad", "brand.tagline": "para Codex · local", "license.independent": "Software libre e independiente para datos locales de Codex.", "license.source": "Código fuente", "nav.period": "Periodo", "action.language": "Idioma", "action.close": "Cerrar", "action.refresh": "Actualizar", "action.pricing": "Configurar precios", "summary.label": "Resumen del periodo", "summary.kpis": "Indicadores principales",
   "period.today": "Hoy", "period.7d": "7 días", "period.30d": "30 días", "period.all": "Todo", "period.todayLabel": "Hoy", "period.7dLabel": "Últimos 7 días", "period.30dLabel": "Últimos 30 días", "period.allLabel": "Todo el historial local",
   "hero.title": "Costes y actividad", "hero.privacy": "Solo datos locales", "section.load": "ACTIVIDAD", "section.conversations": "DETALLE", "chart.cost": "Coste de API a lo largo del tiempo",
   "token.cache": "Caché", "token.output": "Salida", "units.tokens": "tokens",
@@ -29,7 +29,7 @@ const es = {
 };
 
 const it = {
-  "app.title": "Codex Usage — Costi e attività", "brand.tagline": "dashboard locale", "nav.period": "Periodo", "action.language": "Lingua", "action.close": "Chiudi", "action.refresh": "Aggiorna", "action.pricing": "Configura prezzi", "summary.label": "Riepilogo del periodo", "summary.kpis": "Indicatori principali",
+  "app.title": "Local Usage — Costi e attività", "brand.tagline": "per Codex · locale", "license.independent": "Software libero e indipendente per i dati locali di Codex.", "license.source": "Codice sorgente", "nav.period": "Periodo", "action.language": "Lingua", "action.close": "Chiudi", "action.refresh": "Aggiorna", "action.pricing": "Configura prezzi", "summary.label": "Riepilogo del periodo", "summary.kpis": "Indicatori principali",
   "period.today": "Oggi", "period.7d": "7 giorni", "period.30d": "30 giorni", "period.all": "Tutto", "period.todayLabel": "Oggi", "period.7dLabel": "Ultimi 7 giorni", "period.30dLabel": "Ultimi 30 giorni", "period.allLabel": "Tutta la cronologia locale",
   "hero.title": "Costi e attività", "hero.privacy": "Solo dati locali", "section.load": "ATTIVITÀ", "section.conversations": "DETTAGLIO", "chart.cost": "Costo API nel tempo",
   "token.cache": "Cache", "token.output": "Output", "units.tokens": "token",
@@ -47,7 +47,7 @@ const it = {
 };
 
 const pt = {
-  "app.title": "Codex Usage — Custos e atividade", "brand.tagline": "painel local", "nav.period": "Período", "action.language": "Idioma", "action.close": "Fechar", "action.refresh": "Atualizar", "action.pricing": "Configurar preços", "summary.label": "Resumo do período", "summary.kpis": "Indicadores principais",
+  "app.title": "Local Usage — Custos e atividade", "brand.tagline": "para Codex · local", "license.independent": "Software livre e independente para dados locais do Codex.", "license.source": "Código-fonte", "nav.period": "Período", "action.language": "Idioma", "action.close": "Fechar", "action.refresh": "Atualizar", "action.pricing": "Configurar preços", "summary.label": "Resumo do período", "summary.kpis": "Indicadores principais",
   "period.today": "Hoje", "period.7d": "7 dias", "period.30d": "30 dias", "period.all": "Tudo", "period.todayLabel": "Hoje", "period.7dLabel": "Últimos 7 dias", "period.30dLabel": "Últimos 30 dias", "period.allLabel": "Todo o histórico local",
   "hero.title": "Custos e atividade", "hero.privacy": "Apenas dados locais", "section.load": "ATIVIDADE", "section.conversations": "DETALHE", "chart.cost": "Custo da API ao longo do tempo",
   "token.cache": "Cache", "token.output": "Saída", "units.tokens": "tokens",
@@ -65,7 +65,7 @@ const pt = {
 };
 
 const ja = {
-  "app.title": "Codex Usage — コストとアクティビティ", "brand.tagline": "ローカルダッシュボード", "nav.period": "期間", "action.language": "言語", "action.close": "閉じる", "action.refresh": "更新", "action.pricing": "料金を設定", "summary.label": "期間の概要", "summary.kpis": "主要指標",
+  "app.title": "Local Usage — コストとアクティビティ", "brand.tagline": "Codex向け · ローカル", "license.independent": "Codex のローカルデータ向けの独立した自由ソフトウェアです。", "license.source": "ソースコード", "nav.period": "期間", "action.language": "言語", "action.close": "閉じる", "action.refresh": "更新", "action.pricing": "料金を設定", "summary.label": "期間の概要", "summary.kpis": "主要指標",
   "period.today": "今日", "period.7d": "7日間", "period.30d": "30日間", "period.all": "すべて", "period.todayLabel": "今日", "period.7dLabel": "過去7日間", "period.30dLabel": "過去30日間", "period.allLabel": "ローカル履歴全体",
   "hero.title": "コストとアクティビティ", "hero.privacy": "ローカルデータのみ", "section.load": "アクティビティ", "section.conversations": "詳細", "chart.cost": "APIコストの推移",
   "token.cache": "キャッシュ", "token.output": "出力", "units.tokens": "トークン",
@@ -83,7 +83,7 @@ const ja = {
 };
 
 const ru = {
-  "app.title": "Codex Usage — Расходы и активность", "brand.tagline": "локальная панель", "nav.period": "Период", "action.language": "Язык", "action.close": "Закрыть", "action.refresh": "Обновить", "action.pricing": "Настроить тарифы", "summary.label": "Сводка за период", "summary.kpis": "Основные показатели",
+  "app.title": "Local Usage — Расходы и активность", "brand.tagline": "для Codex · локально", "license.independent": "Независимое свободное ПО для локальных данных Codex.", "license.source": "Исходный код", "nav.period": "Период", "action.language": "Язык", "action.close": "Закрыть", "action.refresh": "Обновить", "action.pricing": "Настроить тарифы", "summary.label": "Сводка за период", "summary.kpis": "Основные показатели",
   "period.today": "Сегодня", "period.7d": "7 дней", "period.30d": "30 дней", "period.all": "Всё", "period.todayLabel": "Сегодня", "period.7dLabel": "Последние 7 дней", "period.30dLabel": "Последние 30 дней", "period.allLabel": "Вся локальная история",
   "hero.title": "Расходы и активность", "hero.privacy": "Только локальные данные", "section.load": "АКТИВНОСТЬ", "section.conversations": "ПОДРОБНОСТИ", "chart.cost": "Стоимость API по времени",
   "token.cache": "Кэш", "token.output": "Вывод", "units.tokens": "токенов",
@@ -101,7 +101,7 @@ const ru = {
 };
 
 const zh = {
-  "app.title": "Codex Usage — 成本与活动", "brand.tagline": "本地仪表板", "nav.period": "时间范围", "action.language": "语言", "action.close": "关闭", "action.refresh": "刷新", "action.pricing": "配置价格", "summary.label": "时段摘要", "summary.kpis": "主要指标",
+  "app.title": "Local Usage — 成本与活动", "brand.tagline": "适用于 Codex · 本地", "license.independent": "用于 Codex 本地数据的独立自由软件。", "license.source": "源代码", "nav.period": "时间范围", "action.language": "语言", "action.close": "关闭", "action.refresh": "刷新", "action.pricing": "配置价格", "summary.label": "时段摘要", "summary.kpis": "主要指标",
   "period.today": "今天", "period.7d": "7天", "period.30d": "30天", "period.all": "全部", "period.todayLabel": "今天", "period.7dLabel": "最近7天", "period.30dLabel": "最近30天", "period.allLabel": "全部本地历史",
   "hero.title": "成本与活动", "hero.privacy": "仅限本地数据", "section.load": "活动", "section.conversations": "详情", "chart.cost": "API成本趋势",
   "token.cache": "缓存", "token.output": "输出", "units.tokens": "个令牌",
