@@ -8,9 +8,10 @@ function validUsage(data) {
 }
 
 export class UsageStore {
-  constructor({ analyze, fingerprint, snapshotPath = null, refreshIntervalMs = 15_000, logger = console }) {
+  constructor({ analyze, fingerprint, serialize = JSON.stringify, snapshotPath = null, refreshIntervalMs = 15_000, logger = console }) {
     this.analyze = analyze;
     this.fingerprint = fingerprint;
+    this.serialize = serialize;
     this.snapshotPath = snapshotPath;
     this.refreshIntervalMs = refreshIntervalMs;
     this.logger = logger;
@@ -29,7 +30,7 @@ export class UsageStore {
       if (snapshot.version !== SNAPSHOT_VERSION || !validUsage(snapshot.data)) return false;
       this.cache = {
         data: snapshot.data,
-        serialized: JSON.stringify(snapshot.data),
+        serialized: this.serialize(snapshot.data),
         fingerprint: snapshot.fingerprint || null,
       };
       this.lastSuccessAt = snapshot.savedAt || snapshot.data.generatedAt;
@@ -90,7 +91,7 @@ export class UsageStore {
       const data = await this.analyze(this.cache.data);
       this.cache = {
         data,
-        serialized: JSON.stringify(data),
+        serialized: this.serialize(data),
         fingerprint: currentFingerprint,
       };
       this.lastSuccessAt = new Date().toISOString();

@@ -14,6 +14,56 @@ const EMPTY_USAGE = Object.freeze({
 
 export const ANALYZER_VERSION = 2;
 
+export function resolveCodexSource(options = {}) {
+  const codexHome = options.codexHome || process.env.CODEX_HOME || path.join(homedir(), ".codex");
+  const explicitlyScoped = Boolean(
+    options.sessionsPath
+    || options.archivedSessionsPath
+    || options.sessionIndexPath
+    || process.env.CODEX_SESSIONS_PATH
+    || process.env.CODEX_ARCHIVED_SESSIONS_PATH
+    || process.env.CODEX_SESSION_INDEX_PATH
+  );
+  return {
+    mode: options.mode || process.env.CODEX_SOURCE_MODE || (explicitlyScoped ? "scoped" : "local"),
+    sessionsPath: options.sessionsPath || process.env.CODEX_SESSIONS_PATH || path.join(codexHome, "sessions"),
+    archivedSessionsPath: options.archivedSessionsPath || process.env.CODEX_ARCHIVED_SESSIONS_PATH || path.join(codexHome, "archived_sessions"),
+    sessionIndexPath: options.sessionIndexPath || process.env.CODEX_SESSION_INDEX_PATH || path.join(codexHome, "session_index.jsonl"),
+  };
+}
+
+async function sourcePathAvailable(filePath, kind) {
+  try {
+    const info = await stat(filePath);
+    return kind === "directory" ? info.isDirectory() : info.isFile();
+  } catch (error) {
+    if (["ENOENT", "ENOTDIR", "EACCES", "EPERM"].includes(error.code)) return false;
+    throw error;
+  }
+}
+
+export async function inspectCodexSource(options = {}) {
+  const source = resolveCodexSource(options);
+  const [sessionsAvailable, archivedSessionsAvailable, sessionIndexAvailable] = await Promise.all([
+    sourcePathAvailable(source.sessionsPath, "directory"),
+    sourcePathAvailable(source.archivedSessionsPath, "directory"),
+    sourcePathAvailable(source.sessionIndexPath, "file"),
+  ]);
+  return {
+    mode: source.mode,
+    sessionsAvailable,
+    archivedSessionsAvailable,
+    sessionIndexAvailable,
+  };
+}
+
+function assertUsableSource(status) {
+  if (status.sessionsAvailable || status.archivedSessionsAvailable) return;
+  const error = new Error("Aucun dossier de sessions Codex lisible. Vérifiez la configuration de la source.");
+  error.code = "CODEX_SOURCE_UNAVAILABLE";
+  throw error;
+}
+
 function number(value) {
   return Number.isFinite(Number(value)) ? Number(value) : 0;
 }
@@ -45,7 +95,7 @@ async function walkJsonl(root) {
     try {
       entries = await readdir(directory, { withFileTypes: true });
     } catch (error) {
-      if (error.code === "ENOENT") return;
+      if (["ENOENT", "ENOTDIR", "EACCES", "EPERM"].includes(error.code)) return;
       throw error;
     }
     await Promise.all(entries.map(async (entry) => {
@@ -58,10 +108,10 @@ async function walkJsonl(root) {
   return files;
 }
 
-export async function loadThreadNames(codexHome) {
+export async function loadThreadNames(codexHome, sessionIndexPath = path.join(codexHome, "session_index.jsonl")) {
   const names = new Map();
   try {
-    const content = await readFile(path.join(codexHome, "session_index.jsonl"), "utf8");
+    const content = await readFile(sessionIndexPath, "utf8");
     for (const line of content.split(/\r?\n/)) {
       if (!line.trim()) continue;
       try {
@@ -70,7 +120,7 @@ export async function loadThreadNames(codexHome) {
       } catch { /* Ignore a partially written index line. */ }
     }
   } catch (error) {
-    if (error.code !== "ENOENT") throw error;
+    if (!["ENOENT", "ENOTDIR", "EACCES", "EPERM"].includes(error.code)) throw error;
   }
   return names;
 }
@@ -226,9 +276,11 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
 }
 
 export async function analyzeCodexUsage(options = {}) {
-  const codexHome = options.codexHome || process.env.CODEX_HOME || path.join(homedir(), ".codex");
-  const names = await loadThreadNames(codexHome);
-  const roots = [path.join(codexHome, "sessions"), path.join(codexHome, "archived_sessions")];
+  const source = resolveCodexSource(options);
+  const sourceStatus = await inspectCodexSource(options);
+  assertUsableSource(sourceStatus);
+  const names = await loadThreadNames(path.dirname(source.sessionIndexPath), source.sessionIndexPath);
+  const roots = [source.sessionsPath, source.archivedSessionsPath];
   const fileLists = await Promise.all(roots.map(walkJsonl));
   const files = fileLists.flat();
   const sessions = [];
@@ -272,14 +324,18 @@ export async function analyzeCodexUsage(options = {}) {
   return {
     analyzerVersion: ANALYZER_VERSION,
     generatedAt: new Date().toISOString(),
-    codexHome,
+    source: sourceStatus,
     sessions: [...unique.values()].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))),
     errors: sessions.filter((item) => item.error),
   };
 }
 
-export async function usageFingerprint(codexHome = process.env.CODEX_HOME || path.join(homedir(), ".codex")) {
-  const roots = [path.join(codexHome, "sessions"), path.join(codexHome, "archived_sessions")];
+export async function usageFingerprint(options = {}) {
+  if (typeof options === "string") options = { codexHome: options };
+  const source = resolveCodexSource(options);
+  const sourceStatus = await inspectCodexSource(options);
+  assertUsableSource(sourceStatus);
+  const roots = [source.sessionsPath, source.archivedSessionsPath];
   const files = (await Promise.all(roots.map(walkJsonl))).flat();
   let latest = 0;
   let bytes = 0;
@@ -295,5 +351,12 @@ export async function usageFingerprint(codexHome = process.env.CODEX_HOME || pat
       } catch { /* File may move to archives while scanning. */ }
     }
   }));
-  return `${files.length}:${latest}:${bytes}`;
+  let indexFingerprint = "missing";
+  try {
+    const info = await stat(source.sessionIndexPath);
+    if (info.isFile()) indexFingerprint = `${info.mtimeMs}:${info.size}`;
+  } catch (error) {
+    if (!["ENOENT", "ENOTDIR", "EACCES", "EPERM"].includes(error.code)) throw error;
+  }
+  return `${files.length}:${latest}:${bytes}:${indexFingerprint}`;
 }

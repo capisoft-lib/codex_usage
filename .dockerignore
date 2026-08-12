@@ -5,6 +5,7 @@ node_modules
 test
 *.log
 .env*
+auth.json
 Dockerfile*
 compose*.yaml
 sessions

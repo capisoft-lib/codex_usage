@@ -7,15 +7,32 @@ services:
     read_only: true
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
     ports:
       - "127.0.0.1:4317:4317"
     environment:
-      REFRESH_INTERVAL_MS: ${REFRESH_INTERVAL_MS:-15000}
+      REFRESH_INTERVAL_MS: ${REFRESH_INTERVAL_MS:-60000}
     volumes:
       - type: bind
-        source: ${CODEX_DATA_PATH:?Définissez CODEX_DATA_PATH vers votre dossier .codex}
-        target: /codex-data
+        source: ${CODEX_DATA_PATH:?Définissez CODEX_DATA_PATH vers votre dossier .codex}/sessions
+        target: /codex-data/sessions
         read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CODEX_DATA_PATH:?Définissez CODEX_DATA_PATH vers votre dossier .codex}/archived_sessions
+        target: /codex-data/archived_sessions
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CODEX_DATA_PATH:?Définissez CODEX_DATA_PATH vers votre dossier .codex}/session_index.jsonl
+        target: /codex-data/session_index.jsonl
+        read_only: true
+        bind:
+          create_host_path: false
       - type: volume
         source: usage-cache
         target: /app-cache

@@ -5,25 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>Codex Usage — Coûts et activité</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark" aria-hidden="true">C</span>
-      <div><strong>Codex Usage</strong><span>tableau de bord local</span></div>
+      <img class="brand-mark" src="/icon.svg" alt="" aria-hidden="true">
+      <div><strong>Codex Usage</strong><span data-i18n="brand.tagline">tableau de bord local</span></div>
     </div>
-    <nav class="periods" aria-label="Période">
+    <nav class="periods" aria-label="Période" data-i18n-aria="nav.period">
       <button data-period="today" data-i18n="period.today" class="active">Aujourd’hui</button>
       <button data-period="7d" data-i18n="period.7d">7 jours</button>
       <button data-period="30d" data-i18n="period.30d">30 jours</button>
       <button data-period="all" data-i18n="period.all">Tout</button>
     </nav>
     <div class="actions">
-      <select id="languageSelect" class="language-select" aria-label="Langue">
+      <select id="languageSelect" class="language-select" aria-label="Langue" data-i18n-aria="action.language">
         <option value="fr">FR</option>
         <option value="en">EN</option>
         <option value="de">DE</option>
+        <option value="es">ES</option>
+        <option value="it">IT</option>
+        <option value="pt">PT</option>
+        <option value="ja">JA</option>
+        <option value="ru">RU</option>
+        <option value="zh">ZH</option>
       </select>
       <button id="pricingButton" class="icon-button" title="Configurer les tarifs" aria-label="Configurer les tarifs">$</button>
       <button id="refreshButton" class="refresh-button"><span>↻</span> <span data-i18n="action.refresh">Actualiser</span></button>
@@ -33,18 +40,18 @@
   <main>
     <section class="hero">
       <div>
-        <p class="eyebrow" id="periodLabel">AUJOURD’HUI</p>
+        <p class="eyebrow" id="periodLabel" data-i18n="period.todayLabel">AUJOURD’HUI</p>
         <h1 data-i18n="hero.title">Coûts et activité</h1>
       </div>
       <div class="hero-status">
         <div class="privacy-pill"><span></span> <span data-i18n="hero.privacy">Données locales uniquement</span></div>
-        <p class="subtitle" id="freshness">Chargement des sessions locales…</p>
+        <p class="subtitle" id="freshness" data-i18n="load.loading">Chargement des sessions locales…</p>
       </div>
     </section>
 
-    <section class="summary-grid" aria-label="Synthèse de la période">
+    <section class="summary-grid" aria-label="Synthèse de la période" data-i18n-aria="summary.label">
       <article class="panel cost-card" id="costSummary"></article>
-      <section class="kpi-grid" id="kpis" aria-label="Indicateurs principaux"></section>
+      <section class="kpi-grid" id="kpis" aria-label="Indicateurs principaux" data-i18n-aria="summary.kpis"></section>
     </section>
 
     <section class="analysis-grid">
@@ -73,12 +80,12 @@
             <summary id="folderFilterSummary" aria-label="Filtrer par projet ou dossier">Tous les dossiers</summary>
             <div id="folderFilterOptions" class="folder-filter-options"></div>
           </details>
-          <select id="modelFilter" aria-label="Filtrer par modèle"><option value="all">Tous les modèles</option></select>
+          <select id="modelFilter" aria-label="Filtrer par modèle"><option value="all" data-i18n="model.all">Tous les modèles</option></select>
           <select id="usageFilter" aria-label="Filtrer par consommation">
             <option value="0" data-i18n="filter.usageAll">Tous les volumes</option>
-            <option value="100000">≥ 100k tokens</option>
-            <option value="1000000">≥ 1M tokens</option>
-            <option value="10000000">≥ 10M tokens</option>
+            <option value="100000" data-i18n="filter.usage100k">≥ 100k tokens</option>
+            <option value="1000000" data-i18n="filter.usage1m">≥ 1M tokens</option>
+            <option value="10000000" data-i18n="filter.usage10m">≥ 10M tokens</option>
           </select>
           <input id="searchInput" type="search" placeholder="Rechercher…" data-i18n-placeholder="search.placeholder" aria-label="Rechercher une conversation">
           <button id="resetTableFilters" class="filter-reset" data-i18n="filter.reset">Réinitialiser</button>
@@ -91,7 +98,7 @@
             <th><button class="sort-button" data-sort="project"><span data-i18n="table.project">Projet</span><i></i></button></th>
             <th><button class="sort-button" data-sort="model"><span data-i18n="table.model">Configuration</span><i></i></button></th>
             <th><button class="sort-button" data-sort="calls"><span data-i18n="table.calls">Appels</span><i></i></button></th>
-            <th><button class="sort-button" data-sort="tokens"><span>Tokens</span><i></i></button></th>
+            <th><button class="sort-button" data-sort="tokens"><span data-i18n="table.tokens">Tokens</span><i></i></button></th>
             <th><button class="sort-button" data-sort="cost"><span data-i18n="table.cost">Coût API</span><i></i></button></th>
           </tr></thead>
           <tbody id="conversationRows"></tbody>
@@ -100,7 +107,7 @@
       <div class="table-footer">
         <span id="tableCount">—</span>
         <div class="page-size"><label for="pageSizeSelect" data-i18n="pagination.perPage">Par page</label><select id="pageSizeSelect"><option>10</option><option selected>25</option><option>50</option><option>100</option></select></div>
-        <nav class="pagination" aria-label="Pagination">
+        <nav class="pagination" aria-label="Pagination" data-i18n-aria="pagination.label">
           <button id="previousPage" data-i18n-aria="pagination.previous" aria-label="Page précédente">←</button>
           <span id="pageIndicator">—</span>
           <button id="nextPage" data-i18n-aria="pagination.next" aria-label="Page suivante">→</button>
@@ -112,14 +119,14 @@
   <aside id="detailDrawer" class="drawer" aria-hidden="true">
     <div class="drawer-backdrop" data-close-drawer></div>
     <section class="drawer-card" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
-      <button class="drawer-close" data-close-drawer aria-label="Fermer">×</button>
+      <button class="drawer-close" data-close-drawer aria-label="Fermer" data-i18n-aria="action.close">×</button>
       <div id="drawerContent"></div>
     </section>
   </aside>
 
   <dialog id="pricingDialog">
     <form method="dialog" class="pricing-form">
-      <div class="dialog-heading"><div><p class="eyebrow" data-i18n="pricing.simulation">SIMULATION</p><h2 data-i18n="pricing.title">Tarifs théoriques</h2></div><button value="cancel" class="drawer-close" aria-label="Fermer">×</button></div>
+      <div class="dialog-heading"><div><p class="eyebrow" data-i18n="pricing.simulation">SIMULATION</p><h2 data-i18n="pricing.title">Tarifs théoriques</h2></div><button value="cancel" class="drawer-close" aria-label="Fermer" data-i18n-aria="action.close">×</button></div>
       <p class="dialog-copy" data-i18n="pricing.copy">Prix en dollars par million de tokens. Les modèles sans tarif public utilisent le tarif de référence. Ces montants simulent l’API standard et ne représentent pas votre abonnement Codex.</p>
       <div id="pricingRows" class="pricing-rows"></div>
       <div class="dialog-actions"><button id="resetPricing" type="button" class="secondary-button" data-i18n="pricing.reset">Valeurs par défaut</button><button id="savePricing" value="default" class="primary-button" data-i18n="pricing.save">Enregistrer</button></div>

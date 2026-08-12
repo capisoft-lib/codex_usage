@@ -8,6 +8,7 @@ Thumbs.db
 coverage/
 .cache/
 .codex/
+auth.json
 
 # Never publish local Codex data or generated usage snapshots.
 sessions/

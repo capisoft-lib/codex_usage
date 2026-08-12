@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { addUsage, analyzeCodexUsage, normalizeUsage, parseSessionFile } from "../src/analyzer.mjs";
+import { addUsage, analyzeCodexUsage, inspectCodexSource, normalizeUsage, parseSessionFile, resolveCodexSource, usageFingerprint } from "../src/analyzer.mjs";
 
 test("normalizes and adds token usage", () => {
   const usage = normalizeUsage({ input_tokens: 100, cached_input_tokens: 80, output_tokens: 20, reasoning_output_tokens: 5, total_tokens: 120 });
@@ -72,4 +72,43 @@ test("reuses persisted per-file analysis when a session has not changed", async 
   delete legacySnapshot.analyzerVersion;
   const migrated = await analyzeCodexUsage({ codexHome, previousData: legacySnapshot });
   assert.notEqual(migrated.sessions[0], first.sessions[0]);
+});
+
+test("supports least-privilege scoped sources without a Codex home mount", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "codex-usage-scoped-"));
+  const sessionsPath = path.join(root, "mounted-sessions");
+  const archivedSessionsPath = path.join(root, "mounted-archives");
+  const sessionIndexPath = path.join(root, "mounted-index.jsonl");
+  await mkdir(sessionsPath);
+  await mkdir(archivedSessionsPath);
+  await writeFile(sessionIndexPath, `${JSON.stringify({ id: "scoped", thread_name: "Scoped source" })}\n`);
+  await writeFile(path.join(sessionsPath, "session.jsonl"), [
+    { timestamp: "2026-08-12T08:00:00.000Z", type: "session_meta", payload: { id: "scoped" } },
+    { timestamp: "2026-08-12T08:00:01.000Z", type: "event_msg", payload: { type: "task_started", turn_id: "turn-1" } },
+  ].map(JSON.stringify).join("\n"));
+
+  const options = { sessionsPath, archivedSessionsPath, sessionIndexPath };
+  assert.equal(resolveCodexSource(options).mode, "scoped");
+  assert.deepEqual(await inspectCodexSource(options), {
+    mode: "scoped",
+    sessionsAvailable: true,
+    archivedSessionsAvailable: true,
+    sessionIndexAvailable: true,
+  });
+  const result = await analyzeCodexUsage(options);
+  assert.equal(result.sessions[0].title, "Scoped source");
+  assert.equal(result.source.mode, "scoped");
+  assert.match(await usageFingerprint(options), /^1:/);
+});
+
+test("rejects a source with no readable session directory", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "codex-usage-missing-"));
+  await assert.rejects(
+    analyzeCodexUsage({
+      sessionsPath: path.join(root, "missing-sessions"),
+      archivedSessionsPath: path.join(root, "missing-archives"),
+      sessionIndexPath: path.join(root, "missing-index.jsonl"),
+    }),
+    { code: "CODEX_SOURCE_UNAVAILABLE" },
+  );
 });
