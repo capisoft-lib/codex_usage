@@ -35,8 +35,8 @@ test("the strict CSP is kept without runtime inline styles", async () => {
 
 test("the published image instructions keep Codex mounts scoped and read-only", async () => {
   const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
-  assert.match(readme, /capitaine\/codex-usage-dashboard:1\.0\.0/);
-  assert.match(readme, /ghcr\.io\/capisoft-lib\/codex-usage-dashboard:1\.0\.0/);
+  assert.match(readme, /capitaine\/codex-usage-dashboard:1\.0\.1/);
+  assert.match(readme, /ghcr\.io\/capisoft-lib\/codex-usage-dashboard:1\.0\.1/);
   assert.match(readme, /target=\/codex-data\/sessions,readonly/);
   assert.match(readme, /target=\/codex-data\/archived_sessions,readonly/);
   assert.match(readme, /target=\/codex-data\/session_index\.jsonl,readonly/);

@@ -3,7 +3,7 @@ FROM node:22-alpine
 LABEL org.opencontainers.image.source="https://github.com/capisoft-lib/codex_usage" \
       org.opencontainers.image.title="Codex Usage Dashboard" \
       org.opencontainers.image.description="Private local dashboard for Codex usage, token activity, and cost estimates" \
-      org.opencontainers.image.version="1.0.0"
+      org.opencontainers.image.version="1.0.1"
 
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \

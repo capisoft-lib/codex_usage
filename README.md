@@ -6,6 +6,8 @@
 
 A small, privacy-conscious local dashboard for understanding Codex usage. It reads Codex session metadata from your machine and turns it into useful daily, weekly, monthly, and per-conversation metrics.
 
+[**Release 1.0.1**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.0.1) · [Docker Hub](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [GitHub Container Registry](https://github.com/capisoft-lib/codex_usage/pkgs/container/codex-usage-dashboard) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
+
 The dashboard is organized around the questions that matter first:
 
 - API-equivalent cost, visible immediately and split between fresh input, cached input, and output;
@@ -78,16 +80,16 @@ The image is based on Node Alpine, runs as a non-root user with all Linux capabi
 The public image is available from [Docker Hub](https://hub.docker.com/r/capitaine/codex-usage-dashboard) for Linux AMD64 and ARM64:
 
 ```text
-capitaine/codex-usage-dashboard:1.0.0
+capitaine/codex-usage-dashboard:1.0.1
 ```
 
-Use the versioned tag for reproducible installs. The `latest` tag follows the newest published release. No Docker Hub login, repository clone, or local image build is required. The same release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.0`.
+Use the versioned tag for reproducible installs. The `latest` tag follows the newest published release. No Docker Hub login, repository clone, or local image build is required. The same release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.1`.
 
 On Windows PowerShell:
 
 ```powershell
 $codexData = Join-Path $env:USERPROFILE ".codex"
-$image = "capitaine/codex-usage-dashboard:1.0.0"
+$image = "capitaine/codex-usage-dashboard:1.0.1"
 
 docker pull $image
 docker volume create codex-usage-dashboard-storage
@@ -111,7 +113,7 @@ docker run -d `
 On macOS or Linux:
 
 ```bash
-IMAGE="capitaine/codex-usage-dashboard:1.0.0"
+IMAGE="capitaine/codex-usage-dashboard:1.0.1"
 
 docker pull "$IMAGE"
 docker volume create codex-usage-dashboard-storage

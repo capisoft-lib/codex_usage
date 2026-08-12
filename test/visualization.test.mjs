@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { boundedRatio, percentageOf, stackedChartSegments } from "../public/visualization.js";
+
+const styles = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
 test("visualization ratios are proportional and safely bounded", () => {
   assert.equal(boundedRatio(25, 100), 0.25);
@@ -31,4 +34,9 @@ test("empty chart data produces zero-height segments", () => {
     stackedChartSegments([{ key: "fresh", value: 12 }], 0, 205),
     [{ key: "fresh", y: 205, height: 0 }],
   );
+});
+
+test("chart columns reserve the same axis-label height when labels are hidden", () => {
+  assert.match(styles, /\.chart-column label\s*\{[^}]*min-height:\s*11px;/);
+  assert.match(styles, /\.chart-column label\s*\{[^}]*line-height:\s*11px;/);
 });

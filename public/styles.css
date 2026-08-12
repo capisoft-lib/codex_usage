@@ -147,7 +147,7 @@ h1 { margin: 0; font-size: clamp(27px, 3vw, 38px); line-height: 1; letter-spacin
 .chart-segment.fresh { fill: var(--accent); }
 .chart-segment.cached { fill: var(--cached); }
 .chart-segment.output { fill: var(--output); }
-.chart-column label { color: var(--subtle); font-size: 8px; white-space: nowrap; }
+.chart-column label { min-height: 11px; color: var(--subtle); font-size: 8px; line-height: 11px; white-space: nowrap; }
 .chart-column:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 .chart-column:hover::after, .chart-column:focus-visible::after { content: attr(data-tip); position: absolute; top: -13px; z-index: 5; padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: 7px; color: var(--text); background: #202521; box-shadow: 0 8px 20px #0008; font-size: 9px; white-space: nowrap; }
 
