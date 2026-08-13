@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 — 2026-08-14
+
+- Increased all visible interface font sizes by 2 px, with responsive spacing adjusted to preserve the mobile layout.
+- Added a sortable last-model-call column to the conversation table.
+- Added a persistent custom start/end date-time range, including an unbounded “Now” end mode.
+- Added the latest locally observed weekly Codex quota, reset date, and explicit reset-count availability.
+
 ## 1.0.2 — 2026-08-12
 
 - Released the complete project as AGPL-3.0-or-later free software.

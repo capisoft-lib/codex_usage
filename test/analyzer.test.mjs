@@ -3,11 +3,25 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { addUsage, analyzeCodexUsage, inspectCodexSource, normalizeUsage, parseSessionFile, resolveCodexSource, usageFingerprint } from "../src/analyzer.mjs";
+import { addUsage, analyzeCodexUsage, inspectCodexSource, normalizeUsage, normalizeWeeklyQuota, parseSessionFile, resolveCodexSource, usageFingerprint } from "../src/analyzer.mjs";
 
 test("normalizes and adds token usage", () => {
   const usage = normalizeUsage({ input_tokens: 100, cached_input_tokens: 80, output_tokens: 20, reasoning_output_tokens: 5, total_tokens: 120 });
   assert.deepEqual(addUsage(usage, usage), { inputTokens: 200, cachedInputTokens: 160, outputTokens: 40, reasoningOutputTokens: 10, totalTokens: 240 });
+});
+
+test("normalizes the weekly Codex quota without inventing reset availability", () => {
+  const quota = normalizeWeeklyQuota({
+    primary: { used_percent: 12, window_minutes: 300, resets_at: 1783626099 },
+    secondary: { used_percent: 36, window_minutes: 10080, resets_at: 1783769144 },
+    plan_type: "pro",
+  }, "2026-07-09T22:00:00.000Z");
+  assert.equal(quota.usedPercent, 36);
+  assert.equal(quota.remainingPercent, 64);
+  assert.equal(quota.windowMinutes, 10080);
+  assert.equal(quota.resetsAt, "2026-07-11T11:25:44.000Z");
+  assert.equal(quota.resetsAvailable, null);
+  assert.equal(quota.planType, "pro");
 });
 
 test("parses turns, model calls and duration without message contents", async () => {
@@ -19,7 +33,7 @@ test("parses turns, model calls and duration without message contents", async ()
     { timestamp: "2026-07-10T08:00:01.000Z", type: "turn_context", payload: { turn_id: "turn-1", model: "gpt-test", effort: "medium" } },
     { timestamp: "2026-07-10T08:00:01.000Z", type: "event_msg", payload: { type: "task_started", turn_id: "turn-1", started_at: "2026-07-10T08:00:01.000Z" } },
     { timestamp: "2026-07-10T08:00:02.000Z", type: "event_msg", payload: { type: "user_message", message: "secret" } },
-    { timestamp: "2026-07-10T08:00:03.000Z", type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: 100, cached_input_tokens: 50, output_tokens: 10, total_tokens: 110 } } } },
+    { timestamp: "2026-07-10T08:00:03.000Z", type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: 100, cached_input_tokens: 50, output_tokens: 10, total_tokens: 110 } }, rate_limits: { primary: { used_percent: 21, window_minutes: 10080, resets_at: 1783769144 }, resets_remaining: 2, plan_type: "pro" } } },
     { timestamp: "2026-07-10T08:00:05.000Z", type: "event_msg", payload: { type: "task_complete", turn_id: "turn-1" } },
   ];
   await writeFile(file, rows.map(JSON.stringify).join("\n"));
@@ -34,6 +48,8 @@ test("parses turns, model calls and duration without message contents", async ()
   assert.equal(result.calls[0].serviceTier, "priority");
   assert.equal(result.durationMs, 4000);
   assert.equal(result.usage.cachedInputTokens, 50);
+  assert.equal(result.weeklyQuota.remainingPercent, 79);
+  assert.equal(result.weeklyQuota.resetsAvailable, 2);
   assert.equal(JSON.stringify(result).includes("secret"), false);
 });
 
@@ -63,7 +79,7 @@ test("reuses persisted per-file analysis when a session has not changed", async 
 
   const first = await analyzeCodexUsage({ codexHome });
   const second = await analyzeCodexUsage({ codexHome, previousData: first });
-  assert.equal(first.analyzerVersion, 2);
+  assert.equal(first.analyzerVersion, 3);
   assert.equal(second.sessions[0], first.sessions[0]);
   assert.equal(second.sessions[0].fileSize > 0, true);
   assert.equal(Number.isFinite(second.sessions[0].fileModifiedAtMs), true);

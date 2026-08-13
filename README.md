@@ -80,16 +80,16 @@ The image is based on Node Alpine, runs as a non-root user with all Linux capabi
 The public image is available from [Docker Hub](https://hub.docker.com/r/capitaine/codex-usage-dashboard) for Linux AMD64 and ARM64:
 
 ```text
-capitaine/codex-usage-dashboard:1.0.2
+capitaine/codex-usage-dashboard:1.1.0
 ```
 
-Use the versioned tag for reproducible installs. The `latest` tag follows the newest published release. No Docker Hub login, repository clone, or local image build is required. The same release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.2`.
+Use the versioned tag for reproducible installs. The `latest` tag follows the newest published image. No Docker Hub login, repository clone, or local image build is required. The previous 1.0.2 release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.2`.
 
 On Windows PowerShell:
 
 ```powershell
 $codexData = Join-Path $env:USERPROFILE ".codex"
-$image = "capitaine/codex-usage-dashboard:1.0.2"
+$image = "capitaine/codex-usage-dashboard:1.1.0"
 
 docker pull $image
 docker volume create codex-usage-dashboard-storage
@@ -113,7 +113,7 @@ docker run -d `
 On macOS or Linux:
 
 ```bash
-IMAGE="capitaine/codex-usage-dashboard:1.0.2"
+IMAGE="capitaine/codex-usage-dashboard:1.1.0"
 
 docker pull "$IMAGE"
 docker volume create codex-usage-dashboard-storage

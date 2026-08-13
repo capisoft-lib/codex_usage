@@ -67,11 +67,25 @@ function publicSource(source) {
   };
 }
 
+function publicWeeklyQuota(quota) {
+  if (!quota) return null;
+  return {
+    usedPercent: quota.usedPercent ?? null,
+    remainingPercent: quota.remainingPercent ?? null,
+    windowMinutes: quota.windowMinutes ?? null,
+    resetsAt: quota.resetsAt || null,
+    resetsAvailable: quota.resetsAvailable ?? null,
+    observedAt: quota.observedAt || null,
+    planType: quota.planType || null,
+  };
+}
+
 export function toPublicUsage(data) {
   return {
     analyzerVersion: data.analyzerVersion,
     generatedAt: data.generatedAt,
     source: publicSource(data.source),
+    weeklyQuota: publicWeeklyQuota(data.weeklyQuota),
     sessions: (data.sessions || []).map(publicSession),
     errorCount: Array.isArray(data.errors) ? data.errors.length : 0,
   };
