@@ -439,5 +439,5 @@ export async function usageFingerprint(options = {}) {
   } catch (error) {
     if (!["ENOENT", "ENOTDIR", "EACCES", "EPERM"].includes(error.code)) throw error;
   }
-  return `${files.length}:${latest}:${bytes}:${indexFingerprint}`;
+  return `${ANALYZER_VERSION}:${files.length}:${latest}:${bytes}:${indexFingerprint}`;
 }

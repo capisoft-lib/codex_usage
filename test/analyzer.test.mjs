@@ -124,7 +124,18 @@ test("supports least-privilege scoped sources without a Codex home mount", async
   const result = await analyzeCodexUsage(options);
   assert.equal(result.sessions[0].title, "Scoped source");
   assert.equal(result.source.mode, "scoped");
-  assert.match(await usageFingerprint(options), /^1:/);
+  assert.match(await usageFingerprint(options), /^4:1:/);
+});
+
+test("fingerprints include the analyzer version so persisted snapshots migrate after upgrades", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "codex-usage-versioned-fingerprint-"));
+  const sessionsPath = path.join(root, "sessions");
+  const archivedSessionsPath = path.join(root, "archives");
+  await mkdir(sessionsPath);
+  await mkdir(archivedSessionsPath);
+  await writeFile(path.join(sessionsPath, "session.jsonl"), `${JSON.stringify({ type: "session_meta", payload: { id: "versioned" } })}\n`);
+  const fingerprint = await usageFingerprint({ sessionsPath, archivedSessionsPath, sessionIndexPath: path.join(root, "missing-index.jsonl") });
+  assert.match(fingerprint, /^4:/);
 });
 
 test("rejects a source with no readable session directory", async () => {
