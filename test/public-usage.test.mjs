@@ -4,7 +4,7 @@ import { serializePublicUsage, toPublicUsage } from "../src/public-usage.mjs";
 
 test("public usage exposes only explicitly allowed fields", () => {
   const raw = {
-    analyzerVersion: 2,
+    analyzerVersion: 3,
     generatedAt: "2026-08-12T08:00:00.000Z",
     codexHome: "C:\\Users\\private\\.codex",
     source: {
@@ -14,6 +14,7 @@ test("public usage exposes only explicitly allowed fields", () => {
       sessionIndexAvailable: true,
       sessionsPath: "C:\\Users\\private\\.codex\\sessions",
     },
+    weeklyQuota: { usedPercent: 24, remainingPercent: 76, windowMinutes: 10080, resetsAt: "2026-08-20T12:00:00.000Z", resetsAvailable: null, observedAt: "2026-08-13T12:00:00.000Z", planType: "pro", secret: "hidden" },
     sessions: [{
       id: "session-1",
       title: "Safe title",
@@ -33,6 +34,8 @@ test("public usage exposes only explicitly allowed fields", () => {
   const serialized = serializePublicUsage(raw);
   assert.equal(publicData.sessions[0].id, "session-1");
   assert.equal(publicData.errorCount, 1);
+  assert.equal(publicData.weeklyQuota.remainingPercent, 76);
+  assert.equal(publicData.weeklyQuota.secret, undefined);
   assert.equal(publicData.sessions[0].filePath, undefined);
   assert.equal(publicData.source.sessionsPath, undefined);
   assert.equal(serialized.includes("private"), false);

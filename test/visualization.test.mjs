@@ -37,6 +37,6 @@ test("empty chart data produces zero-height segments", () => {
 });
 
 test("chart columns reserve the same axis-label height when labels are hidden", () => {
-  assert.match(styles, /\.chart-column label\s*\{[^}]*min-height:\s*11px;/);
-  assert.match(styles, /\.chart-column label\s*\{[^}]*line-height:\s*11px;/);
+  assert.match(styles, /\.chart-column label\s*\{[^}]*min-height:\s*13px;/);
+  assert.match(styles, /\.chart-column label\s*\{[^}]*line-height:\s*13px;/);
 });

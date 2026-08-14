@@ -19,6 +19,14 @@
       <button data-period="7d" data-i18n="period.7d">7 jours</button>
       <button data-period="30d" data-i18n="period.30d">30 jours</button>
       <button data-period="all" data-i18n="period.all">Tout</button>
+      <div class="custom-period">
+        <button id="customPeriodButton" data-period="custom" data-i18n="period.custom" aria-expanded="false" aria-controls="customRangePanel">Personnalisé</button>
+        <div id="customRangePanel" class="custom-range-panel" hidden>
+          <label><span data-i18n="period.customStart">Début</span><input id="customStart" type="datetime-local" required></label>
+          <label><span data-i18n="period.customEnd">Fin</span><input id="customEnd" type="datetime-local"></label>
+          <label class="custom-now"><input id="customEndNow" type="checkbox"><span data-i18n="period.now">Maintenant</span></label>
+        </div>
+      </div>
     </nav>
     <div class="actions">
       <select id="languageSelect" class="language-select" aria-label="Langue" data-i18n-aria="action.language">
@@ -97,6 +105,7 @@
             <th><button class="sort-button" data-sort="title"><span data-i18n="table.conversation">Conversation</span><i></i></button></th>
             <th><button class="sort-button" data-sort="project"><span data-i18n="table.project">Projet</span><i></i></button></th>
             <th><button class="sort-button" data-sort="model"><span data-i18n="table.model">Configuration</span><i></i></button></th>
+            <th><button class="sort-button" data-sort="lastCall"><span data-i18n="table.lastCall">Dernier appel</span><i></i></button></th>
             <th><button class="sort-button" data-sort="calls"><span data-i18n="table.calls">Appels</span><i></i></button></th>
             <th><button class="sort-button" data-sort="tokens"><span data-i18n="table.tokens">Tokens</span><i></i></button></th>
             <th><button class="sort-button" data-sort="cost"><span data-i18n="table.cost">Coût API</span><i></i></button></th>

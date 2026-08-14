@@ -1,12 +1,12 @@
 {
   "name": "codex-usage-dashboard",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "An independent, privacy-conscious local dashboard for Codex usage, model calls, timing, and theoretical cost.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "build": "node --check server.mjs && node --check src/analyzer.mjs && node --check src/public-usage.mjs && node --check src/usage-store.mjs && node --check public/api-pricing.js && node --check public/usage-pricing.js && node --check public/translations.js && node --check public/visualization.js && node --check public/app.js",
+    "build": "node --check server.mjs && node --check src/analyzer.mjs && node --check src/public-usage.mjs && node --check src/usage-store.mjs && node --check public/api-pricing.js && node --check public/usage-pricing.js && node --check public/translations.js && node --check public/visualization.js && node --check public/date-range.js && node --check public/app.js",
     "check": "npm run build && npm test",
     "start": "node server.mjs",
     "test": "node --test"

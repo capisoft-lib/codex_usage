@@ -12,7 +12,7 @@ const EMPTY_USAGE = Object.freeze({
   totalTokens: 0,
 });
 
-export const ANALYZER_VERSION = 2;
+export const ANALYZER_VERSION = 3;
 
 export function resolveCodexSource(options = {}) {
   const codexHome = options.codexHome || process.env.CODEX_HOME || path.join(homedir(), ".codex");
@@ -88,6 +88,47 @@ export function addUsage(left = EMPTY_USAGE, right = EMPTY_USAGE) {
   };
 }
 
+function optionalNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function resetDate(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  const date = Number.isFinite(numeric)
+    ? new Date(numeric < 10_000_000_000 ? numeric * 1_000 : numeric)
+    : new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
+export function normalizeWeeklyQuota(raw, observedAt = null) {
+  if (!raw || typeof raw !== "object") return null;
+  const windows = [raw.primary, raw.secondary, raw.individual_limit]
+    .filter((window) => window && typeof window === "object")
+    .map((window) => ({ ...window, windowMinutes: optionalNumber(window.window_minutes) }))
+    .filter((window) => window.windowMinutes && window.windowMinutes >= 7 * 24 * 60)
+    .sort((left, right) => right.windowMinutes - left.windowMinutes);
+  const weekly = windows[0];
+  if (!weekly) return null;
+  const usedPercent = optionalNumber(weekly.used_percent);
+  const resetsAvailable = optionalNumber(
+    weekly.resets_available
+    ?? weekly.resets_remaining
+    ?? raw.resets_available
+    ?? raw.resets_remaining,
+  );
+  return {
+    usedPercent: usedPercent === null ? null : Math.min(100, Math.max(0, usedPercent)),
+    remainingPercent: usedPercent === null ? null : Math.min(100, Math.max(0, 100 - usedPercent)),
+    windowMinutes: weekly.windowMinutes,
+    resetsAt: resetDate(weekly.resets_at),
+    resetsAvailable: resetsAvailable === null ? null : Math.max(0, resetsAvailable),
+    observedAt: resetDate(observedAt),
+    planType: raw.plan_type || null,
+  };
+}
+
 async function walkJsonl(root) {
   const files = [];
   async function walk(directory) {
@@ -149,6 +190,7 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
   let currentServiceTier = "default";
   let userMessages = 0;
   let assistantMessages = 0;
+  let weeklyQuota = null;
   const turns = new Map();
   const calls = [];
   const parseErrors = [];
@@ -197,6 +239,8 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
 
       if (row.type !== "event_msg") continue;
       const payload = row.payload || {};
+      const observedQuota = normalizeWeeklyQuota(payload.rate_limits || payload.info?.rate_limits, timestamp);
+      if (observedQuota) weeklyQuota = observedQuota;
 
       if (payload.type === "thread_settings_applied") {
         currentServiceTier = payload.thread_settings?.service_tier || currentServiceTier;
@@ -270,6 +314,7 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
     usage,
     turns: turnList,
     calls,
+    weeklyQuota,
     parseErrors: parseErrors.length,
     filePath,
   };
@@ -325,6 +370,10 @@ export async function analyzeCodexUsage(options = {}) {
     analyzerVersion: ANALYZER_VERSION,
     generatedAt: new Date().toISOString(),
     source: sourceStatus,
+    weeklyQuota: [...unique.values()]
+      .map((session) => session.weeklyQuota)
+      .filter(Boolean)
+      .sort((left, right) => String(right.observedAt).localeCompare(String(left.observedAt)))[0] || null,
     sessions: [...unique.values()].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))),
     errors: sessions.filter((item) => item.error),
   };
