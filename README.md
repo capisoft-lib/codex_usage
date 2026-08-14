@@ -10,7 +10,7 @@ A small, privacy-conscious local dashboard for understanding Codex usage. It rea
 
 The dashboard is organized around the questions that matter first:
 
-- API-equivalent cost, visible immediately and split between fresh input, cached input, and output;
+- API-equivalent cost using the observed Standard or Fast service tier, visible immediately and split between fresh input, cached input, and output;
 - active projects, cost share by project, and one-click project filtering;
 - cost activity by hour, day, or month;
 - exact token totals, cache rate, model calls, turns, and duration;
@@ -322,26 +322,31 @@ PORT=8080 CODEX_HOME=/path/to/.codex npm start
 
 ## Pricing estimates
 
-The dashboard displays two deliberately separate measurements:
+The dashboard displays two deliberately separate estimates built from the same locally observed model calls. All source sessions can come from a ChatGPT Codex subscription; no API key or actual API billing data is required.
 
 - **Codex credits** use the official ChatGPT Codex token rate card. Each model call inherits the `service_tier` recorded in the session; `priority` and `fast` calls receive the documented Fast multiplier (currently 2.5x for GPT-5.6/GPT-5.5 and 2x for GPT-5.4).
-- **API-equivalent cost** simulates standard API pricing in US dollars. Fast multipliers do not apply to API-key usage.
+- **API-equivalent cost** estimates what those same token calls would have cost through the API. It starts from the official Standard API price for the observed model, then applies the API processing tier recorded in the session. For GPT-5.6, `priority` and `fast` use the official API Fast rate, currently 2x Standard. This API Fast multiplier is intentionally separate from the 2.5x ChatGPT credit multiplier.
+- **Long-context pricing** is cumulative with the service-tier price. For documented models above 272k input tokens, the full request uses 2x input pricing and 1.5x output pricing; a GPT-5.6 Fast long-context call therefore receives both the API Fast and long-context adjustments.
 
-Calls for models absent from the official Codex credit rate card are reported as unrated instead of silently using a reference model. Credit rates and Fast multipliers are implemented in `public/usage-pricing.js` and covered by automated tests.
+Calls for models absent from the official Codex credit rate card are reported as unrated instead of silently using a reference model. For the dollar estimate, an unknown model uses the visibly marked configurable reference rate. A Fast call for which OpenAI does not publish an API Fast rate remains at its Standard/reference API rate and is reported as lacking a published Fast rate; the dashboard does not invent a multiplier.
 
-The displayed cost is an estimate based on standard API token pricing. It is not a bill and does not represent the cost of a ChatGPT or Codex subscription.
+The displayed dollar amount is a theoretical API-equivalent estimate, not a bill and not the cost of the ChatGPT or Codex subscription that produced the local session. Tool-call fees and cache-write charges are excluded because those billing details are not observable in the local session data.
 
-Public model prices are preconfigured. Internal or unpublished Codex model identifiers use a clearly marked reference price until you configure an exact rate in the pricing dialog. Custom values are stored only in your browser's local storage.
+Public Standard model prices are preconfigured. Internal or unpublished Codex model identifiers use a clearly marked reference price until you configure an exact base rate in the pricing dialog. Known Fast and long-context adjustments are then applied on top. Custom values are stored only in your browser's local storage.
 
-Cost is calculated as:
+Pricing sources: [ChatGPT Codex credits and Fast multipliers](https://learn.chatgpt.com/docs/agent-configuration/speed), [API token pricing](https://developers.openai.com/api/docs/pricing), and [API Fast mode](https://developers.openai.com/api/docs/guides/fast-mode).
+
+Cost is calculated per call as:
 
 ```text
-fresh input × input price
-+ cached input × cached-input price
-+ output × output price
+(
+  fresh input × Standard input price × long-context input factor
+  + cached input × Standard cached-input price × long-context input factor
+  + output × Standard output price × long-context output factor
+) × API service-tier factor
 ```
 
-For GPT-5.6 calls above 272k input tokens, the documented 2x input and 1.5x output multipliers are applied to the full request. The session logs do not expose enough information to identify cache writes or every separately billed tool call, so those fees are explicitly excluded from the estimate. Current GPT-5.6 rates and the long-context rule are sourced from the [official OpenAI model documentation](https://developers.openai.com/api/docs/models/gpt-5.6-sol).
+The API service-tier factor is 1x for Standard and, where OpenAI publishes that rate, 2x for GPT-5.6 Fast/Priority. The long-context factors are normally 1x; for documented models above 272k input tokens, the dashboard applies 2x to input (including cached input) and 1.5x to output for the full call. API Fast and long-context factors are cumulative. The session logs do not expose enough information to identify cache writes or every separately billed tool call, so those fees are explicitly excluded from the estimate.
 
 Reasoning tokens are shown separately when available, but are already included in output usage and are not charged twice.
 

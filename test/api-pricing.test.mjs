@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { apiCostOfCalls, apiPriceFor, mergeApiPricing } from "../public/api-pricing.js";
+import { apiCostOfCalls, apiFastMultiplierFor, apiPriceFor, mergeApiPricing } from "../public/api-pricing.js";
 
 const usage = (inputTokens, cachedInputTokens, outputTokens) => ({
   inputTokens,
@@ -43,6 +43,68 @@ test("applies GPT-5.6 long-context input and output multipliers", () => {
   assert.equal(result.outputCost, 0.45);
   assert.equal(result.cost, 3.45);
   assert.equal(result.longContextCalls, 1);
+});
+
+test("applies the official API Fast rate instead of the ChatGPT credit multiplier", () => {
+  const pricing = mergeApiPricing();
+  const result = apiCostOfCalls([{
+    model: "gpt-5.6-sol",
+    serviceTier: "priority",
+    usage: usage(200_000, 160_000, 20_000),
+  }], pricing);
+
+  assert.equal(apiFastMultiplierFor(pricing, "gpt-5.6-sol", "priority"), 2);
+  assert.equal(apiFastMultiplierFor(pricing, "gpt-5.6-sol", "fast"), 2);
+  assert.equal(result.standardCost, 0.88);
+  assert.equal(result.fastPremiumCost, 0.88);
+  assert.equal(result.cost, 1.76);
+  assert.equal(result.fastCalls, 1);
+  assert.equal(result.unsupportedFastCalls, 0);
+});
+
+test("combines Fast and long-context API surcharges", () => {
+  const result = apiCostOfCalls([{
+    model: "gpt-5.6-terra",
+    serviceTier: "fast",
+    usage: usage(300_000, 0, 10_000),
+  }], mergeApiPricing());
+
+  assert.equal(result.standardCost, 1.38);
+  assert.equal(result.fastPremiumCost, 1.38);
+  assert.equal(result.cost, 2.76);
+  assert.equal(result.freshInputCost, 2.4);
+  assert.equal(result.outputCost, 0.36);
+  assert.equal(result.fastCalls, 1);
+  assert.equal(result.longContextCalls, 1);
+});
+
+test("does not invent an API Fast rate for models without a documented one", () => {
+  const result = apiCostOfCalls([{
+    model: "gpt-5.5",
+    serviceTier: "priority",
+    usage: usage(1_000_000, 0, 0),
+  }], mergeApiPricing());
+
+  assert.equal(result.cost, 10);
+  assert.equal(result.longContextCalls, 1);
+  assert.equal(result.fastCalls, 0);
+  assert.equal(result.unsupportedFastCalls, 1);
+});
+
+test("uses exact API rates for every model in the Codex credit rate card", () => {
+  const pricing = mergeApiPricing();
+  assert.equal(apiPriceFor(pricing, "gpt-5.4-mini").input, 0.75);
+  assert.equal(apiPriceFor(pricing, "gpt-5.3-codex").output, 14);
+});
+
+test("does not apply the long-context surcharge to GPT-5.4 mini", () => {
+  const result = apiCostOfCalls([{
+    model: "gpt-5.4-mini",
+    usage: usage(300_000, 0, 10_000),
+  }], mergeApiPricing());
+
+  assert.equal(result.cost, 0.27);
+  assert.equal(result.longContextCalls, 0);
 });
 
 test("merges stored overrides while adding newly supported models", () => {

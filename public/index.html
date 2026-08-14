@@ -238,7 +238,7 @@
               <div><p class="eyebrow" data-i18n="pricing.simulation">ESTIMATION</p><h2 data-i18n="pricing.title">Tarifs API</h2></div>
             </div>
             <div class="settings-body">
-              <p class="dialog-copy" data-i18n="settings.pricingHint">Les tarifs simulent l’API standard et ne représentent pas votre abonnement Codex.</p>
+              <p class="dialog-copy" data-i18n="settings.pricingHint">Cette estimation reproduit les tarifs API Standard ou Fast observés et ne représente pas votre abonnement Codex.</p>
               <button id="settingsPricingButton" type="button" class="primary-button" data-i18n="action.pricing">Configurer les tarifs</button>
             </div>
           </article>
@@ -298,7 +298,7 @@
   <dialog id="pricingDialog">
     <form method="dialog" class="pricing-form">
       <div class="dialog-heading"><div><p class="eyebrow" data-i18n="pricing.simulation">SIMULATION</p><h2 data-i18n="pricing.title">Tarifs théoriques</h2></div><button value="cancel" class="drawer-close" aria-label="Fermer" data-i18n-aria="action.close">×</button></div>
-      <p class="dialog-copy" data-i18n="pricing.copy">Prix en dollars par million de tokens. Les modèles sans tarif public utilisent le tarif de référence. Ces montants simulent l’API standard et ne représentent pas votre abonnement Codex.</p>
+      <p class="dialog-copy" data-i18n="pricing.copy">Prix API Standard en dollars par million de tokens. Le tarif Fast observé et les majorations long contexte sont ensuite appliqués selon la grille officielle.</p>
       <div id="pricingRows" class="pricing-rows"></div>
       <div class="dialog-actions"><button id="resetPricing" type="button" class="secondary-button" data-i18n="pricing.reset">Valeurs par défaut</button><button id="savePricing" value="default" class="primary-button" data-i18n="pricing.save">Enregistrer</button></div>
     </form>
