@@ -65,12 +65,12 @@ export function normalizeAlias(value: unknown): string {
 
 export function validatePayload(value: unknown): asserts value is Record<string, unknown> & { upserts: Record<string, unknown>[]; removals: string[] } {
   const payload = value as Record<string, unknown>;
-  const payloadKeys = new Set(["kind", "snapshotVersion", "analyzerVersion", "generatedAt", "privacy", "quota", "upserts", "removals"]);
+  const payloadKeys = new Set(["kind", "snapshotVersion", "analyzerVersion", "generatedAt", "privacy", "quota", "quotaHistory", "upserts", "removals"]);
   const sessionKeys = new Set(["id", "sourceSessionId", "nodeId", "nodeAlias", "title", "startedAt", "updatedAt", "cwd", "projectName", "projectGitHubUrl", "source", "cliVersion", "modelProvider", "models", "exchanges", "completedExchanges", "userMessages", "assistantMessages", "modelCalls", "durationMs", "usage", "turns", "calls", "parseErrors"]);
   const turnKeys = new Set(["id", "startedAt", "completedAt", "durationMs", "model", "effort", "serviceTier", "calls", "usage"]);
   const callKeys = new Set(["timestamp", "turnId", "model", "effort", "serviceTier", "usage"]);
   const usageKeys = new Set(["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens"]);
-  const quotaKeys = new Set(["usedPercent", "remainingPercent", "windowMinutes", "resetsAt", "resetsAvailable", "observedAt", "planType", "nodeId", "nodeAlias", "receivedAt"]);
+  const quotaKeys = new Set(["usedPercent", "remainingPercent", "peakUsedPercent", "windowMinutes", "startsAt", "endsAt", "resetsAt", "resetsAvailable", "observedAt", "firstObservedAt", "peakObservedAt", "planType", "planTypes", "nodeId", "nodeAlias", "receivedAt"]);
   const hasOnly = (item: unknown, keys: Set<string>) => Boolean(item && typeof item === "object" && !Array.isArray(item) && Object.keys(item).every((key) => keys.has(key)));
   const validUsage = (item: unknown) => {
     if (!hasOnly(item, usageKeys)) return false;
@@ -95,6 +95,7 @@ export function validatePayload(value: unknown): asserts value is Record<string,
   const privacy = payload.privacy as Record<string, unknown>;
   if (!hasOnly(privacy, new Set(["projectMode", "includeTitles"])) || !["hash", "basename", "full"].includes(String(privacy.projectMode)) || typeof privacy.includeTitles !== "boolean") throw new Error("Profil de confidentialité invalide.");
   if (payload.quota != null && !hasOnly(payload.quota, quotaKeys)) throw new Error("Quota Mesh invalide.");
+  if (payload.quotaHistory !== undefined && (!Array.isArray(payload.quotaHistory) || payload.quotaHistory.length > 500 || !payload.quotaHistory.every((quota) => hasOnly(quota, quotaKeys)))) throw new Error("Historique de quota Mesh invalide.");
 }
 
 export function validateReadPayload(value: unknown): asserts value is Record<string, unknown> & { kind: "read"; requestVersion: 1 } {

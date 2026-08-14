@@ -3,6 +3,7 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import readline from "node:readline";
+import { mergeWeeklyQuotaObservations } from "./quota-history.mjs";
 
 const EMPTY_USAGE = Object.freeze({
   inputTokens: 0,
@@ -12,7 +13,7 @@ const EMPTY_USAGE = Object.freeze({
   totalTokens: 0,
 });
 
-export const ANALYZER_VERSION = 4;
+export const ANALYZER_VERSION = 6;
 
 function projectNameFromCwd(value) {
   const name = String(value || "").replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop()?.trim();
@@ -137,8 +138,7 @@ export function normalizeWeeklyQuota(raw, observedAt = null) {
   const windows = [raw.primary, raw.secondary, raw.individual_limit]
     .filter((window) => window && typeof window === "object")
     .map((window) => ({ ...window, windowMinutes: optionalNumber(window.window_minutes) }))
-    .filter((window) => window.windowMinutes && window.windowMinutes >= 7 * 24 * 60)
-    .sort((left, right) => right.windowMinutes - left.windowMinutes);
+    .filter((window) => window.windowMinutes === 7 * 24 * 60);
   const weekly = windows[0];
   if (!weekly) return null;
   const usedPercent = optionalNumber(weekly.used_percent);
@@ -221,6 +221,7 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
   let userMessages = 0;
   let assistantMessages = 0;
   let weeklyQuota = null;
+  const weeklyQuotaObservations = [];
   const turns = new Map();
   const calls = [];
   const parseErrors = [];
@@ -270,7 +271,10 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
       if (row.type !== "event_msg") continue;
       const payload = row.payload || {};
       const observedQuota = normalizeWeeklyQuota(payload.rate_limits || payload.info?.rate_limits, timestamp);
-      if (observedQuota) weeklyQuota = observedQuota;
+      if (observedQuota) {
+        weeklyQuota = observedQuota;
+        weeklyQuotaObservations.push(observedQuota);
+      }
 
       if (payload.type === "thread_settings_applied") {
         currentServiceTier = payload.thread_settings?.service_tier || currentServiceTier;
@@ -347,6 +351,7 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
     turns: turnList,
     calls,
     weeklyQuota,
+    weeklyQuotaHistory: mergeWeeklyQuotaObservations(weeklyQuotaObservations),
     parseErrors: parseErrors.length,
     filePath,
   };
@@ -398,14 +403,15 @@ export async function analyzeCodexUsage(options = {}) {
     if (!existing || String(session.updatedAt) > String(existing.updatedAt)) unique.set(session.id, session);
   }
 
+  const weeklyQuotaHistory = mergeWeeklyQuotaObservations([...unique.values()]
+    .flatMap((session) => session.weeklyQuotaHistory || (session.weeklyQuota ? [session.weeklyQuota] : [])));
+
   return {
     analyzerVersion: ANALYZER_VERSION,
     generatedAt: new Date().toISOString(),
     source: sourceStatus,
-    weeklyQuota: [...unique.values()]
-      .map((session) => session.weeklyQuota)
-      .filter(Boolean)
-      .sort((left, right) => String(right.observedAt).localeCompare(String(left.observedAt)))[0] || null,
+    weeklyQuota: weeklyQuotaHistory[0] || null,
+    weeklyQuotaHistory,
     sessions: [...unique.values()].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))),
     errors: sessions.filter((item) => item.error),
   };

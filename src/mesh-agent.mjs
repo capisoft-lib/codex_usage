@@ -175,6 +175,7 @@ export class MeshAgent {
         generatedAt: sanitized.generatedAt,
         privacy: sanitized.privacy,
         quota: sanitized.quota,
+        quotaHistory: sanitized.quotaHistory,
         upserts: batch.upserts,
         removals: batch.removals,
       };

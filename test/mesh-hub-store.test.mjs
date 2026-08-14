@@ -42,6 +42,7 @@ test("hub enrolls once, verifies signed updates, blocks replay, and aggregates n
     kind: "sync", snapshotVersion: 1, analyzerVersion: 3,
     generatedAt: new Date(now).toISOString(), privacy: { projectMode: "hash", includeTitles: false },
     quota: { remainingPercent: 80, observedAt: new Date(now).toISOString() },
+    quotaHistory: [{ usedPercent: 20, remainingPercent: 80, peakUsedPercent: 20, windowMinutes: 10080, startsAt: "2026-08-13T10:00:00.000Z", resetsAt: "2026-08-20T10:00:00.000Z", resetsAvailable: null, observedAt: new Date(now).toISOString(), firstObservedAt: new Date(now).toISOString(), peakObservedAt: new Date(now).toISOString(), planType: "pro", planTypes: ["pro"] }],
     upserts: [session()], removals: [],
   };
   const envelope = createSignedEnvelope({ nodeId: node.nodeId, sequence: 1, payload, privateKey: identity.privateKey, sentAt: new Date(now).toISOString() });
@@ -54,6 +55,7 @@ test("hub enrolls once, verifies signed updates, blocks replay, and aggregates n
   assert.equal(aggregate.sessions[0].nodeAlias, "PC Bureau");
   assert.equal(aggregate.weeklyQuota.remainingPercent, 80);
   assert.equal(aggregate.weeklyQuota.nodeId, node.nodeId);
+  assert.equal(aggregate.weeklyQuotaHistory[0].planType, "pro");
 
   const readEnvelope = createSignedEnvelope({ nodeId: node.nodeId, sequence: 2, payload: { kind: "read", requestVersion: 1 }, privateKey: identity.privateKey, sentAt: new Date(now).toISOString() });
   const centralized = await store.readUsage(readEnvelope, now);

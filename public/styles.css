@@ -483,7 +483,7 @@ h1 { margin: 0; }
 .kpi-meta { display: block; margin-top: 8px; overflow: hidden; color: var(--subtle); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 
 .kpi-grid.quota-kpis {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 .quota-kpis .kpi {
@@ -503,6 +503,67 @@ body[data-page="quota"] .cost-chart {
   --chart-pad-bottom: 12px;
   height: 200px;
   padding: 14px 16px 12px;
+}
+body[data-page="quota"] .cost-chart.is-hourly {
+  overflow: hidden;
+  gap: clamp(0px, .12vw, 2px);
+}
+body[data-page="quota"] .cost-chart.is-hourly .chart-column {
+  flex: 1 1 0;
+  min-width: 0;
+}
+body[data-page="quota"] .cost-chart.is-hourly .chart-stack { width: min(9px, 88%); }
+body[data-page="quota"] .cost-chart.is-hourly .chart-column:first-child label { transform: translateX(50%); }
+
+.quota-history-nav {
+  position: sticky;
+  top: 95px;
+  z-index: 25;
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 12px clamp(14px, 2vw, 24px);
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 46px;
+  align-items: end;
+  gap: clamp(12px, 2vw, 22px);
+  border: 1px solid rgba(68, 73, 56, .82);
+  border-radius: 14px;
+  background: rgba(14, 17, 15, .9);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .34), 0 0 18px rgba(201, 244, 109, .04);
+  backdrop-filter: blur(18px);
+}
+.quota-history-button {
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+}
+.quota-history-button:disabled { opacity: .35; cursor: default; }
+.quota-history-select { min-width: 0; display: grid; gap: 6px; color: var(--subtle); font-size: 11px; font-weight: 750; letter-spacing: .1em; text-align: center; text-transform: uppercase; }
+.quota-history-select select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0 16px;
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: normal;
+  text-overflow: ellipsis;
+  text-align: center;
+  text-align-last: center;
+  text-transform: none;
+  white-space: nowrap;
 }
 
 .quota-panel {
@@ -920,6 +981,7 @@ dialog::backdrop { background: #000b; backdrop-filter: blur(3px); }
   .topbar { grid-template-columns: minmax(0, 1fr) auto auto; }
   .page-heading { display: none; }
   .periods { justify-self: start; }
+  .quota-history-nav { top: 72px; }
 }
 
 @media (max-width: 1060px) {
@@ -960,7 +1022,7 @@ dialog::backdrop { background: #000b; backdrop-filter: blur(3px); }
   .kpi { min-height: 112px; }
   .analysis-grid { grid-template-columns: 1fr; }
   .projects-layout { grid-template-columns: 1fr; }
-  .kpi-grid.quota-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .kpi-grid.quota-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .project-detail-kpis { grid-template-columns: 1fr 1fr; }
   .projects-panel { order: 0; }
   .project-breakdown { grid-template-columns: repeat(2, 1fr); }
@@ -993,6 +1055,10 @@ dialog::backdrop { background: #000b; backdrop-filter: blur(3px); }
   .cost-footnote { align-items: flex-start; flex-direction: column; }
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .kpi-grid.quota-kpis { grid-template-columns: 1fr; }
+  .quota-history-nav { top: 104px; padding: 9px 10px; grid-template-columns: 38px minmax(0, 1fr) 38px; gap: 8px; border-radius: 12px; }
+  .quota-history-button { min-height: 40px; font-size: 18px; }
+  .quota-history-select { gap: 4px; font-size: 10px; }
+  .quota-history-select select { min-height: 40px; padding: 0 8px; font-size: 13px; }
   .project-detail-kpis { grid-template-columns: 1fr; }
   .project-breakdown { grid-template-columns: 1fr; }
   .legend { display: none; }
@@ -1001,6 +1067,8 @@ dialog::backdrop { background: #000b; backdrop-filter: blur(3px); }
   .quota-forecast-chart { padding-right: 4px; padding-left: 4px; }
   .quota-axis-time.is-minor text { display: none; }
   .cost-chart { gap: 3px; padding-right: 10px; padding-left: 10px; }
+  body[data-page="quota"] .cost-chart.is-hourly { gap: 0; }
+  body[data-page="quota"] .cost-chart.is-hourly .chart-stack { width: 100%; }
   .panel-hint { display: none; }
   .table-heading { align-items: flex-start; flex-direction: column; }
   .table-tools { width: 100%; margin-top: 5px; justify-content: stretch; }

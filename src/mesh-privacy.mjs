@@ -31,6 +31,7 @@ export function sanitizeUsageForMesh(data, options = {}) {
     analyzerVersion: publicData.analyzerVersion,
     generatedAt: publicData.generatedAt,
     quota: publicData.weeklyQuota,
+    quotaHistory: publicData.weeklyQuotaHistory,
     privacy: { projectMode, includeTitles },
     sessions,
   };

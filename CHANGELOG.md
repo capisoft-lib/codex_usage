@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Added a seven-day quota forecast with daily boundaries, EMA-weighted consumption, and localized Weekly Quota navigation.
+- Added navigable historical weekly quota periods with observed subscription tiers, early-reset boundaries, hourly activity bars, cumulative consumption curves, calibrated credit-capacity estimates, and a centered sticky period navigator.
 - Made `public/` the single editable dashboard UI source and generate one manifested bundle for the local server, Docker, and Codex Sites.
 - Unified local and hosted reads behind versioned `/api/capabilities` and `/api/usage` contracts.
 - Extracted the reusable local collector and added `npm run start:agent` plus a headless Docker target.

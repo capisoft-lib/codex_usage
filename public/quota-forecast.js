@@ -94,6 +94,7 @@ export function buildQuotaForecast({
   rangeEnd,
   observedAt,
   usedPercent,
+  project = true,
   halfLifeHours = DEFAULT_EMA_HALF_LIFE_HOURS,
   lookbackHours = DEFAULT_LOOKBACK_HOURS,
 } = {}) {
@@ -116,7 +117,8 @@ export function buildQuotaForecast({
   const quotaPercentPerCredit = safeUsedPercent / currentCredits;
   const percentPerHour = creditsPerHour * quotaPercentPerCredit;
   const remainingHours = Math.max(0, (endTime - anchorTime) / FORECAST_HOUR_MS);
-  const expectedFinalPercent = safeUsedPercent + remainingHours * percentPerHour;
+  const shouldProject = project !== false && anchorTime < endTime;
+  const expectedFinalPercent = shouldProject ? safeUsedPercent + remainingHours * percentPerHour : safeUsedPercent;
 
   return {
     status: "ready",
@@ -130,7 +132,8 @@ export function buildQuotaForecast({
     expectedFinalPercent,
     marginPercent: 100 - expectedFinalPercent,
     halfLifeHours: Math.max(1, finiteNonNegative(halfLifeHours)),
+    completed: !shouldProject,
     actual: cumulativePoints(currentSamples, startTime, anchorTime, safeUsedPercent, currentCredits),
-    projected: projectedPoints(anchorTime, endTime, safeUsedPercent, percentPerHour),
+    projected: shouldProject ? projectedPoints(anchorTime, endTime, safeUsedPercent, percentPerHour) : [],
   };
 }

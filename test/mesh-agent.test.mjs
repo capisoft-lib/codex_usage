@@ -13,6 +13,7 @@ function usageData() {
     generatedAt: new Date().toISOString(),
     source: { mode: "local", sessionsAvailable: true, archivedSessionsAvailable: false, sessionIndexAvailable: true },
     weeklyQuota: { usedPercent: 20, remainingPercent: 80, windowMinutes: 10080, resetsAt: null, resetsAvailable: null, observedAt: new Date().toISOString(), planType: "pro" },
+    weeklyQuotaHistory: [],
     sessions: [{
       id: "session-1", title: "Sensitive conversation", startedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
       cwd: "C:\\Users\\alice\\secret-project", source: "cli", cliVersion: null, modelProvider: null, models: ["gpt-test"],

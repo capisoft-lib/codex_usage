@@ -61,6 +61,7 @@ const I18N = {
     "insight.title": "Key takeaways", "table.title": "Conversations", "table.conversation": "Conversation", "table.project": "Project", "table.model": "Configuration", "table.exchange": "turn", "table.exchanges": "Turns", "table.calls": "Calls", "table.duration": "Duration", "table.cost": "API cost", "table.hint": "Click a row for details",
     "search.placeholder": "Search…", "search.aria": "Search conversations", "model.all": "All models", "filter.model": "Filter by model", "filter.folderAll": "All folders", "filter.folderSelected": "Folders selected: {n}", "filter.folder": "Filter by project or folder", "filter.usage": "Filter by usage", "filter.usageAll": "All usage levels", "filter.usage100k": "≥ 100k tokens", "filter.usage1m": "≥ 1M tokens", "filter.usage10m": "≥ 10M tokens", "filter.reset": "Reset", "conversation.untitled": "Untitled conversation", "conversation.none": "No conversations match these filters.",
     "kpi.credits": "Codex credits", "kpi.officialRates": "official per-token rates", "kpi.fastPremium": "Fast premium", "kpi.fastCalls": "{n} Fast calls detected", "kpi.fastUsage": "{n} Fast calls · {premium} premium", "kpi.standardUsage": "Standard Codex pricing", "kpi.unrated": "{n} unrated calls", "kpi.cost": "API equivalent", "kpi.prices": "configured API prices", "kpi.referenceCalls": "{n} calls use reference pricing", "kpi.tokens": "Tokens processed", "kpi.cacheRate": "{n}% of input was cached", "kpi.calls": "Model calls", "kpi.tokensPerCall": "{n} tokens / call", "kpi.noCall": "no calls", "kpi.exchanges": "Turns", "kpi.conversations": "Conversations: {n}", "kpi.projects": "Active projects", "kpi.median": "Median duration", "kpi.p95": "p95 {value}", "kpi.completed": "completed turns", "kpi.weeklyQuota": "Weekly credit", "kpi.remaining": "{n}% remaining", "kpi.weeklyReset": "Ends and resets: {date}", "kpi.resetsAvailable": "Available resets: {n}", "kpi.resetsUnknown": "Available resets: not reported", "kpi.weeklyUnavailable": "Quota not present in local sessions",
+    "quota.historyLabel": "Quota history", "quota.previous": "Previous period", "quota.next": "Next period", "quota.period": "Quota period", "quota.current": "Current", "quota.plan": "Plan: {plan}", "quota.planUnknown": "Tier not reported", "quota.plan.free": "Free", "quota.plan.plus": "Plus", "quota.plan.pro": "Pro", "quota.plan.prolite": "Pro (prolite)", "quota.observedAt": "Observed {date}", "quota.estimatedCapacity": "Estimated capacity", "quota.capacityUnavailable": "Not enough usage to calibrate capacity", "quota.capacityMeta": "extrapolated from {n}% observed · {plan}", "quota.historicalForecast": "Completed period: forecasting is available only for the current quota.",
     "cost.estimate": "API ESTIMATE", "cost.officialCoverage": "{n}% of calls priced", "cost.referenceCoverage": "{n} calls use the reference rate", "cost.fastUsage": "{n} API Fast calls · {premium} premium", "cost.standardTier": "Standard API pricing", "cost.fastUnavailable": "{n} Fast calls have no published API Fast rate", "cost.longContext": "{n} calls > 272k · surcharge included", "cost.standardContext": "No calls above 272k tokens", "cost.disclaimer": "Excludes tool fees and cache writes", "cost.fresh": "Fresh input", "cost.cached": "Cached input", "cost.output": "Output", "cost.config": "Adjust rates",
     "projects.label": "PROJECTS", "projects.title": "Cost by project", "projects.hint": "Click a project to filter", "projects.none": "No project in this period", "projects.unknown": "No project", "projects.filter": "Filter on {name}", "chart.cost": "API cost over time", "chart.costHint": "Split by token type", "chart.zoomBack": "Back", "chart.zoomInto": "Show details for {label}",
     "calls.peak": "peak {label} · {n}", "calls.none": "no calls", "calls.count": "{n} calls", "calls.one": "1 call",
@@ -129,13 +130,15 @@ const PAGE_I18N = {
     "overview.recent": "Conversations récentes", "overview.viewAll": "Voir tout",
     "projects.viewAll": "Tous les projets", "projects.select": "Sélectionnez un projet pour voir son détail.", "projects.models": "Coût par modèle", "projects.openConversations": "Voir les conversations", "search.projects": "Rechercher un projet…",
     "quota.window": "Fenêtre hebdomadaire", "quota.weekCost": "Coût de la semaine", "quota.weekTokens": "Tokens de la semaine", "quota.weekCredits": "Crédits de la semaine",
-    "quota.forecastEyebrow": "PRÉVISION", "quota.forecastTitle": "Projection à la fin de la fenêtre", "quota.forecastHint": "EMA 24 h · recalée sur le quota Codex", "quota.forecastAtReset": "Prévision au reset", "quota.emaHour": "Moyenne EMA / heure", "quota.emaDay": "Moyenne EMA / jour", "quota.margin": "{n} % de marge prévue", "quota.overrun": "{n} % au-dessus de la limite", "quota.actual": "Consommé", "quota.projected": "Prévision", "quota.limit": "Limite 100 %", "quota.renew": "Renew", "quota.reset": "Reset", "quota.observed": "Observé", "quota.unavailable": "Prévision indisponible : le quota hebdomadaire et sa date de reset doivent être communiqués.", "quota.insufficient": "Pas encore assez de consommation observée pour calibrer la prévision.", "quota.forecastAria": "Consommation hebdomadaire observée et projetée du quota",
+    "quota.historyLabel": "Historique du quota", "quota.previous": "Période précédente", "quota.next": "Période suivante", "quota.period": "Période de quota", "quota.current": "En cours", "quota.plan": "Abonnement : {plan}", "quota.planUnknown": "Tier non communiqué", "quota.plan.free": "Free", "quota.plan.plus": "Plus", "quota.plan.pro": "Pro", "quota.plan.prolite": "Pro (prolite)", "quota.observedAt": "Observé le {date}", "quota.estimatedCapacity": "Capacité estimée", "quota.capacityUnavailable": "Consommation insuffisante pour calibrer la capacité", "quota.capacityMeta": "extrapolée depuis {n} % observés · {plan}", "quota.historicalForecast": "Période terminée : la prévision est réservée au quota en cours.",
+    "quota.forecastEyebrow": "CONSOMMATION", "quota.forecastTitle": "Évolution de la consommation du quota", "quota.forecastHint": "EMA 24 h · recalée sur le quota Codex", "quota.forecastAtReset": "Prévision au reset", "quota.emaHour": "Moyenne EMA / heure", "quota.emaDay": "Moyenne EMA / jour", "quota.margin": "{n} % de marge prévue", "quota.overrun": "{n} % au-dessus de la limite", "quota.actual": "Consommé", "quota.projected": "Prévision", "quota.limit": "Limite 100 %", "quota.renew": "Début", "quota.reset": "Reset", "quota.observed": "Observé", "quota.unavailable": "Prévision indisponible : le quota hebdomadaire et sa date de reset doivent être communiqués.", "quota.insufficient": "Pas encore assez de consommation observée pour calibrer la prévision.", "quota.forecastAria": "Consommation hebdomadaire observée et projetée du quota",
     "settings.source": "Source des données", "settings.sourceCopy": "Local lit les sessions de cette machine. Centralisé agrège les nœuds du réseau privé.", "settings.pricingHint": "Cette estimation reproduit les tarifs API Standard ou Fast observés et ne représente pas votre abonnement Codex.", "settings.machines": "Machines observées", "settings.noMachines": "Aucune machine mesh pour le moment. Le mode local n’affiche que ce PC.", "settings.machineAdmin": "Administration Mesh", "settings.machineAdminCopy": "Ajoutez ou révoquez les machines autorisées à synchroniser avec ce Site privé.", "settings.openMachineAdmin": "Gérer les machines", "brand.taglineHosted": "pour Codex · centralisé privé", "license.independentHosted": "Dashboard privé et indépendant pour les métadonnées Codex agrégées.",
   },
   en: {
     "overview.recent": "Recent conversations", "overview.viewAll": "View all",
     "projects.viewAll": "All projects", "projects.select": "Select a project to see its details.", "projects.models": "Cost by model", "projects.openConversations": "View conversations", "search.projects": "Search projects…",
     "quota.window": "Weekly window", "quota.weekCost": "Cost this week", "quota.weekTokens": "Tokens this week", "quota.weekCredits": "Credits this week",
+    "quota.historyLabel": "Quota history", "quota.previous": "Previous period", "quota.next": "Next period", "quota.period": "Quota period", "quota.current": "Current", "quota.plan": "Plan: {plan}", "quota.planUnknown": "Tier not reported", "quota.plan.free": "Free", "quota.plan.plus": "Plus", "quota.plan.pro": "Pro", "quota.plan.prolite": "Pro (prolite)", "quota.observedAt": "Observed {date}", "quota.estimatedCapacity": "Estimated capacity", "quota.capacityUnavailable": "Not enough usage to calibrate capacity", "quota.capacityMeta": "extrapolated from {n}% observed · {plan}", "quota.historicalForecast": "Completed period: forecasting is available only for the current quota.",
     "quota.forecastEyebrow": "FORECAST", "quota.forecastTitle": "End-of-window projection", "quota.forecastHint": "24h EMA · calibrated to the Codex quota", "quota.forecastAtReset": "Forecast at reset", "quota.emaHour": "EMA average / hour", "quota.emaDay": "EMA average / day", "quota.margin": "{n}% expected headroom", "quota.overrun": "{n}% above the limit", "quota.actual": "Consumed", "quota.projected": "Forecast", "quota.limit": "100% limit", "quota.renew": "Renew", "quota.reset": "Reset", "quota.observed": "Observed", "quota.unavailable": "Forecast unavailable: the weekly quota and its reset date must be reported.", "quota.insufficient": "Not enough observed consumption yet to calibrate the forecast.", "quota.forecastAria": "Observed and projected weekly quota consumption",
     "settings.source": "Data source", "settings.sourceCopy": "Local reads sessions from this machine. Centralized aggregates nodes on the private network.", "settings.pricingHint": "This estimate reproduces the observed Standard or Fast API rates and does not represent your Codex subscription.", "settings.machines": "Observed machines", "settings.noMachines": "No mesh machines yet. Local mode only shows this PC.", "settings.machineAdmin": "Mesh administration", "settings.machineAdminCopy": "Add or revoke machines allowed to synchronize with this private Site.", "settings.openMachineAdmin": "Manage machines", "brand.taglineHosted": "for Codex · private centralized", "license.independentHosted": "Private independent dashboard for aggregated Codex metadata.",
   },
@@ -143,6 +146,7 @@ const PAGE_I18N = {
     "overview.recent": "Letzte Konversationen", "overview.viewAll": "Alle anzeigen",
     "projects.viewAll": "Alle Projekte", "projects.select": "Wählen Sie ein Projekt, um die Details zu sehen.", "projects.models": "Kosten nach Modell", "projects.openConversations": "Konversationen anzeigen", "search.projects": "Projekte suchen…",
     "quota.window": "Wochenfenster", "quota.weekCost": "Kosten dieser Woche", "quota.weekTokens": "Tokens dieser Woche", "quota.weekCredits": "Credits dieser Woche",
+    "quota.historyLabel": "Kontingentverlauf", "quota.previous": "Vorheriger Zeitraum", "quota.next": "Nächster Zeitraum", "quota.period": "Kontingentzeitraum", "quota.current": "Aktuell", "quota.plan": "Abo: {plan}", "quota.planUnknown": "Tarif nicht gemeldet", "quota.plan.free": "Free", "quota.plan.plus": "Plus", "quota.plan.pro": "Pro", "quota.plan.prolite": "Pro (prolite)", "quota.observedAt": "Beobachtet am {date}", "quota.estimatedCapacity": "Geschätzte Kapazität", "quota.capacityUnavailable": "Nicht genug Nutzung zur Kalibrierung", "quota.capacityMeta": "aus {n} % beobachteter Nutzung extrapoliert · {plan}", "quota.historicalForecast": "Abgeschlossener Zeitraum: Prognosen sind nur für das aktuelle Kontingent verfügbar.",
     "quota.forecastEyebrow": "PROGNOSE", "quota.forecastTitle": "Projektion zum Fensterende", "quota.forecastHint": "24-h-EMA · am Codex-Kontingent kalibriert", "quota.forecastAtReset": "Prognose beim Reset", "quota.emaHour": "EMA-Mittel / Stunde", "quota.emaDay": "EMA-Mittel / Tag", "quota.margin": "{n} % erwartete Reserve", "quota.overrun": "{n} % über dem Limit", "quota.actual": "Verbraucht", "quota.projected": "Prognose", "quota.limit": "100-%-Limit", "quota.renew": "Beginn", "quota.reset": "Reset", "quota.observed": "Beobachtet", "quota.unavailable": "Prognose nicht verfügbar: Wochenkontingent und Reset-Datum müssen gemeldet sein.", "quota.insufficient": "Noch nicht genug Verbrauchsdaten zur Kalibrierung der Prognose.", "quota.forecastAria": "Beobachteter und prognostizierter Verbrauch des Wochenkontingents",
     "settings.source": "Datenquelle", "settings.sourceCopy": "Lokal liest Sitzungen dieser Maschine. Zentral aggregiert Knoten im privaten Netzwerk.", "settings.pricingHint": "Diese Schätzung bildet die beobachteten Standard- oder Fast-API-Tarife ab und entspricht nicht Ihrem Codex-Abo.", "settings.machines": "Beobachtete Geräte", "settings.noMachines": "Noch keine Mesh-Geräte. Der lokale Modus zeigt nur diesen PC.", "settings.machineAdmin": "Mesh-Verwaltung", "settings.machineAdminCopy": "Fügen Sie Computer hinzu oder widerrufen Sie deren Zugriff auf diese private Site.", "settings.openMachineAdmin": "Computer verwalten", "brand.taglineHosted": "für Codex · privat zentralisiert", "license.independentHosted": "Privates unabhängiges Dashboard für aggregierte Codex-Metadaten.",
   },
@@ -150,6 +154,7 @@ const PAGE_I18N = {
     "overview.recent": "Conversaciones recientes", "overview.viewAll": "Ver todo",
     "projects.viewAll": "Todos los proyectos", "projects.select": "Selecciona un proyecto para ver su detalle.", "projects.models": "Coste por modelo", "projects.openConversations": "Ver conversaciones", "search.projects": "Buscar proyectos…",
     "quota.window": "Ventana semanal", "quota.weekCost": "Coste de la semana", "quota.weekTokens": "Tokens de la semana", "quota.weekCredits": "Créditos de la semana",
+    "quota.historyLabel": "Historial de cuota", "quota.previous": "Período anterior", "quota.next": "Período siguiente", "quota.period": "Período de cuota", "quota.current": "Actual", "quota.plan": "Plan: {plan}", "quota.planUnknown": "Nivel no comunicado", "quota.plan.free": "Free", "quota.plan.plus": "Plus", "quota.plan.pro": "Pro", "quota.plan.prolite": "Pro (prolite)", "quota.observedAt": "Observado el {date}", "quota.estimatedCapacity": "Capacidad estimada", "quota.capacityUnavailable": "Uso insuficiente para calibrar la capacidad", "quota.capacityMeta": "extrapolada desde el {n} % observado · {plan}", "quota.historicalForecast": "Período finalizado: la previsión solo está disponible para la cuota actual.",
     "quota.forecastEyebrow": "PREVISIÓN", "quota.forecastTitle": "Proyección al final de la ventana", "quota.forecastHint": "EMA de 24 h · calibrada con la cuota de Codex", "quota.forecastAtReset": "Previsión al reiniciar", "quota.emaHour": "Media EMA / hora", "quota.emaDay": "Media EMA / día", "quota.margin": "{n} % de margen previsto", "quota.overrun": "{n} % por encima del límite", "quota.actual": "Consumido", "quota.projected": "Previsión", "quota.limit": "Límite del 100 %", "quota.renew": "Renovación", "quota.reset": "Reinicio", "quota.observed": "Observado", "quota.unavailable": "Previsión no disponible: deben conocerse la cuota semanal y su fecha de reinicio.", "quota.insufficient": "Aún no hay suficiente consumo observado para calibrar la previsión.", "quota.forecastAria": "Consumo semanal de cuota observado y proyectado",
     "settings.source": "Fuente de datos", "settings.sourceCopy": "Local lee las sesiones de este equipo. Centralizado agrega los nodos de la red privada.", "settings.pricingHint": "Esta estimación reproduce las tarifas API Standard o Fast observadas y no representa tu suscripción Codex.", "settings.machines": "Equipos observados", "settings.noMachines": "Aún no hay equipos mesh. El modo local solo muestra este PC.",
   },
@@ -157,6 +162,7 @@ const PAGE_I18N = {
     "overview.recent": "Conversazioni recenti", "overview.viewAll": "Vedi tutto",
     "projects.viewAll": "Tutti i progetti", "projects.select": "Seleziona un progetto per vederne i dettagli.", "projects.models": "Costo per modello", "projects.openConversations": "Vedi conversazioni", "search.projects": "Cerca progetti…",
     "quota.window": "Finestra settimanale", "quota.weekCost": "Costo della settimana", "quota.weekTokens": "Token della settimana", "quota.weekCredits": "Crediti della settimana",
+    "quota.historyLabel": "Cronologia quota", "quota.previous": "Periodo precedente", "quota.next": "Periodo successivo", "quota.period": "Periodo quota", "quota.current": "Attuale", "quota.plan": "Piano: {plan}", "quota.planUnknown": "Livello non comunicato", "quota.plan.free": "Free", "quota.plan.plus": "Plus", "quota.plan.pro": "Pro", "quota.plan.prolite": "Pro (prolite)", "quota.observedAt": "Osservato il {date}", "quota.estimatedCapacity": "Capacità stimata", "quota.capacityUnavailable": "Utilizzo insufficiente per calibrare la capacità", "quota.capacityMeta": "estrapolata dal {n} % osservato · {plan}", "quota.historicalForecast": "Periodo concluso: la previsione è disponibile solo per la quota attuale.",
     "quota.forecastEyebrow": "PREVISIONE", "quota.forecastTitle": "Proiezione a fine finestra", "quota.forecastHint": "EMA 24 h · calibrata sulla quota Codex", "quota.forecastAtReset": "Previsione al reset", "quota.emaHour": "Media EMA / ora", "quota.emaDay": "Media EMA / giorno", "quota.margin": "{n} % di margine previsto", "quota.overrun": "{n} % oltre il limite", "quota.actual": "Consumata", "quota.projected": "Previsione", "quota.limit": "Limite 100 %", "quota.renew": "Rinnovo", "quota.reset": "Reset", "quota.observed": "Osservato", "quota.unavailable": "Previsione non disponibile: devono essere indicati quota settimanale e data di reset.", "quota.insufficient": "Consumo osservato ancora insufficiente per calibrare la previsione.", "quota.forecastAria": "Consumo della quota settimanale osservato e previsto",
     "settings.source": "Origine dati", "settings.sourceCopy": "Locale legge le sessioni di questo computer. Centralizzato aggrega i nodi della rete privata.", "settings.pricingHint": "Questa stima riproduce le tariffe API Standard o Fast osservate e non rappresenta l’abbonamento Codex.", "settings.machines": "Computer osservati", "settings.noMachines": "Nessun computer mesh al momento. La modalità locale mostra solo questo PC.",
   },
@@ -164,6 +170,7 @@ const PAGE_I18N = {
     "overview.recent": "Conversas recentes", "overview.viewAll": "Ver tudo",
     "projects.viewAll": "Todos os projetos", "projects.select": "Selecione um projeto para ver os detalhes.", "projects.models": "Custo por modelo", "projects.openConversations": "Ver conversas", "search.projects": "Pesquisar projetos…",
     "quota.window": "Janela semanal", "quota.weekCost": "Custo da semana", "quota.weekTokens": "Tokens da semana", "quota.weekCredits": "Créditos da semana",
+    "quota.historyLabel": "Histórico da quota", "quota.previous": "Período anterior", "quota.next": "Período seguinte", "quota.period": "Período da quota", "quota.current": "Atual", "quota.plan": "Plano: {plan}", "quota.planUnknown": "Nível não comunicado", "quota.plan.free": "Free", "quota.plan.plus": "Plus", "quota.plan.pro": "Pro", "quota.plan.prolite": "Pro (prolite)", "quota.observedAt": "Observado em {date}", "quota.estimatedCapacity": "Capacidade estimada", "quota.capacityUnavailable": "Utilização insuficiente para calibrar a capacidade", "quota.capacityMeta": "extrapolada de {n} % observados · {plan}", "quota.historicalForecast": "Período concluído: a previsão só está disponível para a quota atual.",
     "quota.forecastEyebrow": "PREVISÃO", "quota.forecastTitle": "Projeção no fim da janela", "quota.forecastHint": "EMA de 24 h · calibrada pela quota Codex", "quota.forecastAtReset": "Previsão no reset", "quota.emaHour": "Média EMA / hora", "quota.emaDay": "Média EMA / dia", "quota.margin": "{n} % de margem prevista", "quota.overrun": "{n} % acima do limite", "quota.actual": "Consumido", "quota.projected": "Previsão", "quota.limit": "Limite de 100 %", "quota.renew": "Renovação", "quota.reset": "Reset", "quota.observed": "Observado", "quota.unavailable": "Previsão indisponível: a quota semanal e a data de reset têm de ser comunicadas.", "quota.insufficient": "Ainda não há consumo observado suficiente para calibrar a previsão.", "quota.forecastAria": "Consumo semanal da quota observado e projetado",
     "settings.source": "Fonte de dados", "settings.sourceCopy": "Local lê as sessões desta máquina. Centralizado agrega os nós da rede privada.", "settings.pricingHint": "Esta estimativa reproduz as tarifas API Standard ou Fast observadas e não representa a sua subscrição Codex.", "settings.machines": "Computadores observados", "settings.noMachines": "Ainda não há máquinas mesh. O modo local mostra apenas este PC.",
   },
@@ -171,6 +178,7 @@ const PAGE_I18N = {
     "overview.recent": "最近の会話", "overview.viewAll": "すべて表示",
     "projects.viewAll": "すべてのプロジェクト", "projects.select": "プロジェクトを選ぶと詳細を表示します。", "projects.models": "モデル別コスト", "projects.openConversations": "会話を表示", "search.projects": "プロジェクトを検索…",
     "quota.window": "週間ウィンドウ", "quota.weekCost": "今週のコスト", "quota.weekTokens": "今週のトークン", "quota.weekCredits": "今週のクレジット",
+    "quota.historyLabel": "クォータ履歴", "quota.previous": "前の期間", "quota.next": "次の期間", "quota.period": "クォータ期間", "quota.current": "現在", "quota.plan": "プラン: {plan}", "quota.planUnknown": "ティア未報告", "quota.plan.free": "Free", "quota.plan.plus": "Plus", "quota.plan.pro": "Pro", "quota.plan.prolite": "Pro (prolite)", "quota.observedAt": "{date} に観測", "quota.estimatedCapacity": "推定容量", "quota.capacityUnavailable": "容量の較正に十分な利用量がありません", "quota.capacityMeta": "観測された {n}% から外挿 · {plan}", "quota.historicalForecast": "終了済み期間: 予測は現在のクォータでのみ利用できます。",
     "quota.forecastEyebrow": "予測", "quota.forecastTitle": "期間終了時の予測", "quota.forecastHint": "24時間EMA・Codexクォータで較正", "quota.forecastAtReset": "リセット時の予測", "quota.emaHour": "EMA平均 / 時間", "quota.emaDay": "EMA平均 / 日", "quota.margin": "予測余裕 {n}%", "quota.overrun": "上限を {n}% 超過", "quota.actual": "消費済み", "quota.projected": "予測", "quota.limit": "100% 上限", "quota.renew": "更新", "quota.reset": "リセット", "quota.observed": "観測時点", "quota.unavailable": "予測できません。週間クォータとリセット日時が必要です。", "quota.insufficient": "予測を較正するための観測消費量がまだ不足しています。", "quota.forecastAria": "週間クォータ消費量の実績と予測",
     "settings.source": "データソース", "settings.sourceCopy": "ローカルはこのマシンのセッションを読みます。集中管理はプライベートネットワーク上のノードを集約します。", "settings.pricingHint": "この見積もりは観測されたAPI StandardまたはFast料金を再現し、Codexサブスクリプションを表すものではありません。", "settings.machines": "観測したマシン", "settings.noMachines": "Meshマシンはまだありません。ローカルモードはこのPCのみを表示します。",
   },
@@ -178,6 +186,7 @@ const PAGE_I18N = {
     "overview.recent": "Недавние диалоги", "overview.viewAll": "Показать все",
     "projects.viewAll": "Все проекты", "projects.select": "Выберите проект, чтобы увидеть подробности.", "projects.models": "Стоимость по моделям", "projects.openConversations": "Показать диалоги", "search.projects": "Поиск проектов…",
     "quota.window": "Недельное окно", "quota.weekCost": "Стоимость за неделю", "quota.weekTokens": "Токены за неделю", "quota.weekCredits": "Кредиты за неделю",
+    "quota.historyLabel": "История квоты", "quota.previous": "Предыдущий период", "quota.next": "Следующий период", "quota.period": "Период квоты", "quota.current": "Текущий", "quota.plan": "Тариф: {plan}", "quota.planUnknown": "Уровень не указан", "quota.plan.free": "Free", "quota.plan.plus": "Plus", "quota.plan.pro": "Pro", "quota.plan.prolite": "Pro (prolite)", "quota.observedAt": "Наблюдение: {date}", "quota.estimatedCapacity": "Оценочная ёмкость", "quota.capacityUnavailable": "Недостаточно данных для калибровки", "quota.capacityMeta": "экстраполяция по {n} % наблюдений · {plan}", "quota.historicalForecast": "Период завершён: прогноз доступен только для текущей квоты.",
     "quota.forecastEyebrow": "ПРОГНОЗ", "quota.forecastTitle": "Прогноз к концу окна", "quota.forecastHint": "EMA за 24 ч · калибровка по квоте Codex", "quota.forecastAtReset": "Прогноз к сбросу", "quota.emaHour": "Среднее EMA / час", "quota.emaDay": "Среднее EMA / день", "quota.margin": "Ожидаемый запас {n} %", "quota.overrun": "На {n} % выше лимита", "quota.actual": "Израсходовано", "quota.projected": "Прогноз", "quota.limit": "Лимит 100 %", "quota.renew": "Начало", "quota.reset": "Сброс", "quota.observed": "Наблюдение", "quota.unavailable": "Прогноз недоступен: необходимы недельная квота и дата её сброса.", "quota.insufficient": "Пока недостаточно данных о расходе для калибровки прогноза.", "quota.forecastAria": "Наблюдаемый и прогнозируемый расход недельной квоты",
     "settings.source": "Источник данных", "settings.sourceCopy": "Локальный режим читает сеансы этого компьютера. Централизованный агрегирует узлы частной сети.", "settings.pricingHint": "Эта оценка воспроизводит наблюдаемые тарифы API Standard или Fast и не соответствует подписке Codex.", "settings.machines": "Наблюдаемые компьютеры", "settings.noMachines": "Пока нет компьютеров mesh. Локальный режим показывает только этот ПК.",
   },
@@ -185,6 +194,7 @@ const PAGE_I18N = {
     "overview.recent": "最近对话", "overview.viewAll": "查看全部",
     "projects.viewAll": "全部项目", "projects.select": "选择一个项目以查看详情。", "projects.models": "按模型成本", "projects.openConversations": "查看对话", "search.projects": "搜索项目…",
     "quota.window": "每周窗口", "quota.weekCost": "本周成本", "quota.weekTokens": "本周令牌", "quota.weekCredits": "本周点数",
+    "quota.historyLabel": "额度历史", "quota.previous": "上一周期", "quota.next": "下一周期", "quota.period": "额度周期", "quota.current": "当前", "quota.plan": "方案：{plan}", "quota.planUnknown": "未报告等级", "quota.plan.free": "Free", "quota.plan.plus": "Plus", "quota.plan.pro": "Pro", "quota.plan.prolite": "Pro (prolite)", "quota.observedAt": "观测于 {date}", "quota.estimatedCapacity": "估算容量", "quota.capacityUnavailable": "用量不足，无法校准容量", "quota.capacityMeta": "根据已观测的 {n}% 外推 · {plan}", "quota.historicalForecast": "该周期已结束：仅当前额度可使用预测。",
     "quota.forecastEyebrow": "预测", "quota.forecastTitle": "窗口结束时预测", "quota.forecastHint": "24 小时 EMA · 按 Codex 额度校准", "quota.forecastAtReset": "重置时预测", "quota.emaHour": "EMA 平均 / 小时", "quota.emaDay": "EMA 平均 / 天", "quota.margin": "预计剩余 {n}%", "quota.overrun": "超出上限 {n}%", "quota.actual": "已消耗", "quota.projected": "预测", "quota.limit": "100% 上限", "quota.renew": "续期", "quota.reset": "重置", "quota.observed": "观测", "quota.unavailable": "无法预测：必须提供每周额度及重置日期。", "quota.insufficient": "观测到的消耗量不足，暂时无法校准预测。", "quota.forecastAria": "每周额度的已观测和预测消耗",
     "settings.source": "数据来源", "settings.sourceCopy": "本地读取此电脑的会话。集中模式汇总私有网络中的节点。", "settings.pricingHint": "此估算会重现观测到的API Standard或Fast价格，并不代表你的Codex订阅。", "settings.machines": "观测设备", "settings.noMachines": "尚无 mesh 设备。本地模式只显示此电脑。",
   },
@@ -220,6 +230,7 @@ const state = {
   query: "",
   projectQuery: "",
   selectedProject: null,
+  selectedQuotaReset: null,
   model: "all",
   node: "all",
   folders: new Set(),
@@ -421,8 +432,32 @@ function overviewSessions() {
   return sessionsInRange();
 }
 
+function quotaPeriods() {
+  const history = state.data?.weeklyQuotaHistory;
+  if (Array.isArray(history) && history.length) return history;
+  return state.data?.weeklyQuota ? [state.data.weeklyQuota] : [];
+}
+
+function selectedQuota() {
+  const periods = quotaPeriods();
+  const selected = periods.find((quota) => quota.resetsAt === state.selectedQuotaReset) || periods[0] || null;
+  state.selectedQuotaReset = selected?.resetsAt || null;
+  return selected;
+}
+
+function isCurrentQuotaSelection() {
+  const periods = quotaPeriods();
+  return Boolean(periods.length && selectedQuota()?.resetsAt === periods[0].resetsAt);
+}
+
 function weeklyRange(now = new Date()) {
-  return resolveWeeklyRange(state.data?.weeklyQuota, now);
+  const quota = selectedQuota();
+  const startsAt = Date.parse(quota?.startsAt);
+  const endsAt = Date.parse(quota?.endsAt || quota?.resetsAt);
+  if (Number.isFinite(startsAt) && Number.isFinite(endsAt)) {
+    return { start: new Date(startsAt), end: isCurrentQuotaSelection() ? new Date(now) : new Date(endsAt), resetsAt: new Date(endsAt) };
+  }
+  return resolveWeeklyRange(quota, now);
 }
 
 function allScopedCalls(sessions = scopedSessions()) { return sessions.flatMap((session) => session.calls); }
@@ -496,29 +531,68 @@ function renderKpis(sessions, calls, usage) {
 
 function renderQuota() {
   renderQuotaNav();
+  renderQuotaHistoryNavigation();
   const target = $("#quotaHero");
   if (!target) return;
-  const quota = state.data?.weeklyQuota;
-  const available = quota && Number.isFinite(quota.remainingPercent);
+  const quota = selectedQuota();
+  const usedPercent = isCurrentQuotaSelection() ? quota?.usedPercent : quota?.peakUsedPercent;
+  const remaining = Number.isFinite(usedPercent) ? Math.max(0, 100 - usedPercent) : quota?.remainingPercent;
+  const available = quota && Number.isFinite(remaining);
   const label = `<span class="kpi-label">${t("kpi.weeklyQuota")}<b class="kpi-icon">%</b></span>`;
   if (!available) {
     target.innerHTML = `${label}<strong class="kpi-value">—</strong><span class="kpi-meta">${t("kpi.weeklyUnavailable")}</span>`;
     return;
   }
-  const remaining = quota.remainingPercent;
-  const resetAt = currentQuotaResetAt();
+  const resetAt = weeklyRange().resetsAt;
   const resetText = resetAt
     ? t("kpi.weeklyReset", { date: resetAt.toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" }) })
     : t("kpi.weeklyReset", { date: "—" });
   const resetsText = Number.isFinite(quota.resetsAvailable)
     ? t("kpi.resetsAvailable", { n: formatInt(quota.resetsAvailable) })
     : t("kpi.resetsUnknown");
-  target.innerHTML = `${label}<strong class="kpi-value">${t("kpi.remaining", { n: new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(remaining) })}</strong><progress class="weekly-quota-bar${remaining < 20 ? " is-low" : ""}" max="100" value="${remaining}" aria-label="${escapeHtml(t("kpi.remaining", { n: remaining }))}"></progress><div class="weekly-quota-meta"><span class="quota-badge">${escapeHtml(resetText)}</span><span class="quota-badge">${escapeHtml(resetsText)}</span></div>`;
+  const planText = quotaPlanSummary(quota);
+  const observationText = quota.observedAt ? t("quota.observedAt", { date: new Date(quota.observedAt).toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" }) }) : t("quota.planUnknown");
+  target.innerHTML = `${label}<strong class="kpi-value">${t("kpi.remaining", { n: new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(remaining) })}</strong><progress class="weekly-quota-bar${remaining < 20 ? " is-low" : ""}" max="100" value="${remaining}" aria-label="${escapeHtml(t("kpi.remaining", { n: remaining }))}"></progress><div class="weekly-quota-meta"><span class="quota-badge">${escapeHtml(resetText)}</span><span class="quota-badge">${escapeHtml(resetsText)}</span><span class="quota-badge">${escapeHtml(t("quota.plan", { plan: planText }))}</span><span class="quota-badge">${escapeHtml(observationText)}</span></div>`;
+}
+
+function quotaPlanLabel(value) {
+  const normalized = String(value || "").toLowerCase();
+  const key = `quota.plan.${normalized}`;
+  const translated = t(key);
+  return translated === key ? (value || t("quota.planUnknown")) : translated;
+}
+
+function quotaPlanSummary(quota) {
+  const plans = Array.isArray(quota?.planTypes) && quota.planTypes.length ? quota.planTypes : [quota?.planType].filter(Boolean);
+  return plans.length ? plans.map(quotaPlanLabel).join(" → ") : t("quota.planUnknown");
+}
+
+function quotaPeriodLabel(quota, index) {
+  const start = new Date(quota.startsAt || Date.parse(quota.resetsAt) - Number(quota.windowMinutes || 10080) * 60_000);
+  const reset = new Date(quota.endsAt || quota.resetsAt);
+  const startLabel = start.toLocaleString(locale(), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  const resetLabel = reset.toLocaleString(locale(), { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const dates = `${startLabel} → ${resetLabel}`;
+  return `${index === 0 ? `${t("quota.current")} · ` : ""}${dates} · ${quotaPlanSummary(quota)}`;
+}
+
+function renderQuotaHistoryNavigation() {
+  const periods = quotaPeriods();
+  const select = $("#quotaPeriodSelect");
+  if (!select) return;
+  const quota = selectedQuota();
+  const index = Math.max(0, periods.findIndex((period) => period.resetsAt === quota?.resetsAt));
+  select.innerHTML = periods.length
+    ? periods.map((period, position) => `<option value="${escapeHtml(period.resetsAt)}"${position === index ? " selected" : ""}>${escapeHtml(quotaPeriodLabel(period, position))}</option>`).join("")
+    : `<option value="">${t("kpi.weeklyUnavailable")}</option>`;
+  select.disabled = periods.length < 2;
+  $("#quotaPrevious").disabled = !periods.length || index >= periods.length - 1;
+  $("#quotaNext").disabled = index <= 0;
 }
 
 function currentQuotaResetAt() {
   const quota = state.data?.weeklyQuota;
-  return weeklyRange().resetsAt || (quota?.resetsAt ? new Date(quota.resetsAt) : null);
+  return resolveWeeklyRange(quota).resetsAt || (quota?.resetsAt ? new Date(quota.resetsAt) : null);
 }
 
 function renderQuotaNav() {
@@ -541,18 +615,33 @@ function renderQuotaNav() {
 
 function renderQuotaPage() {
   renderQuota();
+  const quota = selectedQuota();
   const sessions = sessionsInRange({ range: weeklyRange() });
   const calls = allScopedCalls(sessions);
   const usage = sumUsage(calls);
   const cost = costOfCalls(calls);
   const credits = codexCreditsOfCalls(calls);
+  const calibrationAt = Date.parse(quota?.peakObservedAt || quota?.observedAt);
+  const calibrationCalls = Number.isFinite(calibrationAt) ? calls.filter((call) => Date.parse(call.timestamp) <= calibrationAt) : [];
+  const calibrationCredits = codexCreditsOfCalls(calibrationCalls);
+  const observedPercent = Number(quota?.peakUsedPercent ?? quota?.usedPercent);
+  const estimatedCapacity = observedPercent > 0 && calibrationCredits.credits > 0 ? calibrationCredits.credits * 100 / observedPercent : null;
+  const capacityPartial = calibrationCredits.unratedCalls > 0;
+  const capacityValue = estimatedCapacity === null ? "—" : `${capacityPartial ? "≥ " : ""}${formatCredits(estimatedCapacity)}`;
+  const capacityMeta = estimatedCapacity === null
+    ? t("quota.capacityUnavailable")
+    : [
+        t("quota.capacityMeta", { n: new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(observedPercent), plan: quotaPlanSummary(quota) }),
+        capacityPartial ? t("kpi.unrated", { n: formatInt(calibrationCredits.unratedCalls) }) : null,
+      ].filter(Boolean).join(" · ");
   const cards = [
     [t("quota.weekCost"), formatCost(cost.cost), apiCostSummaryMeta(cost, { includeCoverage: true }), "$"],
     [t("quota.weekCredits"), formatCredits(credits.credits), creditSummaryMeta(credits), "◇"],
     [t("quota.weekTokens"), formatCompact(usage.totalTokens), `${formatInt(usage.totalTokens)} · ${t("kpi.cacheRate", { n: usage.inputTokens ? Math.round(usage.cachedInputTokens / usage.inputTokens * 100) : 0 })}`, "T"],
+    [t("quota.estimatedCapacity"), capacityValue, capacityMeta, "≈"],
   ];
   $("#quotaKpis").innerHTML = cards.map(([label, value, meta, icon]) => `<article class="kpi"><span class="kpi-label">${label}<b class="kpi-icon">${icon}</b></span><strong class="kpi-value">${value}</strong><span class="kpi-meta" title="${escapeHtml(meta)}">${meta}</span></article>`).join("");
-  renderCostChart(calls, "#quotaChart", "week");
+  renderCostChart(calls, "#quotaChart", "quota-hourly");
   renderQuotaForecast();
 }
 
@@ -590,23 +679,29 @@ function quotaForecastSvg(forecast) {
   const limitY = y(100);
   const observedX = x(forecast.observedAt);
   const actualPoint = forecast.actual.at(-1);
-  const projectedPoint = forecast.projected.at(-1);
-  const dangerClass = forecast.expectedFinalPercent > 100 ? " is-over" : "";
+  const projectedPoint = forecast.projected.at(-1) || null;
+  const endpoint = projectedPoint || actualPoint;
+  const dangerClass = projectedPoint && forecast.expectedFinalPercent > 100 ? " is-over" : "";
   const grid = yTicks.map((tick) => `<g class="quota-axis-grid"><line x1="${plot.left}" y1="${y(tick)}" x2="${width - plot.right}" y2="${y(tick)}"></line><text x="${plot.left - 10}" y="${y(tick) + 4}" text-anchor="end">${escapeHtml(forecastPercent(tick))} %</text></g>`).join("");
   const timeTicks = xTicks.map((tick, index) => `<g class="quota-axis-time${index > 0 && index < xTicks.length - 1 ? " is-minor" : ""}"><line x1="${x(new Date(tick).toISOString())}" y1="${plot.top}" x2="${x(new Date(tick).toISOString())}" y2="${height - plot.bottom}"></line><text x="${x(new Date(tick).toISOString())}" y="${height - 14}" text-anchor="${index === 0 ? "start" : index === xTicks.length - 1 ? "end" : "middle"}">${escapeHtml(forecastDateLabel(tick))}</text></g>`).join("");
+  const description = forecast.completed
+    ? `${t("quota.actual")} · ${forecastPercent(actualPoint.percent)} %`
+    : t(forecast.marginPercent >= 0 ? "quota.margin" : "quota.overrun", { n: forecastPercent(Math.abs(forecast.marginPercent)) });
+  const observedMarker = forecast.completed ? "" : `<line class="quota-observed-line" x1="${observedX}" y1="${plot.top}" x2="${observedX}" y2="${height - plot.bottom}"></line>
+    <text class="quota-observed-label" x="${Math.min(width - plot.right - 4, observedX + 7)}" y="${plot.top + 13}">${escapeHtml(t("quota.observed"))}</text>`;
+  const projectedLine = projectedPoint ? `<polyline class="quota-projected-line${dangerClass}" points="${polyline(forecast.projected)}"></polyline>` : "";
   return `<svg class="quota-forecast-svg" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="quotaForecastSvgTitle quotaForecastSvgDescription">
     <title id="quotaForecastSvgTitle">${escapeHtml(t("quota.forecastAria"))}</title>
-    <desc id="quotaForecastSvgDescription">${escapeHtml(t(forecast.marginPercent >= 0 ? "quota.margin" : "quota.overrun", { n: forecastPercent(Math.abs(forecast.marginPercent)) }))}</desc>
+    <desc id="quotaForecastSvgDescription">${escapeHtml(description)}</desc>
     ${grid}${timeTicks}
     <line class="quota-limit-line" x1="${plot.left}" y1="${limitY}" x2="${width - plot.right}" y2="${limitY}"></line>
     <text class="quota-limit-label" x="${width - plot.right - 4}" y="${limitY - 7}" text-anchor="end">${escapeHtml(t("quota.limit"))}</text>
-    <line class="quota-observed-line" x1="${observedX}" y1="${plot.top}" x2="${observedX}" y2="${height - plot.bottom}"></line>
-    <text class="quota-observed-label" x="${Math.min(width - plot.right - 4, observedX + 7)}" y="${plot.top + 13}">${escapeHtml(t("quota.observed"))}</text>
+    ${observedMarker}
     <polyline class="quota-actual-line" points="${polyline(forecast.actual)}"></polyline>
-    <polyline class="quota-projected-line${dangerClass}" points="${polyline(forecast.projected)}"></polyline>
+    ${projectedLine}
     <circle class="quota-actual-point" cx="${x(actualPoint.timestamp)}" cy="${y(actualPoint.percent)}" r="4"><title>${escapeHtml(`${t("quota.actual")} · ${forecastPercent(actualPoint.percent)} %`)}</title></circle>
-    <circle class="quota-projected-point${dangerClass}" cx="${x(projectedPoint.timestamp)}" cy="${y(projectedPoint.percent)}" r="5"><title>${escapeHtml(`${t("quota.forecastAtReset")} · ${forecastPercent(projectedPoint.percent)} %`)}</title></circle>
-    <text class="quota-endpoint-label${dangerClass}" x="${x(projectedPoint.timestamp) - 8}" y="${Math.max(plot.top + 14, y(projectedPoint.percent) - 10)}" text-anchor="end">${escapeHtml(`${forecastPercent(projectedPoint.percent)} %`)}</text>
+    ${projectedPoint ? `<circle class="quota-projected-point${dangerClass}" cx="${x(projectedPoint.timestamp)}" cy="${y(projectedPoint.percent)}" r="5"><title>${escapeHtml(`${t("quota.forecastAtReset")} · ${forecastPercent(projectedPoint.percent)} %`)}</title></circle>` : ""}
+    <text class="quota-endpoint-label${dangerClass}" x="${x(endpoint.timestamp) - 8}" y="${Math.max(plot.top + 14, y(endpoint.percent) - 10)}" text-anchor="end">${escapeHtml(`${forecastPercent(endpoint.percent)} %`)}</text>
     <text class="quota-window-label" x="${plot.left}" y="${height - 28}" text-anchor="start">${escapeHtml(t("quota.renew"))}</text>
     <text class="quota-window-label" x="${width - plot.right}" y="${height - 28}" text-anchor="end">${escapeHtml(t("quota.reset"))}</text>
   </svg>`;
@@ -616,9 +711,16 @@ function renderQuotaForecast() {
   const summary = $("#quotaForecastSummary");
   const chart = $("#quotaForecastChart");
   if (!summary || !chart) return;
-  const quota = state.data?.weeklyQuota;
+  const quota = selectedQuota();
   const range = weeklyRange();
-  if (!quota || !Number.isFinite(quota.usedPercent) || !range.resetsAt) {
+  const current = isCurrentQuotaSelection();
+  const usedPercent = Number(current ? quota?.usedPercent : quota?.peakUsedPercent);
+  const projectedLegend = $(".forecast-key.projected");
+  if (projectedLegend) {
+    projectedLegend.hidden = !current;
+    if (projectedLegend.nextElementSibling) projectedLegend.nextElementSibling.hidden = !current;
+  }
+  if (!quota || !Number.isFinite(usedPercent) || !range.resetsAt) {
     summary.innerHTML = "";
     chart.innerHTML = `<p class="quota-forecast-empty">${t("quota.unavailable")}</p>`;
     return;
@@ -627,12 +729,18 @@ function renderQuotaForecast() {
     samples: quotaForecastSamples(quota),
     rangeStart: range.start,
     rangeEnd: range.resetsAt,
-    observedAt: quota.observedAt || new Date(),
-    usedPercent: quota.usedPercent,
+    observedAt: current ? (quota.observedAt || new Date()) : range.resetsAt,
+    usedPercent,
+    project: current,
   });
   if (forecast.status !== "ready") {
     summary.innerHTML = "";
     chart.innerHTML = `<p class="quota-forecast-empty">${t(forecast.status === "unavailable" ? "quota.unavailable" : "quota.insufficient")}</p>`;
+    return;
+  }
+  if (!current) {
+    summary.innerHTML = "";
+    chart.innerHTML = quotaForecastSvg(forecast);
     return;
   }
   const over = forecast.marginPercent < 0;
@@ -746,6 +854,7 @@ function renderSettingsNodes() {
 }
 
 function bucketsFor(calls, period = state.period) {
+  if (period === "quota-hourly") return hourlyBucketsFor(calls, weeklyRange());
   if (period === "custom" || period === "week") return customBucketsFor(calls, period === "week" ? weeklyRange() : dateRange());
   const byHour = period === "today";
   const byMonth = period === "all";
@@ -763,6 +872,28 @@ function bucketsFor(calls, period = state.period) {
   }
   for (const call of calls) {
     const time = Date.parse(call.timestamp); const bucket = buckets.find((item) => time >= item.start && time < item.end); if (bucket) bucket.calls.push(call);
+  }
+  return buckets;
+}
+
+function hourlyBucketsFor(calls, range) {
+  const hour = 60 * 60 * 1_000;
+  const rangeEnd = range.end || new Date();
+  const count = Math.max(1, Math.ceil((rangeEnd.getTime() - range.start.getTime()) / hour));
+  const buckets = Array.from({ length: count }, (_, index) => {
+    const start = new Date(range.start.getTime() + index * hour);
+    const end = new Date(Math.min(rangeEnd.getTime(), start.getTime() + hour));
+    return {
+      start,
+      end,
+      label: start.toLocaleString(locale(), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }),
+      calls: [],
+    };
+  });
+  for (const call of calls) {
+    const time = Date.parse(call.timestamp);
+    const index = Math.floor((time - range.start.getTime()) / hour);
+    if (index >= 0 && index < buckets.length && time <= rangeEnd.getTime()) buckets[index].calls.push(call);
   }
   return buckets;
 }
@@ -795,6 +926,7 @@ function customBucketsFor(calls, range = dateRange()) {
 function renderCostChart(calls, target = "#costChart", period = state.period) {
   const host = $(target);
   if (!host) return;
+  host.classList.toggle("is-hourly", period === "quota-hourly");
   const zoomStack = state.chartZoom[target] || [];
   const zoom = zoomStack.at(-1);
   const sourceBuckets = zoom
@@ -802,6 +934,9 @@ function renderCostChart(calls, target = "#costChart", period = state.period) {
     : bucketsFor(calls, period);
   const buckets = sourceBuckets.map((bucket) => ({ ...bucket, cost: costOfCalls(bucket.calls) }));
   const max = Math.max(0.0001, ...buckets.map((bucket) => bucket.cost.cost));
+  const labelTarget = period === "quota-hourly"
+    ? Math.max(2, Math.min(8, Math.floor(host.clientWidth / 140)))
+    : 8;
   const context = zoom ? chartZoomContext(zoom) : "";
   const toolbar = zoom ? `<div class="chart-zoom-toolbar"><button type="button" class="chart-zoom-back">← ${escapeHtml(t("chart.zoomBack"))}</button><strong>${escapeHtml(context)}</strong></div>` : "";
   host.innerHTML = toolbar + buckets.map((bucket, index) => {
@@ -810,7 +945,7 @@ function renderCostChart(calls, target = "#costChart", period = state.period) {
       { key: "cached", value: bucket.cost.cachedInputCost },
       { key: "output", value: bucket.cost.outputCost },
     ], max);
-    const showLabel = buckets.length <= 12 || index % Math.ceil(buckets.length / 8) === 0;
+    const showLabel = buckets.length <= 12 || index % Math.ceil(buckets.length / labelTarget) === 0;
     const detail = `${bucket.label} · ${formatCost(bucket.cost.cost)}`;
     const drillable = Boolean(nextChartGranularity(bucket.granularity));
     const drillLabel = t("chart.zoomInto", { label: bucket.label });
@@ -1243,6 +1378,17 @@ $$('[data-close-drawer]').forEach((element) => element.addEventListener("click",
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") { $("#detailDrawer").setAttribute("aria-hidden", "true"); document.body.classList.remove("drawer-open"); } });
 $("#projectSearch").addEventListener("input", (event) => { state.projectQuery = event.target.value; if (state.data) renderProjectsPage(overviewSessions()); });
 $("#settingsPricingButton").addEventListener("click", openPricing);
+$("#quotaPeriodSelect").addEventListener("change", (event) => { state.selectedQuotaReset = event.target.value || null; render(); });
+$("#quotaPrevious").addEventListener("click", () => {
+  const periods = quotaPeriods();
+  const index = periods.findIndex((period) => period.resetsAt === selectedQuota()?.resetsAt);
+  if (index >= 0 && index < periods.length - 1) { state.selectedQuotaReset = periods[index + 1].resetsAt; render(); }
+});
+$("#quotaNext").addEventListener("click", () => {
+  const periods = quotaPeriods();
+  const index = periods.findIndex((period) => period.resetsAt === selectedQuota()?.resetsAt);
+  if (index > 0) { state.selectedQuotaReset = periods[index - 1].resetsAt; render(); }
+});
 
 function setActiveNav(section) {
   $$("[data-nav-section]").forEach((item) => {
@@ -1280,11 +1426,14 @@ window.addEventListener("hashchange", () => {
   showPage(page, { updateHash: false });
 });
 
-let quotaForecastResizeTimer = null;
+let quotaResizeTimer = null;
 window.addEventListener("resize", () => {
-  clearTimeout(quotaForecastResizeTimer);
-  quotaForecastResizeTimer = setTimeout(() => {
-    if (state.data && state.view === "quota") renderQuotaForecast();
+  clearTimeout(quotaResizeTimer);
+  quotaResizeTimer = setTimeout(() => {
+    if (state.data && state.view === "quota") {
+      renderCostChart(allScopedCalls(sessionsInRange({ range: weeklyRange() })), "#quotaChart", "quota-hourly");
+      renderQuotaForecast();
+    }
   }, 120);
 });
 
