@@ -22,6 +22,7 @@ export const nodes = sqliteTable("mesh_nodes", {
   revokedAt: text("revoked_at"),
   privacyJson: text("privacy_json").notNull(),
   quotaJson: text("quota_json"),
+  quotaHistoryJson: text("quota_history_json"),
   analyzerVersion: integer("analyzer_version").notNull().default(0),
 });
 

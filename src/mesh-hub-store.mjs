@@ -30,6 +30,14 @@ function latestQuota(nodes) {
     .sort((left, right) => String(right.observedAt || right.receivedAt).localeCompare(String(left.observedAt || left.receivedAt)))[0] || null;
 }
 
+function latestQuotaHistory(nodes) {
+  return Object.values(nodes)
+    .filter((node) => Array.isArray(node.quotaHistory))
+    .flatMap((node) => node.quotaHistory.map((quota) => ({ ...quota, nodeId: node.id, nodeAlias: node.alias, receivedAt: node.lastSeen })))
+    .sort((left, right) => String(right.observedAt || right.receivedAt).localeCompare(String(left.observedAt || left.receivedAt)))
+    .filter((quota, index, all) => all.findIndex((candidate) => candidate.resetsAt === quota.resetsAt && candidate.windowMinutes === quota.windowMinutes) === index);
+}
+
 export class MeshHubStore {
   constructor({ storePath = null, enrollmentTtlMs = 10 * 60 * 1_000, logger = console } = {}) {
     this.storePath = storePath;
@@ -98,6 +106,7 @@ export class MeshHubStore {
       revokedAt: null,
       privacy: { projectMode: "hash", includeTitles: false },
       quota: null,
+      quotaHistory: [],
       sessions: {},
     };
     await this.persist();
@@ -120,6 +129,7 @@ export class MeshHubStore {
     node.analyzerVersion = payload.analyzerVersion;
     node.privacy = payload.privacy;
     if (payload.quota !== undefined) node.quota = payload.quota;
+    if (payload.quotaHistory !== undefined) node.quotaHistory = payload.quotaHistory;
     await this.persist();
     return { accepted: true, sequence: node.lastSequence, sessions: Object.keys(node.sessions).length };
   }
@@ -171,6 +181,7 @@ export class MeshHubStore {
       generatedAt: new Date().toISOString(),
       source: { mode: "mesh", sessionsAvailable: active.length > 0, archivedSessionsAvailable: false, sessionIndexAvailable: false },
       weeklyQuota: latestQuota(this.state.nodes),
+      weeklyQuotaHistory: latestQuotaHistory(this.state.nodes),
       nodes: this.nodes(),
       sessions: sessions.sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt))),
       errorCount: 0,

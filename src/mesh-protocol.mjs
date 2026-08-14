@@ -97,13 +97,13 @@ function finiteUsage(usage) {
   return usage && fields.every((field) => Number.isFinite(usage[field]) && usage[field] >= 0);
 }
 
-const PAYLOAD_KEYS = new Set(["kind", "snapshotVersion", "analyzerVersion", "generatedAt", "privacy", "quota", "upserts", "removals"]);
+const PAYLOAD_KEYS = new Set(["kind", "snapshotVersion", "analyzerVersion", "generatedAt", "privacy", "quota", "quotaHistory", "upserts", "removals"]);
 const READ_PAYLOAD_KEYS = new Set(["kind", "requestVersion"]);
 const SESSION_KEYS = new Set(["id", "sourceSessionId", "nodeId", "nodeAlias", "title", "startedAt", "updatedAt", "cwd", "projectName", "projectGitHubUrl", "source", "cliVersion", "modelProvider", "models", "exchanges", "completedExchanges", "userMessages", "assistantMessages", "modelCalls", "durationMs", "usage", "turns", "calls", "parseErrors"]);
 const TURN_KEYS = new Set(["id", "startedAt", "completedAt", "durationMs", "model", "effort", "serviceTier", "calls", "usage"]);
 const CALL_KEYS = new Set(["timestamp", "turnId", "model", "effort", "serviceTier", "usage"]);
 const USAGE_KEYS = new Set(["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens"]);
-const QUOTA_KEYS = new Set(["usedPercent", "remainingPercent", "windowMinutes", "resetsAt", "resetsAvailable", "observedAt", "planType", "nodeId", "nodeAlias", "receivedAt"]);
+const QUOTA_KEYS = new Set(["usedPercent", "remainingPercent", "peakUsedPercent", "windowMinutes", "startsAt", "endsAt", "resetsAt", "resetsAvailable", "observedAt", "firstObservedAt", "peakObservedAt", "planType", "planTypes", "nodeId", "nodeAlias", "receivedAt"]);
 
 function hasOnlyKeys(value, allowed) {
   return value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).every((key) => allowed.has(key));
@@ -140,6 +140,7 @@ export function validateSyncPayload(payload) {
   }
   if (payload.upserts.length + payload.removals.length > 100) throw new Error("Lot de mutations Mesh trop volumineux.");
   if (payload.quota !== null && payload.quota !== undefined && !hasOnlyKeys(payload.quota, QUOTA_KEYS)) throw new Error("Quota Mesh invalide.");
+  if (payload.quotaHistory !== undefined && (!Array.isArray(payload.quotaHistory) || payload.quotaHistory.length > 500 || !payload.quotaHistory.every((quota) => hasOnlyKeys(quota, QUOTA_KEYS)))) throw new Error("Historique de quota Mesh invalide.");
   if (!hasOnlyKeys(payload.privacy, new Set(["projectMode", "includeTitles"])) || !["hash", "basename", "full"].includes(payload.privacy.projectMode) || typeof payload.privacy.includeTitles !== "boolean") {
     throw new Error("Profil de confidentialité Mesh invalide.");
   }

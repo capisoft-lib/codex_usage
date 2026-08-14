@@ -16,6 +16,7 @@ The dashboard is organized around the questions that matter first:
 - exact token totals, cache rate, model calls, turns, and duration;
 - API-equivalent cost by conversation;
 - estimated ChatGPT Codex credits, including per-call Fast mode multipliers;
+- navigable weekly quota history with the subscription tier observed in each period and a calibrated capacity estimate;
 - filters by project, model, period, usage, and conversation name.
 
 The interface is available in French, English, German, Spanish, Italian, Portuguese, Japanese, Russian, and Simplified Chinese. On the first visit, the dashboard follows the browser language when it is supported; an explicit selection and custom pricing stay in the browser's local storage. The server refreshes usage in the background and persists its complete per-session analysis, so the dashboard can render immediately instead of processing all sessions during a page request. Unchanged files reuse their stored analysis; only new or modified sessions are parsed again. An open page checks for a newer snapshot every 15 seconds; use **Refresh** to force a check immediately.
@@ -212,7 +213,7 @@ L’interface utilise le même contrat dans les deux environnements : `GET /api/
 
 Mesh agrège plusieurs installations sans partager les identifiants Codex. Chaque PC analyse ses propres journaux localement, retire les champs sensibles, signe un lot avec une clé Ed25519 créée sur la machine, puis l’envoie vers un hub. Le fonctionnement local reste le comportement par défaut.
 
-Ce qui est transmis : compteurs d’usage et de tokens, modèles, horaires, durée, état, nom système de la machine (ou alias explicitement choisi), nom du projet et URL GitHub canonique lorsqu’elle figure déjà dans les métadonnées de session. L’URL GitHub, sans identifiant ni paramètre, sert d’identité commune entre PC ; à défaut, le nom sert au regroupement, puis une session sans aucune identité reste un projet distinct. Le chemin de travail complet reste haché par défaut. Ce qui ne l’est jamais : `auth.json`, JSONL bruts, prompts, réponses, raisonnement, sorties d’outils, commandes, secrets, nom d’utilisateur ou chemin complet par défaut. Le quota Codex est une observation liée au compte : le hub conserve la plus récente et ne l’additionne jamais.
+Ce qui est transmis : compteurs d’usage et de tokens, modèles, horaires, durée, état, nom système de la machine (ou alias explicitement choisi), nom du projet et URL GitHub canonique lorsqu’elle figure déjà dans les métadonnées de session. L’URL GitHub, sans identifiant ni paramètre, sert d’identité commune entre PC ; à défaut, le nom sert au regroupement, puis une session sans aucune identité reste un projet distinct. Le chemin de travail complet reste haché par défaut. Ce qui ne l’est jamais : `auth.json`, JSONL bruts, prompts, réponses, raisonnement, sorties d’outils, commandes, secrets, nom d’utilisateur ou chemin complet par défaut. Le quota Codex est une observation liée au compte : le hub déduplique son historique et conserve l’observation courante la plus récente sans jamais additionner les pourcentages entre machines.
 
 Le sélecteur `Local / Centralisé` de la barre supérieure conserve le comportement actuel en mode Local. En mode Centralisé, le navigateur interroge une route locale ; l’agent enrôlé signe ensuite la demande vers le hub et renvoie uniquement l’agrégat du même propriétaire. Les deux modes gardent des caches navigateur distincts.
 
@@ -330,11 +331,13 @@ The dashboard displays two deliberately separate estimates built from the same l
 
 Calls for models absent from the official Codex credit rate card are reported as unrated instead of silently using a reference model. For the dollar estimate, an unknown model uses the visibly marked configurable reference rate. A Fast call for which OpenAI does not publish an API Fast rate remains at its Standard/reference API rate and is reported as lacking a published Fast rate; the dashboard does not invent a multiplier.
 
+Weekly quota history is reconstructed only from observed 10,080-minute rate-limit windows. Reset timestamps within five minutes are grouped, and drifting zero-use observations are omitted. When a free or early reset starts a newer quota before the older window's nominal reset, that newer start becomes the older period's effective end. Each period displays the subscription plan code reported by Codex at that time, hourly activity bars, and cumulative quota consumption through its effective end. The estimated full-period capacity is the rated credits observed up to the peak quota observation, multiplied by `100 / peak usage percentage`; when some calls are unrated, the value is displayed as a lower bound. It is a calibrated estimate rather than an official allowance, and no plan-specific multiplier is invented or hardcoded.
+
 The displayed dollar amount is a theoretical API-equivalent estimate, not a bill and not the cost of the ChatGPT or Codex subscription that produced the local session. Tool-call fees and cache-write charges are excluded because those billing details are not observable in the local session data.
 
 Public Standard model prices are preconfigured. Internal or unpublished Codex model identifiers use a clearly marked reference price until you configure an exact base rate in the pricing dialog. Known Fast and long-context adjustments are then applied on top. Custom values are stored only in your browser's local storage.
 
-Pricing sources: [ChatGPT Codex credits and Fast multipliers](https://learn.chatgpt.com/docs/agent-configuration/speed), [API token pricing](https://developers.openai.com/api/docs/pricing), and [API Fast mode](https://developers.openai.com/api/docs/guides/fast-mode).
+Pricing sources: [ChatGPT Codex plans and credit rate card](https://learn.chatgpt.com/docs/pricing), [ChatGPT Codex credits and Fast multipliers](https://learn.chatgpt.com/docs/agent-configuration/speed), [API token pricing](https://developers.openai.com/api/docs/pricing), and [API Fast mode](https://developers.openai.com/api/docs/guides/fast-mode).
 
 Cost is calculated per call as:
 

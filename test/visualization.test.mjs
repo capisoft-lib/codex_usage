@@ -4,6 +4,7 @@ import test from "node:test";
 import { boundedRatio, percentageOf, stackedChartSegments } from "../public/visualization.js";
 
 const styles = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
+const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 
 test("visualization ratios are proportional and safely bounded", () => {
   assert.equal(boundedRatio(25, 100), 0.25);
@@ -44,4 +45,12 @@ test("chart columns reserve the same axis-label height when labels are hidden", 
 test("overview cards stretch together while the chart itself remains fluid", () => {
   assert.match(styles, /\.analysis-grid\s*\{[^}]*align-items:\s*stretch;/);
   assert.match(styles, /\.analysis-grid \.cost-chart\s*\{[^}]*flex:\s*1 1 auto;[^}]*height:\s*auto;/);
+});
+
+test("hourly quota bars shrink to the available width without a horizontal scrollbar", () => {
+  assert.match(styles, /body\[data-page="quota"\] \.cost-chart\.is-hourly\s*\{[^}]*overflow:\s*hidden;[^}]*gap:\s*clamp\(0px, \.12vw, 2px\);/);
+  assert.match(styles, /body\[data-page="quota"\] \.cost-chart\.is-hourly \.chart-column\s*\{[^}]*flex:\s*1 1 0;[^}]*min-width:\s*0;/);
+  assert.match(styles, /@media \(max-width:\s*720px\)[\s\S]*body\[data-page="quota"\] \.cost-chart\.is-hourly\s*\{[^}]*gap:\s*0;/);
+  assert.match(app, /Math\.floor\(host\.clientWidth \/ 140\)/);
+  assert.match(app, /window\.addEventListener\("resize",[\s\S]*renderCostChart\([\s\S]*"#quotaChart", "quota-hourly"\);/);
 });

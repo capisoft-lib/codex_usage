@@ -12,6 +12,7 @@ test("Sites verifies envelopes produced by the desktop agent", async () => {
     generatedAt: new Date().toISOString(),
     privacy: { projectMode: "hash", includeTitles: false },
     quota: null,
+    quotaHistory: [],
     upserts: [],
     removals: [],
   };

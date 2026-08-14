@@ -143,6 +143,11 @@
       </section>
 
       <section class="page" data-page="quota" hidden>
+        <nav class="quota-history-nav" aria-label="Historique du quota" data-i18n-aria="quota.historyLabel">
+          <button id="quotaPrevious" class="quota-history-button" type="button" data-i18n-aria="quota.previous" aria-label="Période précédente">←</button>
+          <label class="quota-history-select"><span data-i18n="quota.period">Période de quota</span><select id="quotaPeriodSelect"></select></label>
+          <button id="quotaNext" class="quota-history-button" type="button" data-i18n-aria="quota.next" aria-label="Période suivante">→</button>
+        </nav>
         <article class="panel quota-panel" id="quotaHero"></article>
         <section class="kpi-grid quota-kpis" id="quotaKpis" aria-label="Indicateurs du quota"></section>
         <article class="panel activity-panel">
@@ -154,7 +159,7 @@
         </article>
         <article class="panel quota-forecast-panel">
           <div class="panel-heading forecast-heading">
-            <div><p class="eyebrow" data-i18n="quota.forecastEyebrow">PRÉVISION</p><h2 data-i18n="quota.forecastTitle">Projection à la fin de la fenêtre</h2></div>
+            <div><p class="eyebrow" data-i18n="quota.forecastEyebrow">CONSOMMATION</p><h2 data-i18n="quota.forecastTitle">Évolution de la consommation du quota</h2></div>
             <div class="forecast-legend" aria-hidden="true"><span class="forecast-key actual"></span><span data-i18n="quota.actual">Consommé</span><span class="forecast-key projected"></span><span data-i18n="quota.projected">Prévision</span><span class="forecast-key limit"></span><span data-i18n="quota.limit">Limite 100 %</span></div>
           </div>
           <div id="quotaForecastSummary" class="forecast-summary"></div>

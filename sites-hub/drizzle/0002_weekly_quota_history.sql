@@ -1,0 +1,1 @@
+ALTER TABLE `mesh_nodes` ADD `quota_history_json` text;

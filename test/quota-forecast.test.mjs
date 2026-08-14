@@ -52,6 +52,29 @@ test("the same consumed credits produce a higher forecast when they are recent",
   assert.ok(recent.expectedFinalPercent > older.expectedFinalPercent);
 });
 
+test("a completed quota renders cumulative consumption through its effective end without projection", () => {
+  const rangeStart = Date.parse("2026-08-12T17:23:48.000Z");
+  const rangeEnd = Date.parse("2026-08-13T03:29:38.000Z");
+  const forecast = buildQuotaForecast({
+    samples: [
+      { timestamp: new Date(rangeStart + FORECAST_HOUR_MS).toISOString(), value: 10 },
+      { timestamp: new Date(rangeEnd - FORECAST_HOUR_MS).toISOString(), value: 20 },
+    ],
+    rangeStart,
+    rangeEnd,
+    observedAt: rangeEnd,
+    usedPercent: 3,
+    project: false,
+  });
+
+  assert.equal(forecast.status, "ready");
+  assert.equal(forecast.completed, true);
+  assert.equal(forecast.expectedFinalPercent, 3);
+  assert.equal(forecast.actual.at(-1).timestamp, new Date(rangeEnd).toISOString());
+  assert.equal(forecast.actual.at(-1).percent, 3);
+  assert.deepEqual(forecast.projected, []);
+});
+
 test("forecast fails closed when quota calibration data is unavailable", () => {
   const common = {
     rangeStart: "2026-08-13T12:00:00.000Z",

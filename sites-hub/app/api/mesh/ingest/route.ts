@@ -13,8 +13,8 @@ export async function POST(request: Request) {
     validatePayload(envelope.payload);
     const payload = envelope.payload;
     const receivedAt = new Date().toISOString();
-    const statements = [database.prepare("UPDATE mesh_nodes SET last_sequence = ?, last_payload_hash = ?, last_seen = ?, last_generated_at = ?, privacy_json = ?, quota_json = ?, analyzer_version = ? WHERE id = ? AND last_sequence < ?")
-      .bind(envelope.sequence, envelope.payloadHash, receivedAt, String(payload.generatedAt), JSON.stringify(payload.privacy), payload.quota == null ? null : JSON.stringify(payload.quota), Number(payload.analyzerVersion) || 0, envelope.nodeId, envelope.sequence)];
+    const statements = [database.prepare("UPDATE mesh_nodes SET last_sequence = ?, last_payload_hash = ?, last_seen = ?, last_generated_at = ?, privacy_json = ?, quota_json = ?, quota_history_json = ?, analyzer_version = ? WHERE id = ? AND last_sequence < ?")
+      .bind(envelope.sequence, envelope.payloadHash, receivedAt, String(payload.generatedAt), JSON.stringify(payload.privacy), payload.quota == null ? null : JSON.stringify(payload.quota), payload.quotaHistory == null ? null : JSON.stringify(payload.quotaHistory), Number(payload.analyzerVersion) || 0, envelope.nodeId, envelope.sequence)];
     for (const id of payload.removals) {
       statements.push(database.prepare("DELETE FROM mesh_sessions WHERE node_id = ? AND session_id = ? AND EXISTS (SELECT 1 FROM mesh_nodes WHERE id = ? AND last_sequence = ? AND last_payload_hash = ?)").bind(envelope.nodeId, id, envelope.nodeId, envelope.sequence, envelope.payloadHash));
     }
