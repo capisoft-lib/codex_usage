@@ -7,9 +7,12 @@ import { latestTimestamp, normalizeCustomRange, resolveDateRange, timestampInRan
 // Paint the last browser snapshot immediately, then replace it from the server's
 // background-refreshed snapshot. Session files remain the source of truth.
 const USAGE_CACHE_KEY = "codex-usage-data";
+const CENTRALIZED_USAGE_CACHE_KEY = "codex-usage-data-centralized";
 const USAGE_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1_000;
 const POLL_INTERVAL_MS = 15_000;
+const CENTRALIZED_POLL_INTERVAL_MS = 60_000;
 const CUSTOM_RANGE_KEY = "codex-usage-custom-range";
+const DATA_MODE_KEY = "codex-usage-data-mode";
 
 const I18N = {
   fr: {
@@ -94,8 +97,22 @@ const MESH_I18N = {
 };
 for (const [language, messages] of Object.entries(MESH_I18N)) Object.assign(I18N[language], messages);
 
+const DATA_MODE_I18N = {
+  fr: { "data.source": "Source des données", "data.local": "Local", "data.centralized": "Centralisé", "load.loadingCentralized": "Chargement des données centralisées…", "refresh.doneCentralized": "Données centralisées actualisées" },
+  en: { "data.source": "Data source", "data.local": "Local", "data.centralized": "Centralized", "load.loadingCentralized": "Loading centralized data…", "refresh.doneCentralized": "Centralized data refreshed" },
+  de: { "data.source": "Datenquelle", "data.local": "Lokal", "data.centralized": "Zentral", "load.loadingCentralized": "Zentrale Daten werden geladen…", "refresh.doneCentralized": "Zentrale Daten aktualisiert" },
+  es: { "data.source": "Fuente de datos", "data.local": "Local", "data.centralized": "Centralizado", "load.loadingCentralized": "Cargando datos centralizados…", "refresh.doneCentralized": "Datos centralizados actualizados" },
+  it: { "data.source": "Origine dati", "data.local": "Locale", "data.centralized": "Centralizzato", "load.loadingCentralized": "Caricamento dei dati centralizzati…", "refresh.doneCentralized": "Dati centralizzati aggiornati" },
+  pt: { "data.source": "Fonte de dados", "data.local": "Local", "data.centralized": "Centralizado", "load.loadingCentralized": "A carregar dados centralizados…", "refresh.doneCentralized": "Dados centralizados atualizados" },
+  ja: { "data.source": "データソース", "data.local": "ローカル", "data.centralized": "集中管理", "load.loadingCentralized": "集中データを読み込み中…", "refresh.doneCentralized": "集中データを更新しました" },
+  ru: { "data.source": "Источник данных", "data.local": "Локально", "data.centralized": "Централизованно", "load.loadingCentralized": "Загрузка централизованных данных…", "refresh.doneCentralized": "Централизованные данные обновлены" },
+  zh: { "data.source": "数据来源", "data.local": "本地", "data.centralized": "集中", "load.loadingCentralized": "正在加载集中数据…", "refresh.doneCentralized": "集中数据已刷新" },
+};
+for (const [language, messages] of Object.entries(DATA_MODE_I18N)) Object.assign(I18N[language], messages);
+
 const state = {
   data: null,
+  dataMode: loadDataMode(),
   period: "today",
   customRange: loadCustomRange(),
   query: "",
@@ -142,9 +159,18 @@ function preferredLanguage() {
   return resolveLanguage(stored ? [stored, ...browserLanguages] : browserLanguages);
 }
 
+function loadDataMode() {
+  try { return localStorage.getItem(DATA_MODE_KEY) === "centralized" ? "centralized" : "local"; }
+  catch { return "local"; }
+}
+
+function usageCacheKey() {
+  return state.dataMode === "centralized" ? CENTRALIZED_USAGE_CACHE_KEY : USAGE_CACHE_KEY;
+}
+
 function loadUsageCache() {
   try {
-    const cached = JSON.parse(localStorage.getItem(USAGE_CACHE_KEY));
+    const cached = JSON.parse(localStorage.getItem(usageCacheKey()));
     if (!cached?.data?.sessions || !Number.isFinite(cached.savedAt)) return null;
     if (Date.now() - cached.savedAt > USAGE_CACHE_MAX_AGE_MS) return null;
     return cached.data;
@@ -152,7 +178,7 @@ function loadUsageCache() {
 }
 
 function saveUsageCache(data) {
-  try { localStorage.setItem(USAGE_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data })); }
+  try { localStorage.setItem(usageCacheKey(), JSON.stringify({ savedAt: Date.now(), data })); }
   catch { /* The dashboard still works when browser storage is unavailable or full. */ }
 }
 
@@ -616,6 +642,7 @@ function applyUsageData(data) {
 }
 
 let dataRequest = null;
+let dataModeRequest = Promise.resolve();
 
 async function loadData(force = false, silent = false) {
   if (!force && !state.data) {
@@ -626,9 +653,15 @@ async function loadData(force = false, silent = false) {
   if (!silent) $("#refreshButton").classList.add("loading");
   dataRequest = (async () => {
   try {
-    const response = await fetch(`/api/usage${force ? "?refresh=1" : ""}`); if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const endpoint = state.dataMode === "centralized" ? "/api/centralized-usage" : "/api/usage";
+    const response = await fetch(`${endpoint}${force ? "?refresh=1" : ""}`);
+    if (!response.ok) {
+      let details = null;
+      try { details = await response.json(); } catch { /* Fall back to the HTTP status. */ }
+      throw new Error(details?.error || `HTTP ${response.status}`);
+    }
     applyUsageData(await response.json());
-    if (force) toast(t("refresh.done"));
+    if (force) toast(t(state.dataMode === "centralized" ? "refresh.doneCentralized" : "refresh.done"));
   } catch (error) {
     if (!silent || !state.data) {
       $("#freshness").textContent = t("load.error", { error: error.message });
@@ -657,8 +690,36 @@ function applyTranslations() {
   $("#modelFilter").setAttribute("aria-label", t("filter.model"));
   $("#nodeFilter").setAttribute("aria-label", t("filter.node"));
   $("#usageFilter").setAttribute("aria-label", t("filter.usage"));
+  syncDataModeControls();
   updateFolderFilterSummary();
   $("#searchInput").setAttribute("aria-label", t("search.aria"));
+  if (!state.data && state.dataMode === "centralized") $("#freshness").textContent = t("load.loadingCentralized");
+}
+
+function syncDataModeControls() {
+  $$('[data-data-mode]').forEach((button) => {
+    const active = button.dataset.dataMode === state.dataMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+}
+
+function setDataMode(mode) {
+  dataModeRequest = dataModeRequest.then(() => runSetDataMode(mode));
+  return dataModeRequest;
+}
+
+async function runSetDataMode(mode) {
+  if (!["local", "centralized"].includes(mode) || mode === state.dataMode) return;
+  if (dataRequest) await dataRequest;
+  state.dataMode = mode;
+  try { localStorage.setItem(DATA_MODE_KEY, mode); } catch { /* The selection remains active for this tab. */ }
+  state.data = null;
+  state.node = "all";
+  state.page = 1;
+  syncDataModeControls();
+  $("#freshness").textContent = t(mode === "centralized" ? "load.loadingCentralized" : "load.loading");
+  await loadData();
 }
 
 function syncCustomRangeControls() {
@@ -695,6 +756,7 @@ $$('[data-period]').forEach((button) => button.addEventListener("click", () => {
   setCustomPanel(period === "custom" && !togglePanel);
   render();
 }));
+$$('[data-data-mode]').forEach((button) => button.addEventListener("click", () => { void setDataMode(button.dataset.dataMode); }));
 $("#customStart").addEventListener("change", commitCustomRange);
 $("#customEnd").addEventListener("change", commitCustomRange);
 $("#customEndNow").addEventListener("change", () => {
@@ -767,11 +829,18 @@ document.addEventListener("visibilitychange", () => {
 });
 
 let pollRequest = null;
+let lastCentralizedPollAt = 0;
 
 async function pollForNewData() {
   if (!state.data || pollRequest) return;
   pollRequest = (async () => {
     try {
+      if (state.dataMode === "centralized") {
+        if (Date.now() - lastCentralizedPollAt < CENTRALIZED_POLL_INTERVAL_MS) return;
+        lastCentralizedPollAt = Date.now();
+        await loadData(false, true);
+        return;
+      }
       const response = await fetch("/api/health");
       if (!response.ok) return;
       const status = await response.json();

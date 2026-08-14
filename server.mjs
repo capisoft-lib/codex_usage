@@ -131,6 +131,18 @@ async function routeApi(request, response, url) {
     send(response, 200, await serializedUsage(url.searchParams.get("refresh") === "1"));
     return true;
   }
+  if (url.pathname === "/api/centralized-usage" && request.method === "GET") {
+    if (dashboardMode !== "local" || !meshAgent) {
+      sendJson(response, 503, { error: "Le mode centralisé nécessite MESH_HUB_URL et une machine enrôlée.", code: "mesh_not_configured" });
+      return true;
+    }
+    if (url.searchParams.get("refresh") === "1") {
+      const data = await usageStore.getUsage(true);
+      await meshAgent.sync(data);
+    }
+    send(response, 200, serializePublicUsage(await meshAgent.centralizedUsage()));
+    return true;
+  }
   if (url.pathname === "/api/health" && request.method === "GET") {
     const status = healthStatus();
     sendJson(response, status.ready ? 200 : 503, status);
@@ -144,6 +156,10 @@ async function routeApi(request, response, url) {
   }
   if (url.pathname === "/api/mesh/ingest" && request.method === "POST") {
     sendJson(response, 202, await meshHub.ingest(await readJsonBody(request)));
+    return true;
+  }
+  if (url.pathname === "/api/mesh/usage" && request.method === "POST") {
+    sendJson(response, 200, await meshHub.readUsage(await readJsonBody(request)));
     return true;
   }
   if (url.pathname === "/api/mesh/enrollments" && request.method === "POST") {

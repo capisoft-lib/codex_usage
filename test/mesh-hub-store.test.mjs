@@ -52,4 +52,10 @@ test("hub enrolls once, verifies signed updates, blocks replay, and aggregates n
   assert.equal(aggregate.sessions[0].nodeAlias, "PC Bureau");
   assert.equal(aggregate.weeklyQuota.remainingPercent, 80);
   assert.equal(aggregate.weeklyQuota.nodeId, node.nodeId);
+
+  const readEnvelope = createSignedEnvelope({ nodeId: node.nodeId, sequence: 2, payload: { kind: "read", requestVersion: 1 }, privateKey: identity.privateKey, sentAt: new Date(now).toISOString() });
+  const centralized = await store.readUsage(readEnvelope, now);
+  assert.equal(centralized.sessions.length, 1);
+  assert.equal(centralized.sessions[0].nodeAlias, "PC Bureau");
+  await assert.rejects(() => store.readUsage(readEnvelope, now), /déjà traitée/);
 });

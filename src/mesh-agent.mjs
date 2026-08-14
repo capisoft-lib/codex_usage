@@ -1,4 +1,5 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { hostname } from "node:os";
 import path from "node:path";
 import { createPrivacySalt, sanitizeUsageForMesh, sessionHashes } from "./mesh-privacy.mjs";
 import { canonicalJson, createSignedEnvelope, generateNodeIdentity, normalizeNodeAlias } from "./mesh-protocol.mjs";
@@ -45,10 +46,11 @@ export class MeshAgent {
     batchSize = DEFAULT_BATCH_SIZE,
     fetchImpl = fetch,
     logger = console,
+    hostnameImpl = hostname,
   }) {
     if (!hubUrl) throw new Error("MESH_HUB_URL est requis pour activer l’agent Mesh.");
     this.hubUrl = String(hubUrl).replace(/\/+$/, "");
-    this.alias = normalizeNodeAlias(alias);
+    this.alias = normalizeNodeAlias(alias || hostnameImpl());
     this.statePath = statePath;
     this.enrollmentCode = enrollmentCode;
     this.projectMode = projectMode;
@@ -58,6 +60,7 @@ export class MeshAgent {
     this.logger = logger;
     this.state = null;
     this.syncPromise = null;
+    this.operationPromise = Promise.resolve();
   }
 
   async load() {
@@ -99,8 +102,33 @@ export class MeshAgent {
 
   sync(data) {
     if (this.syncPromise) return this.syncPromise;
-    this.syncPromise = this.runSync(data).finally(() => { this.syncPromise = null; });
+    this.syncPromise = this.enqueueOperation(() => this.runSync(data)).finally(() => { this.syncPromise = null; });
     return this.syncPromise;
+  }
+
+  enqueueOperation(operation) {
+    const result = this.operationPromise.then(operation, operation);
+    this.operationPromise = result.catch(() => {});
+    return result;
+  }
+
+  async sendSigned(pathname, payload) {
+    const sequence = this.state.sequence + 1;
+    const envelope = createSignedEnvelope({
+      nodeId: this.state.nodeId,
+      sequence,
+      payload,
+      privateKey: this.state.privateKey,
+    });
+    const response = await this.fetch(`${this.hubUrl}${pathname}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: canonicalJson(envelope),
+    });
+    const result = await responseJson(response);
+    this.state.sequence = sequence;
+    await this.persist();
+    return result;
   }
 
   async runSync(data) {
@@ -139,21 +167,7 @@ export class MeshAgent {
         upserts: batch.upserts,
         removals: batch.removals,
       };
-      const sequence = this.state.sequence + 1;
-      const envelope = createSignedEnvelope({
-        nodeId: this.state.nodeId,
-        sequence,
-        payload,
-        privateKey: this.state.privateKey,
-      });
-      const response = await this.fetch(`${this.hubUrl}/api/mesh/ingest`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: canonicalJson(envelope),
-      });
-      await responseJson(response);
-      this.state.sequence = sequence;
-      await this.persist();
+      await this.sendSigned("/api/mesh/ingest", payload);
       accepted += batch.upserts.length;
     }
 
@@ -162,6 +176,16 @@ export class MeshAgent {
     await this.persist();
     this.logger.log(`Mesh synchronisé : ${accepted} session(s) modifiée(s), ${removals.length} suppression(s).`);
     return { accepted, removed: removals.length, batches: batches.length, lastSyncAt: this.state.lastSyncAt };
+  }
+
+  centralizedUsage() {
+    return this.enqueueOperation(() => this.runCentralizedUsage());
+  }
+
+  async runCentralizedUsage() {
+    if (!this.state) await this.load();
+    await this.enroll();
+    return this.sendSigned("/api/mesh/usage", { kind: "read", requestVersion: 1 });
   }
 
   status() {

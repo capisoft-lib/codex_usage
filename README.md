@@ -206,7 +206,9 @@ By default, Codex data is read from `$HOME/.codex`.
 
 Mesh agrège plusieurs installations sans partager les identifiants Codex. Chaque PC analyse ses propres journaux localement, retire les champs sensibles, signe un lot avec une clé Ed25519 créée sur la machine, puis l’envoie vers un hub. Le fonctionnement local reste le comportement par défaut.
 
-Ce qui est transmis : compteurs d’usage et de tokens, modèles, horaires, durée, état, alias choisi pour la machine et identifiant de projet haché par défaut. Ce qui ne l’est jamais : `auth.json`, JSONL bruts, prompts, réponses, raisonnement, sorties d’outils, commandes, secrets, nom d’utilisateur ou chemin complet par défaut. Le quota Codex est une observation liée au compte : le hub conserve la plus récente et ne l’additionne jamais.
+Ce qui est transmis : compteurs d’usage et de tokens, modèles, horaires, durée, état, nom système de la machine (ou alias explicitement choisi) et identifiant de projet haché par défaut. Chaque PC fournit donc automatiquement sa propre provenance. Ce qui ne l’est jamais : `auth.json`, JSONL bruts, prompts, réponses, raisonnement, sorties d’outils, commandes, secrets, nom d’utilisateur ou chemin complet par défaut. Le quota Codex est une observation liée au compte : le hub conserve la plus récente et ne l’additionne jamais.
+
+Le sélecteur `Local / Centralisé` de la barre supérieure conserve le comportement actuel en mode Local. En mode Centralisé, le navigateur interroge une route locale ; l’agent enrôlé signe ensuite la demande vers le hub et renvoie uniquement l’agrégat du même propriétaire. Les deux modes gardent des caches navigateur distincts.
 
 ### Hub auto-hébergé
 
@@ -228,16 +230,15 @@ Sur chaque PC, ajoutez à l’environnement du dashboard local :
 
 ```text
 MESH_HUB_URL=http://adresse-privee-du-hub:4318
-MESH_NODE_ALIAS=PC Bureau
 MESH_ENROLLMENT_CODE=AAAA-BBBB-CCCC-DDDD
 MESH_AGENT_STATE_PATH=/app-cache/mesh-agent.json
 ```
 
-Le code peut être retiré après le premier succès. Conservez le fichier d’état : il contient la clé privée de la machine et doit rester lisible uniquement par son compte de service. Pour exposer le hub hors d’un réseau privé, placez-le derrière HTTPS et une couche d’authentification pour l’interface ; les routes d’ingestion restent protégées par signatures, séquences monotones, horodatage et révocation.
+Le nom système du PC est utilisé automatiquement ; ajoutez `MESH_NODE_ALIAS=PC Bureau` uniquement pour le remplacer. Le code peut être retiré après le premier succès. Conservez le fichier d’état : il contient la clé privée de la machine et doit rester lisible uniquement par son compte de service. Pour exposer le hub hors d’un réseau privé, placez-le derrière HTTPS et une couche d’authentification pour l’interface ; les routes d’ingestion et de lecture restent protégées par signatures, séquences monotones, horodatage et révocation.
 
 ### Hub OpenAI Sites
 
-Le projet prêt à héberger se trouve dans `sites-hub/`. Il utilise Sites pour l’authentification ChatGPT du navigateur et D1 pour les codes, machines et snapshots. Les routes d’enrôlement et d’ingestion acceptent uniquement le protocole signé ; elles ne réutilisent jamais la session Codex ou `auth.json` d’un PC.
+Le projet prêt à héberger se trouve dans `sites-hub/`. Il utilise Sites pour l’authentification ChatGPT du navigateur et D1 pour les codes, machines et snapshots. Les routes d’enrôlement, d’ingestion et de lecture depuis un PC acceptent uniquement le protocole signé ; elles ne réutilisent jamais la session Codex ou `auth.json` d’un PC. L’identité du nœud permet au Site de retrouver le propriétaire et de ne retourner que son agrégat.
 
 ```powershell
 cd sites-hub
@@ -272,7 +273,7 @@ The server supports these optional environment variables:
 | `SNAPSHOT_PATH` | `.cache/usage-snapshot.json` | Persisted precomputed snapshot; set to an empty string to disable it. |
 | `DASHBOARD_MODE` | `local` | `local` analyse ce PC ; `hub` accepte et agrège les snapshots Mesh. |
 | `MESH_HUB_URL` | empty | Active l’agent sortant vers un hub HTTPS. |
-| `MESH_NODE_ALIAS` | empty | Alias explicite de ce PC, requis quand l’agent est activé. |
+| `MESH_NODE_ALIAS` | nom système du PC | Remplacement facultatif du nom transmis par cette machine. |
 | `MESH_ENROLLMENT_CODE` | empty | Code à usage unique requis seulement au premier enrôlement. |
 | `MESH_AGENT_STATE_PATH` | `.cache/mesh-agent.json` | État et clé privée de l’agent ; à conserver et protéger. |
 | `MESH_PROJECT_MODE` | `hash` | Confidentialité projet : `hash`, `basename` ou `full`. |

@@ -98,6 +98,7 @@ function finiteUsage(usage) {
 }
 
 const PAYLOAD_KEYS = new Set(["kind", "snapshotVersion", "analyzerVersion", "generatedAt", "privacy", "quota", "upserts", "removals"]);
+const READ_PAYLOAD_KEYS = new Set(["kind", "requestVersion"]);
 const SESSION_KEYS = new Set(["id", "sourceSessionId", "nodeId", "nodeAlias", "title", "startedAt", "updatedAt", "cwd", "source", "cliVersion", "modelProvider", "models", "exchanges", "completedExchanges", "userMessages", "assistantMessages", "modelCalls", "durationMs", "usage", "turns", "calls", "parseErrors"]);
 const TURN_KEYS = new Set(["id", "startedAt", "completedAt", "durationMs", "model", "effort", "serviceTier", "calls", "usage"]);
 const CALL_KEYS = new Set(["timestamp", "turnId", "model", "effort", "serviceTier", "usage"]);
@@ -139,6 +140,13 @@ export function validateSyncPayload(payload) {
   if (payload.quota !== null && payload.quota !== undefined && !hasOnlyKeys(payload.quota, QUOTA_KEYS)) throw new Error("Quota Mesh invalide.");
   if (!hasOnlyKeys(payload.privacy, new Set(["projectMode", "includeTitles"])) || !["hash", "basename", "full"].includes(payload.privacy.projectMode) || typeof payload.privacy.includeTitles !== "boolean") {
     throw new Error("Profil de confidentialité Mesh invalide.");
+  }
+  return payload;
+}
+
+export function validateReadPayload(payload) {
+  if (!hasOnlyKeys(payload, READ_PAYLOAD_KEYS) || payload.kind !== "read" || payload.requestVersion !== 1) {
+    throw new Error("Demande de lecture Mesh invalide.");
   }
   return payload;
 }

@@ -1,37 +1,34 @@
 import { db } from "../../../../lib/db";
 import { requireViewer } from "../../../../lib/auth";
-import { json } from "../../../../lib/mesh";
-
-type NodeRow = { id: string; alias: string; enrolled_at: string; last_seen: string | null; revoked_at: string | null; privacy_json: string; quota_json: string | null; analyzer_version: number };
-type SessionRow = { node_id: string; snapshot_json: string };
+import { json, validateReadPayload, verifyEnvelope, type SyncEnvelope } from "../../../../lib/mesh";
+import { aggregateUsageForOwner } from "../../../../lib/usage";
 
 export async function GET(request: Request) {
   try {
-    const viewer = requireViewer(request);
-    const database = db();
-    const nodeResult = await database.prepare("SELECT id, alias, enrolled_at, last_seen, revoked_at, privacy_json, quota_json, analyzer_version FROM mesh_nodes WHERE owner_id = ? ORDER BY alias").bind(viewer.id).all<NodeRow>();
-    const nodes = nodeResult.results || [];
-    const active = nodes.filter((node) => !node.revoked_at);
-    const sessionResult = await database.prepare("SELECT s.node_id, s.snapshot_json FROM mesh_sessions s JOIN mesh_nodes n ON n.id = s.node_id WHERE n.owner_id = ? AND n.revoked_at IS NULL").bind(viewer.id).all<SessionRow>();
-    const byId = new Map(active.map((node) => [node.id, node]));
-    const sessions = (sessionResult.results || []).map((row) => {
-      const session = JSON.parse(row.snapshot_json) as Record<string, unknown>;
-      const node = byId.get(row.node_id)!;
-      return { ...session, id: `${node.id}:${session.id}`, sourceSessionId: session.id, nodeId: node.id, nodeAlias: node.alias };
-    });
-    const quotas = active.filter((node) => node.quota_json).map((node) => ({ ...JSON.parse(node.quota_json!), nodeId: node.id, nodeAlias: node.alias, receivedAt: node.last_seen }));
-    quotas.sort((a, b) => String(b.observedAt || b.receivedAt).localeCompare(String(a.observedAt || a.receivedAt)));
-    return json({
-      analyzerVersion: Math.max(0, ...active.map((node) => node.analyzer_version || 0)),
-      generatedAt: new Date().toISOString(),
-      source: { mode: "mesh", sessionsAvailable: active.length > 0, archivedSessionsAvailable: false, sessionIndexAvailable: false },
-      weeklyQuota: quotas[0] || null,
-      nodes: nodes.map((node) => ({ id: node.id, alias: node.alias, enrolledAt: node.enrolled_at, lastSeen: node.last_seen, revokedAt: node.revoked_at, privacy: JSON.parse(node.privacy_json) })),
-      sessions,
-      errorCount: 0,
-    });
+    return json(await aggregateUsageForOwner(requireViewer(request).id));
   } catch (error) {
     if (error instanceof Response) return error;
     return json({ error: "Lecture impossible." }, 500);
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    if (Number(request.headers.get("content-length") || 0) > 64 * 1024) return json({ error: "Charge utile trop volumineuse." }, 413);
+    const envelope = await request.json() as SyncEnvelope;
+    const database = db();
+    const node = await database.prepare("SELECT owner_id, public_key, last_sequence, revoked_at FROM mesh_nodes WHERE id = ?")
+      .bind(envelope.nodeId).first<{ owner_id: string; public_key: string; last_sequence: number; revoked_at: string | null }>();
+    if (!node || node.revoked_at) return json({ error: "Machine inconnue ou révoquée." }, 401);
+    await verifyEnvelope(envelope, node.public_key);
+    if (envelope.sequence <= node.last_sequence) return json({ error: "Séquence déjà traitée." }, 409);
+    validateReadPayload(envelope.payload);
+    const receivedAt = new Date().toISOString();
+    const update = await database.prepare("UPDATE mesh_nodes SET last_sequence = ?, last_payload_hash = ?, last_seen = ? WHERE id = ? AND last_sequence < ?")
+      .bind(envelope.sequence, envelope.payloadHash, receivedAt, envelope.nodeId, envelope.sequence).run();
+    if (!update.meta.changes) return json({ error: "Séquence déjà traitée." }, 409);
+    return json(await aggregateUsageForOwner(node.owner_id));
+  } catch (error) {
+    return json({ error: error instanceof Error ? error.message : "Lecture refusée." }, 400);
   }
 }

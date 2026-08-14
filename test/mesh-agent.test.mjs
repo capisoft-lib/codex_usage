@@ -32,6 +32,7 @@ test("agent enrolls, signs minimized snapshots, and only resends changes", async
     try {
       if (url.endsWith("/enroll")) return Response.json(await store.enroll(JSON.parse(options.body)), { status: 201 });
       if (url.endsWith("/ingest")) return Response.json(await store.ingest(JSON.parse(options.body)), { status: 202 });
+      if (url.endsWith("/usage")) return Response.json(await store.readUsage(JSON.parse(options.body)));
       return Response.json({ error: "not found" }, { status: 404 });
     } catch (error) {
       return Response.json({ error: error.message, code: error.code }, { status: error.status || 500 });
@@ -43,6 +44,8 @@ test("agent enrolls, signs minimized snapshots, and only resends changes", async
   const second = await agent.sync(data);
   assert.equal(first.accepted, 1);
   assert.equal(second.accepted, 0);
+  const centralized = await agent.centralizedUsage();
+  assert.equal(centralized.sessions[0].nodeAlias, "PC Bureau");
   assert.equal(requests.filter((request) => request.url.endsWith("/enroll")).length, 1);
   const aggregated = store.aggregate();
   assert.equal(aggregated.sessions.length, 1);
@@ -50,8 +53,20 @@ test("agent enrolls, signs minimized snapshots, and only resends changes", async
   assert.match(aggregated.sessions[0].cwd, /^project-/);
   assert.equal(JSON.stringify(aggregated).includes("alice"), false);
   const state = JSON.parse(await readFile(path.join(directory, "agent.json"), "utf8"));
-  assert.equal(state.sequence, 2);
+  assert.equal(state.sequence, 3);
   assert.equal(state.nodeId, aggregated.nodes[0].id);
+});
+
+test("agent uses the operating-system hostname when no alias override is configured", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-mesh-hostname-"));
+  const agent = new MeshAgent({
+    hubUrl: "https://mesh.example",
+    statePath: path.join(directory, "agent.json"),
+    hostnameImpl: () => "WORKSTATION-42",
+  });
+  await agent.load();
+  assert.equal(agent.status().alias, "WORKSTATION-42");
+  assert.equal(agent.state.alias, "WORKSTATION-42");
 });
 
 test("hub rejects unexpected private fields before storing a snapshot", async () => {

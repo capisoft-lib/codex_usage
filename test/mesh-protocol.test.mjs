@@ -4,6 +4,7 @@ import {
   canonicalJson,
   createSignedEnvelope,
   generateNodeIdentity,
+  validateReadPayload,
   verifySignedEnvelope,
 } from "../src/mesh-protocol.mjs";
 
@@ -21,4 +22,10 @@ test("canonical JSON and Ed25519 envelopes are stable and tamper evident", () =>
   assert.equal(verifySignedEnvelope(envelope, identity.publicKey, { now: Date.parse(sentAt) }), true);
   assert.throws(() => verifySignedEnvelope({ ...envelope, payload: { kind: "sync", value: 43 } }, identity.publicKey, { now: Date.parse(sentAt) }), /empreinte/);
   assert.throws(() => verifySignedEnvelope(envelope, identity.publicKey, { now: Date.parse(sentAt) + 11 * 60 * 1_000 }), /expiré/);
+});
+
+test("centralized reads use a strict versioned payload", () => {
+  assert.deepEqual(validateReadPayload({ kind: "read", requestVersion: 1 }), { kind: "read", requestVersion: 1 });
+  assert.throws(() => validateReadPayload({ kind: "read", requestVersion: 1, ownerId: "someone-else" }), /invalide/);
+  assert.throws(() => validateReadPayload({ kind: "read", requestVersion: 2 }), /invalide/);
 });

@@ -136,6 +136,18 @@ for (const [language, messages] of Object.entries(meshMessages)) {
   Object.assign({ es, it, pt, ja, ru, zh }[language], messages);
 }
 
+const dataModeMessages = {
+  es: { "data.source": "Fuente de datos", "data.local": "Local", "data.centralized": "Centralizado", "load.loadingCentralized": "Cargando datos centralizados…", "refresh.doneCentralized": "Datos centralizados actualizados" },
+  it: { "data.source": "Origine dati", "data.local": "Locale", "data.centralized": "Centralizzato", "load.loadingCentralized": "Caricamento dei dati centralizzati…", "refresh.doneCentralized": "Dati centralizzati aggiornati" },
+  pt: { "data.source": "Fonte de dados", "data.local": "Local", "data.centralized": "Centralizado", "load.loadingCentralized": "A carregar dados centralizados…", "refresh.doneCentralized": "Dados centralizados atualizados" },
+  ja: { "data.source": "データソース", "data.local": "ローカル", "data.centralized": "集中管理", "load.loadingCentralized": "集中データを読み込み中…", "refresh.doneCentralized": "集中データを更新しました" },
+  ru: { "data.source": "Источник данных", "data.local": "Локально", "data.centralized": "Централизованно", "load.loadingCentralized": "Загрузка централизованных данных…", "refresh.doneCentralized": "Централизованные данные обновлены" },
+  zh: { "data.source": "数据来源", "data.local": "本地", "data.centralized": "集中", "load.loadingCentralized": "正在加载集中数据…", "refresh.doneCentralized": "集中数据已刷新" },
+};
+for (const [language, messages] of Object.entries(dataModeMessages)) {
+  Object.assign({ es, it, pt, ja, ru, zh }[language], messages);
+}
+
 export const ADDITIONAL_I18N = Object.freeze({ es, it, pt, ja, ru, zh });
 
 export function resolveLanguage(preferences, fallback = "fr") {

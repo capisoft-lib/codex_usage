@@ -95,6 +95,15 @@ export function validatePayload(value: unknown): asserts value is Record<string,
   if (payload.quota != null && !hasOnly(payload.quota, quotaKeys)) throw new Error("Quota Mesh invalide.");
 }
 
+export function validateReadPayload(value: unknown): asserts value is Record<string, unknown> & { kind: "read"; requestVersion: 1 } {
+  const payload = value as Record<string, unknown>;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)
+    || Object.keys(payload).some((key) => !["kind", "requestVersion"].includes(key))
+    || payload.kind !== "read" || payload.requestVersion !== 1) {
+    throw new Error("Demande de lecture Mesh invalide.");
+  }
+}
+
 export function json(body: unknown, status = 200): Response {
   return Response.json(body, { status, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" } });
 }

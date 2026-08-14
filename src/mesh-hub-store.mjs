@@ -5,6 +5,7 @@ import {
   normalizeNodeAlias,
   publicKeyFingerprint,
   sha256,
+  validateReadPayload,
   validateSyncPayload,
   verifySignedEnvelope,
 } from "./mesh-protocol.mjs";
@@ -121,6 +122,18 @@ export class MeshHubStore {
     if (payload.quota !== undefined) node.quota = payload.quota;
     await this.persist();
     return { accepted: true, sequence: node.lastSequence, sessions: Object.keys(node.sessions).length };
+  }
+
+  async readUsage(envelope, now = Date.now()) {
+    const node = this.state.nodes[envelope?.nodeId];
+    if (!node || node.revokedAt) throw httpError("Machine Mesh inconnue ou révoquée.", 401, "mesh_node_unknown");
+    try { verifySignedEnvelope(envelope, node.publicKey, { now }); } catch (error) { throw httpError(error.message, 401, "mesh_signature_invalid"); }
+    if (envelope.sequence <= node.lastSequence) throw httpError("Séquence Mesh déjà traitée.", 409, "mesh_replay");
+    try { validateReadPayload(envelope.payload); } catch (error) { throw httpError(error.message); }
+    node.lastSequence = envelope.sequence;
+    node.lastSeen = new Date(now).toISOString();
+    await this.persist();
+    return this.aggregate();
   }
 
   async revokeNode(nodeId, now = Date.now()) {

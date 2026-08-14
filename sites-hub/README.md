@@ -5,6 +5,11 @@ Optional authenticated aggregator for Codex Usage Mesh, running on
 signed, minimized snapshots from enrolled machines and never accepts Codex
 credentials or raw session logs.
 
+Enrolled machines may also send a signed `read` envelope to
+`POST /api/mesh/usage`. The node identity resolves its owner server-side, so
+the response can only contain that owner's aggregate. Browser access to the
+same route with `GET` remains protected by the Sites ChatGPT identity headers.
+
 ## Prerequisites
 
 - Node.js `>=22.13.0`
