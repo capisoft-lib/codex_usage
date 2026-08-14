@@ -1,5 +1,5 @@
-import { getChatGPTUser, chatGPTSignInPath, chatGPTSignOutPath } from "./chatgpt-auth";
-import MeshDashboard from "./mesh-dashboard";
+import { getChatGPTUser, chatGPTSignInPath } from "./chatgpt-auth";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -16,5 +16,5 @@ export default async function Home() {
       </main>
     );
   }
-  return <MeshDashboard displayName={user.displayName} signOutPath={chatGPTSignOutPath()} />;
+  redirect("/dashboard/index.html?hosted=1");
 }

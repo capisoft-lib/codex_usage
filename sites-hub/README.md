@@ -24,6 +24,15 @@ npm run build
 
 This project does not use `wrangler.jsonc`.
 
+The authenticated home page redirects to the shared dashboard at
+`/dashboard/index.html?hosted=1`. Machine enrollment and status remain on the
+separate `/admin` page.
+
+The root `public/` directory is the source of truth for the dashboard UI.
+`npm run dev` and `npm run build` automatically run `npm run sync:dashboard`
+to copy the required browser assets into `public/dashboard/` before Sites is
+built. Do not edit the generated copies directly.
+
 ## Included Shape
 
 - edit site code under `app/`
@@ -96,6 +105,7 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 
 - `npm run dev`: start local development
 - `npm run build`: verify the vinext build output
+- `npm run sync:dashboard`: regenerate the hosted dashboard assets
 - `npm test`: build the Site and verify its anonymous sign-in boundary
 - `npm run db:generate`: generate Drizzle migrations after schema changes
 

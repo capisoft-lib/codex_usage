@@ -6,8 +6,9 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "node scripts/run-vinext.mjs dev",
-    "build": "node scripts/run-vinext.mjs build",
+    "sync:dashboard": "node scripts/sync-dashboard.mjs",
+    "dev": "npm run sync:dashboard && node scripts/run-vinext.mjs dev",
+    "build": "npm run sync:dashboard && node scripts/run-vinext.mjs build",
     "start": "node scripts/run-vinext.mjs start",
     "test": "npm run build && node --test tests/rendered-html.test.mjs tests/mesh-protocol.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",

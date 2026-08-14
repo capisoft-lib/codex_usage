@@ -56,7 +56,7 @@ export default function MeshDashboard({ displayName, signOutPath }: { displayNam
     <main className="mesh-shell">
       <header className="mesh-header">
         <div><p className="eyebrow">CODEX USAGE MESH</p><h1>Activité agrégée, machine par machine</h1><p className="subtitle">Métadonnées minimisées, transport signé, quota jamais additionné.</p></div>
-        <div className="account"><span className="secure-pill"><i />{displayName}</span><a href={signOutPath}>Déconnexion</a></div>
+        <div className="account"><span className="secure-pill"><i />{displayName}</span><a href="/dashboard/index.html?hosted=1">Retour au dashboard</a><a href={signOutPath}>Déconnexion</a></div>
       </header>
       {error && <p className="error" role="alert">{error}</p>}
       <section className="metrics" aria-label="Aperçu global">

@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-async function render() {
+async function render(headers = {}) {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
 
   return worker.fetch(
     new Request("http://localhost/", {
-      headers: { accept: "text/html" },
+      headers: { accept: "text/html", ...headers },
     }),
     {
       ASSETS: {
@@ -32,4 +33,23 @@ test("renders the private ChatGPT sign-in boundary", async () => {
   assert.match(html, /Votre usage Codex, réuni en privé/);
   assert.match(html, /signin-with-chatgpt/);
   assert.doesNotMatch(html, /PC Bureau|Portable|124,82/);
+});
+
+test("redirects an authenticated owner to the shared dashboard", async () => {
+  const response = await render({
+    "oai-authenticated-user-id": "owner-test",
+    "oai-authenticated-user-email": "owner@example.test",
+  });
+  assert.ok([307, 308].includes(response.status));
+  assert.equal(new URL(response.headers.get("location"), "http://localhost").pathname, "/dashboard/index.html");
+});
+
+test("packages the local dashboard as the hosted centralized interface", async () => {
+  const html = await readFile(new URL("../public/dashboard/index.html", import.meta.url), "utf8");
+  const app = await readFile(new URL("../public/dashboard/app.js", import.meta.url), "utf8");
+  assert.match(html, /data-page="overview"/);
+  assert.match(html, /href="\.\/styles\.css"/);
+  assert.match(html, /href="\/admin"/);
+  assert.match(app, /HOSTED_SITE_MODE/);
+  assert.match(app, /\/api\/centralized-usage/);
 });
