@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { boundedRatio, chartDrilldownBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "../public/visualization.js";
+import { boundedRatio, chartDrilldownBuckets, chartDrilldownFilterRange, nextChartGranularity, percentageOf, stackedChartSegments } from "../public/visualization.js";
 
 const styles = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
@@ -41,6 +41,16 @@ test("chart drill-down moves from months to days and from days to hours", () => 
   assert.equal(nextChartGranularity("month"), "day");
   assert.equal(nextChartGranularity("day"), "hour");
   assert.equal(nextChartGranularity("hour"), null);
+});
+
+test("chart drill-down exposes an inclusive transient filter without leaking into the next bucket", () => {
+  const range = chartDrilldownFilterRange({
+    start: "2026-02-01T00:00:00.000Z",
+    end: "2026-03-01T00:00:00.000Z",
+  });
+  assert.equal(range.start.toISOString(), "2026-02-01T00:00:00.000Z");
+  assert.equal(range.end.toISOString(), "2026-02-28T23:59:59.999Z");
+  assert.equal(chartDrilldownFilterRange({ start: "broken", end: "broken" }), null);
 });
 
 test("chart drill-down assigns calls to each calendar sub-unit", () => {

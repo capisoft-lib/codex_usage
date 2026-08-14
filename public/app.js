@@ -1,7 +1,7 @@
 import { codexCreditsOfCalls, fastMultiplierFor, usageProfilesOfCalls } from "./usage-pricing.js";
 import { DEFAULT_API_PRICING, apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 import { ADDITIONAL_I18N, LOCALE_TAGS, resolveLanguage } from "./translations.js";
-import { chartDrilldownBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
+import { chartDrilldownBuckets, chartDrilldownFilterRange, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { buildQuotaForecast, weeklyForecastTicks } from "./quota-forecast.js";
 import { OVERVIEW_PROJECT_LIMIT, projectIdentity } from "./project-identity.js";
@@ -242,6 +242,8 @@ const state = {
   language: preferredLanguage(),
   pricing: loadPricing(),
   chartZoom: {},
+  chartZoomBasePeriods: {},
+  transientRange: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -300,6 +302,9 @@ function saveUsageCache(data) {
 }
 
 function dateRange() {
+  if (state.transientRange) {
+    return { start: new Date(state.transientRange.start), end: new Date(state.transientRange.end) };
+  }
   return resolveDateRange(state.period, state.customRange);
 }
 
@@ -960,8 +965,17 @@ function renderCostChart(calls, target = "#costChart", period = state.period) {
     const bucket = buckets[Number(column.dataset.bucketIndex)];
     const granularity = nextChartGranularity(bucket?.granularity);
     if (!bucket || !granularity) return;
-    state.chartZoom[target] = [...zoomStack, { start: bucket.start, end: bucket.end, granularity }];
-    renderCostChart(calls, target, period);
+    const nextZoom = { start: bucket.start, end: bucket.end, granularity };
+    state.chartZoom[target] = [...zoomStack, nextZoom];
+    if (target === "#costChart") {
+      if (!Object.hasOwn(state.chartZoomBasePeriods, target)) state.chartZoomBasePeriods[target] = state.period;
+      state.period = "custom";
+      state.transientRange = chartDrilldownFilterRange(nextZoom);
+      state.page = 1;
+      render();
+    } else {
+      renderCostChart(calls, target, period);
+    }
   };
   host.querySelectorAll(".chart-column.is-drillable").forEach((column) => {
     column.addEventListener("click", () => drillInto(column));
@@ -975,7 +989,20 @@ function renderCostChart(calls, target = "#costChart", period = state.period) {
     const nextStack = zoomStack.slice(0, -1);
     if (nextStack.length) state.chartZoom[target] = nextStack;
     else delete state.chartZoom[target];
-    renderCostChart(calls, target, period);
+    if (target === "#costChart") {
+      if (nextStack.length) {
+        state.period = "custom";
+        state.transientRange = chartDrilldownFilterRange(nextStack.at(-1));
+      } else {
+        state.period = state.chartZoomBasePeriods[target] || "today";
+        delete state.chartZoomBasePeriods[target];
+        state.transientRange = null;
+      }
+      state.page = 1;
+      render();
+    } else {
+      renderCostChart(calls, target, period);
+    }
   });
 }
 
@@ -1306,10 +1333,11 @@ function commitCustomRange() {
 
 $$('[data-period]').forEach((button) => button.addEventListener("click", () => {
   const period = button.dataset.period;
-  const togglePanel = period === "custom" && state.period === "custom" && !$("#customRangePanel").hidden;
-  $$('[data-period]').forEach((item) => item.classList.toggle("active", item === button));
+  const togglePanel = period === "custom" && state.period === "custom" && !state.transientRange && !$("#customRangePanel").hidden;
   state.period = period;
   state.chartZoom = {};
+  state.chartZoomBasePeriods = {};
+  state.transientRange = null;
   state.page = 1;
   if (period === "custom") syncCustomRangeControls();
   setCustomPanel(period === "custom" && !togglePanel);
@@ -1400,6 +1428,7 @@ function syncPageChrome() {
   const page = state.view;
   document.body.dataset.page = page;
   $$(".page").forEach((section) => { section.hidden = section.dataset.page !== page; });
+  $$('[data-period]').forEach((button) => button.classList.toggle("active", button.dataset.period === state.period));
   setActiveNav(page);
   const title = $("#pageTitle");
   if (title) title.textContent = t(PAGE_TITLE_KEYS[page]);

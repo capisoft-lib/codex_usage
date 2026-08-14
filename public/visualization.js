@@ -30,6 +30,13 @@ export function nextChartGranularity(granularity) {
   return null;
 }
 
+export function chartDrilldownFilterRange(range) {
+  const start = new Date(range?.start);
+  const exclusiveEnd = new Date(range?.end);
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(exclusiveEnd.getTime()) || start >= exclusiveEnd) return null;
+  return { start, end: new Date(exclusiveEnd.getTime() - 1) };
+}
+
 export function chartDrilldownBuckets(calls, range, granularity, locale = "en-US") {
   if (!range?.start || !range?.end || !["day", "hour"].includes(granularity)) return [];
   const limit = new Date(range.end);
