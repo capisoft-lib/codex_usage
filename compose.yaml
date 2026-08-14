@@ -15,10 +15,12 @@ services:
     environment:
       REFRESH_INTERVAL_MS: ${REFRESH_INTERVAL_MS:-60000}
       MESH_HUB_URL: ${MESH_HUB_URL:-}
+      MESH_SITES_BYPASS_TOKEN: ${MESH_SITES_BYPASS_TOKEN:-}
       # Preserve the host PC name in containers; MESH_NODE_ALIAS remains an explicit override.
       MESH_NODE_ALIAS: ${MESH_NODE_ALIAS:-${COMPUTERNAME:-${HOSTNAME:-}}}
       MESH_ENROLLMENT_CODE: ${MESH_ENROLLMENT_CODE:-}
       MESH_AGENT_STATE_PATH: /app-cache/mesh-agent.json
+      MESH_BATCH_SIZE: ${MESH_BATCH_SIZE:-100}
       MESH_PROJECT_MODE: ${MESH_PROJECT_MODE:-hash}
       MESH_INCLUDE_TITLES: ${MESH_INCLUDE_TITLES:-false}
     volumes:

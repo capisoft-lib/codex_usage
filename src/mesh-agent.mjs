@@ -41,6 +41,7 @@ export class MeshAgent {
     alias,
     statePath,
     enrollmentCode = null,
+    sitesBypassToken = null,
     projectMode = "hash",
     includeTitles = false,
     batchSize = DEFAULT_BATCH_SIZE,
@@ -53,6 +54,7 @@ export class MeshAgent {
     this.alias = normalizeNodeAlias(alias || hostnameImpl());
     this.statePath = statePath;
     this.enrollmentCode = enrollmentCode;
+    this.sitesBypassToken = sitesBypassToken || null;
     this.projectMode = projectMode;
     this.includeTitles = includeTitles;
     this.batchSize = Math.max(1, Math.min(100, Number(batchSize) || DEFAULT_BATCH_SIZE));
@@ -61,6 +63,12 @@ export class MeshAgent {
     this.state = null;
     this.syncPromise = null;
     this.operationPromise = Promise.resolve();
+  }
+
+  requestHeaders() {
+    const headers = { "content-type": "application/json" };
+    if (this.sitesBypassToken) headers["OAI-Sites-Authorization"] = `Bearer ${this.sitesBypassToken}`;
+    return headers;
   }
 
   async load() {
@@ -89,7 +97,7 @@ export class MeshAgent {
     if (!this.enrollmentCode) throw new Error("Cette machine n’est pas enrôlée : fournissez un code MESH_ENROLLMENT_CODE à usage unique.");
     const response = await this.fetch(`${this.hubUrl}/api/mesh/enroll`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: this.requestHeaders(),
       body: JSON.stringify({ code: this.enrollmentCode, alias: this.alias, publicKey: this.state.publicKey }),
     });
     const result = await responseJson(response);
@@ -120,14 +128,17 @@ export class MeshAgent {
       payload,
       privateKey: this.state.privateKey,
     });
+    // Reserve the sequence durably before transmission. If the process stops
+    // after the hub accepts a request but before the response is persisted,
+    // the next request must skip forward instead of replaying that sequence.
+    this.state.sequence = sequence;
+    await this.persist();
     const response = await this.fetch(`${this.hubUrl}${pathname}`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: this.requestHeaders(),
       body: canonicalJson(envelope),
     });
     const result = await responseJson(response);
-    this.state.sequence = sequence;
-    await this.persist();
     return result;
   }
 

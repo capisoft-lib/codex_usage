@@ -3,6 +3,7 @@ node_modules/
 .env.*
 !.env.example
 *.log
+*.etl
 .DS_Store
 Thumbs.db
 coverage/

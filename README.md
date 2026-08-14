@@ -236,6 +236,8 @@ MESH_AGENT_STATE_PATH=/app-cache/mesh-agent.json
 
 Le nom système du PC est utilisé automatiquement ; ajoutez `MESH_NODE_ALIAS=PC Bureau` uniquement pour le remplacer. Le code peut être retiré après le premier succès. Conservez le fichier d’état : il contient la clé privée de la machine et doit rester lisible uniquement par son compte de service. Pour exposer le hub hors d’un réseau privé, placez-le derrière HTTPS et une couche d’authentification pour l’interface ; les routes d’ingestion et de lecture restent protégées par signatures, séquences monotones, horodatage et révocation.
 
+Un Site privé bloque aussi les requêtes non interactives des conteneurs. Dans ce cas, générez un jeton de contournement SIWC pour le Site et fournissez-le uniquement via `MESH_SITES_BYPASS_TOKEN`. L’agent l’envoie dans l’en-tête `OAI-Sites-Authorization`; ne versionnez, n’affichez et ne partagez jamais cette valeur. Les codes à usage unique et signatures Mesh restent obligatoires après cette barrière Sites.
+
 ### Hub OpenAI Sites
 
 Le projet prêt à héberger se trouve dans `sites-hub/`. Il utilise Sites pour l’authentification ChatGPT du navigateur et D1 pour les codes, machines et snapshots. Les routes d’enrôlement, d’ingestion et de lecture depuis un PC acceptent uniquement le protocole signé ; elles ne réutilisent jamais la session Codex ou `auth.json` d’un PC. L’identité du nœud permet au Site de retrouver le propriétaire et de ne retourner que son agrégat.
@@ -273,9 +275,11 @@ The server supports these optional environment variables:
 | `SNAPSHOT_PATH` | `.cache/usage-snapshot.json` | Persisted precomputed snapshot; set to an empty string to disable it. |
 | `DASHBOARD_MODE` | `local` | `local` analyse ce PC ; `hub` accepte et agrège les snapshots Mesh. |
 | `MESH_HUB_URL` | empty | Active l’agent sortant vers un hub HTTPS. |
+| `MESH_SITES_BYPASS_TOKEN` | empty | Jeton machine pour franchir la barrière SIWC d’un Site privé. Secret, jamais versionné. |
 | `MESH_NODE_ALIAS` | nom système du PC | Remplacement facultatif du nom transmis par cette machine. |
 | `MESH_ENROLLMENT_CODE` | empty | Code à usage unique requis seulement au premier enrôlement. |
 | `MESH_AGENT_STATE_PATH` | `.cache/mesh-agent.json` | État et clé privée de l’agent ; à conserver et protéger. |
+| `MESH_BATCH_SIZE` | `25` (`100` dans Compose) | Nombre maximal de sessions minimisées par requête Mesh. |
 | `MESH_PROJECT_MODE` | `hash` | Confidentialité projet : `hash`, `basename` ou `full`. |
 | `MESH_INCLUDE_TITLES` | `false` | Active explicitement l’envoi des titres nettoyés. |
 

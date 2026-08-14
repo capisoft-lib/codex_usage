@@ -14,6 +14,8 @@ test("mesh transport never references Codex credentials or raw JSONL", async () 
 
 test("Sites hosting declaration contains bindings but no credentials", async () => {
   const hosting = JSON.parse(await readFile(new URL("../sites-hub/.openai/hosting.json", import.meta.url), "utf8"));
-  assert.deepEqual(hosting, { d1: "DB", r2: null });
+  assert.equal(hosting.d1, "DB");
+  assert.equal(hosting.r2, null);
+  assert.match(hosting.project_id, /^appgprj_[a-f0-9]+$/);
   assert.equal(JSON.stringify(hosting).match(/token|secret|password|key/i), null);
 });

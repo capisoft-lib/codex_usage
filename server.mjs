@@ -37,6 +37,7 @@ if (dashboardMode === "local" && process.env.MESH_HUB_URL) {
     alias: process.env.MESH_NODE_ALIAS,
     statePath: process.env.MESH_AGENT_STATE_PATH || path.join(root, ".cache", "mesh-agent.json"),
     enrollmentCode: process.env.MESH_ENROLLMENT_CODE || null,
+    sitesBypassToken: process.env.MESH_SITES_BYPASS_TOKEN || null,
     projectMode: process.env.MESH_PROJECT_MODE || "hash",
     includeTitles: process.env.MESH_INCLUDE_TITLES === "1" || process.env.MESH_INCLUDE_TITLES === "true",
     batchSize: process.env.MESH_BATCH_SIZE,

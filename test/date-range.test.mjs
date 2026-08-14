@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { defaultCustomRange, latestTimestamp, normalizeCustomRange, resolveDateRange, timestampInRange, toDateTimeLocalValue } from "../public/date-range.js";
+import { defaultCustomRange, latestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "../public/date-range.js";
 
 test("stores datetime-local values without converting their local wall time", () => {
   const date = new Date(2026, 7, 13, 14, 5);
@@ -26,4 +26,35 @@ test("an explicit custom end is inclusive and latest calls sort by actual call t
   assert.equal(timestampInRange("2026-08-02T12:00:00", range), true);
   assert.equal(timestampInRange("2026-08-02T12:00:01", range), false);
   assert.equal(latestTimestamp([{ timestamp: "2026-08-01T12:00:00Z" }, { timestamp: "2026-08-02T09:00:00Z" }]), "2026-08-02T09:00:00Z");
+});
+
+test("weekly range starts 7 days before the current Codex reset", () => {
+  const now = new Date("2026-08-14T15:00:00.000Z");
+  const range = resolveWeeklyRange({ windowMinutes: 10080, resetsAt: "2026-08-20T12:00:00.000Z" }, now);
+  assert.equal(range.start.toISOString(), "2026-08-13T12:00:00.000Z");
+  assert.equal(range.end.toISOString(), now.toISOString());
+  assert.equal(range.resetsAt.toISOString(), "2026-08-20T12:00:00.000Z");
+});
+
+test("a stale weekly reset rolls forward into the current 7-day cycle", () => {
+  const now = new Date("2026-08-14T15:00:00.000Z");
+  const range = resolveWeeklyRange({ windowMinutes: 10080, resetsAt: "2026-08-07T12:00:00.000Z" }, now);
+  assert.equal(range.start.toISOString(), "2026-08-14T12:00:00.000Z");
+  assert.equal(range.resetsAt.toISOString(), "2026-08-21T12:00:00.000Z");
+  assert.equal(timestampInRange("2026-08-14T14:00:00.000Z", range), true);
+  assert.equal(timestampInRange("2026-08-14T11:00:00.000Z", range), false);
+});
+
+test("without a reset date, weekly range is the last 7 days from now", () => {
+  const now = new Date("2026-08-14T15:00:00.000Z");
+  const range = resolveWeeklyRange(null, now);
+  assert.equal(range.start.toISOString(), "2026-08-07T15:00:00.000Z");
+  assert.equal(range.resetsAt, null);
+});
+
+test("a reset more than one week ahead is rewound to the current cycle", () => {
+  const now = new Date("2026-08-14T15:00:00.000Z");
+  const range = resolveWeeklyRange({ windowMinutes: 10080, resetsAt: "2026-09-03T12:00:00.000Z" }, now);
+  assert.equal(range.start.toISOString(), "2026-08-13T12:00:00.000Z");
+  assert.equal(range.resetsAt.toISOString(), "2026-08-20T12:00:00.000Z");
 });

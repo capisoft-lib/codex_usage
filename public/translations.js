@@ -11,7 +11,7 @@ export const LOCALE_TAGS = Object.freeze({
 });
 
 const es = {
-  "app.title": "Local Usage — Costes y actividad", "brand.tagline": "para Codex · local", "license.independent": "Software libre e independiente para datos locales de Codex.", "license.source": "Código fuente", "nav.period": "Periodo", "action.language": "Idioma", "action.close": "Cerrar", "action.refresh": "Actualizar", "action.pricing": "Configurar precios", "summary.label": "Resumen del periodo", "summary.kpis": "Indicadores principales",
+  "app.title": "Local Usage — Costes y actividad", "brand.tagline": "para Codex · local", "license.independent": "Software libre e independiente para datos locales de Codex.", "license.source": "Código fuente", "nav.period": "Periodo", "nav.main": "Navegación principal", "nav.overview": "Resumen", "nav.projects": "Proyectos", "nav.quota": "Cuota", "nav.conversations": "Conversaciones", "nav.settings": "Ajustes", "action.language": "Idioma", "action.close": "Cerrar", "action.refresh": "Actualizar", "action.pricing": "Configurar precios", "summary.label": "Resumen del periodo", "summary.kpis": "Indicadores principales",
   "period.today": "Hoy", "period.7d": "7 días", "period.30d": "30 días", "period.all": "Todo", "period.custom": "Personalizado", "period.customStart": "Inicio", "period.customEnd": "Fin", "period.now": "Ahora", "period.todayLabel": "Hoy", "period.7dLabel": "Últimos 7 días", "period.30dLabel": "Últimos 30 días", "period.allLabel": "Todo el historial local", "period.customLabel": "De {start} a {end}",
   "hero.title": "Costes y actividad", "hero.privacy": "Solo datos locales", "section.load": "ACTIVIDAD", "section.conversations": "DETALLE", "chart.cost": "Coste de API a lo largo del tiempo",
   "token.cache": "Caché", "token.output": "Salida", "units.tokens": "tokens",
@@ -30,7 +30,7 @@ const es = {
 };
 
 const it = {
-  "app.title": "Local Usage — Costi e attività", "brand.tagline": "per Codex · locale", "license.independent": "Software libero e indipendente per i dati locali di Codex.", "license.source": "Codice sorgente", "nav.period": "Periodo", "action.language": "Lingua", "action.close": "Chiudi", "action.refresh": "Aggiorna", "action.pricing": "Configura prezzi", "summary.label": "Riepilogo del periodo", "summary.kpis": "Indicatori principali",
+  "app.title": "Local Usage — Costi e attività", "brand.tagline": "per Codex · locale", "license.independent": "Software libero e indipendente per i dati locali di Codex.", "license.source": "Codice sorgente", "nav.period": "Periodo", "nav.main": "Navigazione principale", "nav.overview": "Panoramica", "nav.projects": "Progetti", "nav.quota": "Quota", "nav.conversations": "Conversazioni", "nav.settings": "Impostazioni", "action.language": "Lingua", "action.close": "Chiudi", "action.refresh": "Aggiorna", "action.pricing": "Configura prezzi", "summary.label": "Riepilogo del periodo", "summary.kpis": "Indicatori principali",
   "period.today": "Oggi", "period.7d": "7 giorni", "period.30d": "30 giorni", "period.all": "Tutto", "period.custom": "Personalizzato", "period.customStart": "Inizio", "period.customEnd": "Fine", "period.now": "Adesso", "period.todayLabel": "Oggi", "period.7dLabel": "Ultimi 7 giorni", "period.30dLabel": "Ultimi 30 giorni", "period.allLabel": "Tutta la cronologia locale", "period.customLabel": "Da {start} a {end}",
   "hero.title": "Costi e attività", "hero.privacy": "Solo dati locali", "section.load": "ATTIVITÀ", "section.conversations": "DETTAGLIO", "chart.cost": "Costo API nel tempo",
   "token.cache": "Cache", "token.output": "Output", "units.tokens": "token",
@@ -49,7 +49,7 @@ const it = {
 };
 
 const pt = {
-  "app.title": "Local Usage — Custos e atividade", "brand.tagline": "para Codex · local", "license.independent": "Software livre e independente para dados locais do Codex.", "license.source": "Código-fonte", "nav.period": "Período", "action.language": "Idioma", "action.close": "Fechar", "action.refresh": "Atualizar", "action.pricing": "Configurar preços", "summary.label": "Resumo do período", "summary.kpis": "Indicadores principais",
+  "app.title": "Local Usage — Custos e atividade", "brand.tagline": "para Codex · local", "license.independent": "Software livre e independente para dados locais do Codex.", "license.source": "Código-fonte", "nav.period": "Período", "nav.main": "Navegação principal", "nav.overview": "Visão geral", "nav.projects": "Projetos", "nav.quota": "Quota", "nav.conversations": "Conversas", "nav.settings": "Definições", "action.language": "Idioma", "action.close": "Fechar", "action.refresh": "Atualizar", "action.pricing": "Configurar preços", "summary.label": "Resumo do período", "summary.kpis": "Indicadores principais",
   "period.today": "Hoje", "period.7d": "7 dias", "period.30d": "30 dias", "period.all": "Tudo", "period.custom": "Personalizado", "period.customStart": "Início", "period.customEnd": "Fim", "period.now": "Agora", "period.todayLabel": "Hoje", "period.7dLabel": "Últimos 7 dias", "period.30dLabel": "Últimos 30 dias", "period.allLabel": "Todo o histórico local", "period.customLabel": "De {start} a {end}",
   "hero.title": "Custos e atividade", "hero.privacy": "Apenas dados locais", "section.load": "ATIVIDADE", "section.conversations": "DETALHE", "chart.cost": "Custo da API ao longo do tempo",
   "token.cache": "Cache", "token.output": "Saída", "units.tokens": "tokens",
@@ -68,7 +68,7 @@ const pt = {
 };
 
 const ja = {
-  "app.title": "Local Usage — コストとアクティビティ", "brand.tagline": "Codex向け · ローカル", "license.independent": "Codex のローカルデータ向けの独立した自由ソフトウェアです。", "license.source": "ソースコード", "nav.period": "期間", "action.language": "言語", "action.close": "閉じる", "action.refresh": "更新", "action.pricing": "料金を設定", "summary.label": "期間の概要", "summary.kpis": "主要指標",
+  "app.title": "Local Usage — コストとアクティビティ", "brand.tagline": "Codex向け · ローカル", "license.independent": "Codex のローカルデータ向けの独立した自由ソフトウェアです。", "license.source": "ソースコード", "nav.period": "期間", "nav.main": "メインナビゲーション", "nav.overview": "概要", "nav.projects": "プロジェクト", "nav.quota": "クォータ", "nav.conversations": "会話", "nav.settings": "設定", "action.language": "言語", "action.close": "閉じる", "action.refresh": "更新", "action.pricing": "料金を設定", "summary.label": "期間の概要", "summary.kpis": "主要指標",
   "period.today": "今日", "period.7d": "7日間", "period.30d": "30日間", "period.all": "すべて", "period.custom": "カスタム", "period.customStart": "開始", "period.customEnd": "終了", "period.now": "現在", "period.todayLabel": "今日", "period.7dLabel": "過去7日間", "period.30dLabel": "過去30日間", "period.allLabel": "ローカル履歴全体", "period.customLabel": "{start}から{end}まで",
   "hero.title": "コストとアクティビティ", "hero.privacy": "ローカルデータのみ", "section.load": "アクティビティ", "section.conversations": "詳細", "chart.cost": "APIコストの推移",
   "token.cache": "キャッシュ", "token.output": "出力", "units.tokens": "トークン",
@@ -87,7 +87,7 @@ const ja = {
 };
 
 const ru = {
-  "app.title": "Local Usage — Расходы и активность", "brand.tagline": "для Codex · локально", "license.independent": "Независимое свободное ПО для локальных данных Codex.", "license.source": "Исходный код", "nav.period": "Период", "action.language": "Язык", "action.close": "Закрыть", "action.refresh": "Обновить", "action.pricing": "Настроить тарифы", "summary.label": "Сводка за период", "summary.kpis": "Основные показатели",
+  "app.title": "Local Usage — Расходы и активность", "brand.tagline": "для Codex · локально", "license.independent": "Независимое свободное ПО для локальных данных Codex.", "license.source": "Исходный код", "nav.period": "Период", "nav.main": "Основная навигация", "nav.overview": "Обзор", "nav.projects": "Проекты", "nav.quota": "Квота", "nav.conversations": "Диалоги", "nav.settings": "Настройки", "action.language": "Язык", "action.close": "Закрыть", "action.refresh": "Обновить", "action.pricing": "Настроить тарифы", "summary.label": "Сводка за период", "summary.kpis": "Основные показатели",
   "period.today": "Сегодня", "period.7d": "7 дней", "period.30d": "30 дней", "period.all": "Всё", "period.custom": "Свой", "period.customStart": "Начало", "period.customEnd": "Конец", "period.now": "Сейчас", "period.todayLabel": "Сегодня", "period.7dLabel": "Последние 7 дней", "period.30dLabel": "Последние 30 дней", "period.allLabel": "Вся локальная история", "period.customLabel": "С {start} по {end}",
   "hero.title": "Расходы и активность", "hero.privacy": "Только локальные данные", "section.load": "АКТИВНОСТЬ", "section.conversations": "ПОДРОБНОСТИ", "chart.cost": "Стоимость API по времени",
   "token.cache": "Кэш", "token.output": "Вывод", "units.tokens": "токенов",
@@ -106,7 +106,7 @@ const ru = {
 };
 
 const zh = {
-  "app.title": "Local Usage — 成本与活动", "brand.tagline": "适用于 Codex · 本地", "license.independent": "用于 Codex 本地数据的独立自由软件。", "license.source": "源代码", "nav.period": "时间范围", "action.language": "语言", "action.close": "关闭", "action.refresh": "刷新", "action.pricing": "配置价格", "summary.label": "时段摘要", "summary.kpis": "主要指标",
+  "app.title": "Local Usage — 成本与活动", "brand.tagline": "适用于 Codex · 本地", "license.independent": "用于 Codex 本地数据的独立自由软件。", "license.source": "源代码", "nav.period": "时间范围", "nav.main": "主导航", "nav.overview": "总览", "nav.projects": "项目", "nav.quota": "额度", "nav.conversations": "对话", "nav.settings": "设置", "action.language": "语言", "action.close": "关闭", "action.refresh": "刷新", "action.pricing": "配置价格", "summary.label": "时段摘要", "summary.kpis": "主要指标",
   "period.today": "今天", "period.7d": "7天", "period.30d": "30天", "period.all": "全部", "period.custom": "自定义", "period.customStart": "开始", "period.customEnd": "结束", "period.now": "现在", "period.todayLabel": "今天", "period.7dLabel": "最近7天", "period.30dLabel": "最近30天", "period.allLabel": "全部本地历史", "period.customLabel": "{start}至{end}",
   "hero.title": "成本与活动", "hero.privacy": "仅限本地数据", "section.load": "活动", "section.conversations": "详情", "chart.cost": "API成本趋势",
   "token.cache": "缓存", "token.output": "输出", "units.tokens": "个令牌",
@@ -145,6 +145,54 @@ const dataModeMessages = {
   zh: { "data.source": "数据来源", "data.local": "本地", "data.centralized": "集中", "load.loadingCentralized": "正在加载集中数据…", "refresh.doneCentralized": "集中数据已刷新" },
 };
 for (const [language, messages] of Object.entries(dataModeMessages)) {
+  Object.assign({ es, it, pt, ja, ru, zh }[language], messages);
+}
+
+const pageMessages = {
+  es: {
+    "overview.recent": "Conversaciones recientes", "overview.viewAll": "Ver todo",
+    "projects.viewAll": "Todos los proyectos", "projects.select": "Selecciona un proyecto para ver su detalle.", "projects.models": "Coste por modelo", "projects.openConversations": "Ver conversaciones", "search.projects": "Buscar proyectos…",
+    "quota.window": "Ventana semanal", "quota.weekCost": "Coste de la semana", "quota.weekTokens": "Tokens de la semana", "quota.weekCredits": "Créditos de la semana",
+    "quota.forecastEyebrow": "PREVISIÓN", "quota.forecastTitle": "Proyección al final de la ventana", "quota.forecastHint": "EMA de 24 h · calibrada con la cuota de Codex", "quota.forecastAtReset": "Previsión al reiniciar", "quota.emaHour": "Media EMA / hora", "quota.emaDay": "Media EMA / día", "quota.margin": "{n} % de margen previsto", "quota.overrun": "{n} % por encima del límite", "quota.actual": "Consumido", "quota.projected": "Previsión", "quota.limit": "Límite del 100 %", "quota.renew": "Renovación", "quota.reset": "Reinicio", "quota.observed": "Observado", "quota.unavailable": "Previsión no disponible: deben conocerse la cuota semanal y su fecha de reinicio.", "quota.insufficient": "Aún no hay suficiente consumo observado para calibrar la previsión.", "quota.forecastAria": "Consumo semanal de cuota observado y proyectado",
+    "settings.source": "Fuente de datos", "settings.sourceCopy": "Local lee las sesiones de este equipo. Centralizado agrega los nodos de la red privada.", "settings.pricingHint": "Estas tarifas simulan la API estándar y no representan tu suscripción Codex.", "settings.machines": "Equipos observados", "settings.noMachines": "Aún no hay equipos mesh. El modo local solo muestra este PC.",
+  },
+  it: {
+    "overview.recent": "Conversazioni recenti", "overview.viewAll": "Vedi tutto",
+    "projects.viewAll": "Tutti i progetti", "projects.select": "Seleziona un progetto per vederne i dettagli.", "projects.models": "Costo per modello", "projects.openConversations": "Vedi conversazioni", "search.projects": "Cerca progetti…",
+    "quota.window": "Finestra settimanale", "quota.weekCost": "Costo della settimana", "quota.weekTokens": "Token della settimana", "quota.weekCredits": "Crediti della settimana",
+    "quota.forecastEyebrow": "PREVISIONE", "quota.forecastTitle": "Proiezione a fine finestra", "quota.forecastHint": "EMA 24 h · calibrata sulla quota Codex", "quota.forecastAtReset": "Previsione al reset", "quota.emaHour": "Media EMA / ora", "quota.emaDay": "Media EMA / giorno", "quota.margin": "{n} % di margine previsto", "quota.overrun": "{n} % oltre il limite", "quota.actual": "Consumata", "quota.projected": "Previsione", "quota.limit": "Limite 100 %", "quota.renew": "Rinnovo", "quota.reset": "Reset", "quota.observed": "Osservato", "quota.unavailable": "Previsione non disponibile: devono essere indicati quota settimanale e data di reset.", "quota.insufficient": "Consumo osservato ancora insufficiente per calibrare la previsione.", "quota.forecastAria": "Consumo della quota settimanale osservato e previsto",
+    "settings.source": "Origine dati", "settings.sourceCopy": "Locale legge le sessioni di questo computer. Centralizzato aggrega i nodi della rete privata.", "settings.pricingHint": "Queste tariffe simulano l’API standard e non rappresentano l’abbonamento Codex.", "settings.machines": "Computer osservati", "settings.noMachines": "Nessun computer mesh al momento. La modalità locale mostra solo questo PC.",
+  },
+  pt: {
+    "overview.recent": "Conversas recentes", "overview.viewAll": "Ver tudo",
+    "projects.viewAll": "Todos os projetos", "projects.select": "Selecione um projeto para ver os detalhes.", "projects.models": "Custo por modelo", "projects.openConversations": "Ver conversas", "search.projects": "Pesquisar projetos…",
+    "quota.window": "Janela semanal", "quota.weekCost": "Custo da semana", "quota.weekTokens": "Tokens da semana", "quota.weekCredits": "Créditos da semana",
+    "quota.forecastEyebrow": "PREVISÃO", "quota.forecastTitle": "Projeção no fim da janela", "quota.forecastHint": "EMA de 24 h · calibrada pela quota Codex", "quota.forecastAtReset": "Previsão no reset", "quota.emaHour": "Média EMA / hora", "quota.emaDay": "Média EMA / dia", "quota.margin": "{n} % de margem prevista", "quota.overrun": "{n} % acima do limite", "quota.actual": "Consumido", "quota.projected": "Previsão", "quota.limit": "Limite de 100 %", "quota.renew": "Renovação", "quota.reset": "Reset", "quota.observed": "Observado", "quota.unavailable": "Previsão indisponível: a quota semanal e a data de reset têm de ser comunicadas.", "quota.insufficient": "Ainda não há consumo observado suficiente para calibrar a previsão.", "quota.forecastAria": "Consumo semanal da quota observado e projetado",
+    "settings.source": "Fonte de dados", "settings.sourceCopy": "Local lê as sessões desta máquina. Centralizado agrega os nós da rede privada.", "settings.pricingHint": "Estas tarifas simulam a API padrão e não representam a sua subscrição Codex.", "settings.machines": "Computadores observados", "settings.noMachines": "Ainda não há máquinas mesh. O modo local mostra apenas este PC.",
+  },
+  ja: {
+    "overview.recent": "最近の会話", "overview.viewAll": "すべて表示",
+    "projects.viewAll": "すべてのプロジェクト", "projects.select": "プロジェクトを選ぶと詳細を表示します。", "projects.models": "モデル別コスト", "projects.openConversations": "会話を表示", "search.projects": "プロジェクトを検索…",
+    "quota.window": "週間ウィンドウ", "quota.weekCost": "今週のコスト", "quota.weekTokens": "今週のトークン", "quota.weekCredits": "今週のクレジット",
+    "quota.forecastEyebrow": "予測", "quota.forecastTitle": "期間終了時の予測", "quota.forecastHint": "24時間EMA・Codexクォータで較正", "quota.forecastAtReset": "リセット時の予測", "quota.emaHour": "EMA平均 / 時間", "quota.emaDay": "EMA平均 / 日", "quota.margin": "予測余裕 {n}%", "quota.overrun": "上限を {n}% 超過", "quota.actual": "消費済み", "quota.projected": "予測", "quota.limit": "100% 上限", "quota.renew": "更新", "quota.reset": "リセット", "quota.observed": "観測時点", "quota.unavailable": "予測できません。週間クォータとリセット日時が必要です。", "quota.insufficient": "予測を較正するための観測消費量がまだ不足しています。", "quota.forecastAria": "週間クォータ消費量の実績と予測",
+    "settings.source": "データソース", "settings.sourceCopy": "ローカルはこのマシンのセッションを読みます。集中管理はプライベートネットワーク上のノードを集約します。", "settings.pricingHint": "これらの料金は標準APIのシミュレーションであり、Codexのサブスクリプションではありません。", "settings.machines": "観測したマシン", "settings.noMachines": "Meshマシンはまだありません。ローカルモードはこのPCのみを表示します。",
+  },
+  ru: {
+    "overview.recent": "Недавние диалоги", "overview.viewAll": "Показать все",
+    "projects.viewAll": "Все проекты", "projects.select": "Выберите проект, чтобы увидеть подробности.", "projects.models": "Стоимость по моделям", "projects.openConversations": "Показать диалоги", "search.projects": "Поиск проектов…",
+    "quota.window": "Недельное окно", "quota.weekCost": "Стоимость за неделю", "quota.weekTokens": "Токены за неделю", "quota.weekCredits": "Кредиты за неделю",
+    "quota.forecastEyebrow": "ПРОГНОЗ", "quota.forecastTitle": "Прогноз к концу окна", "quota.forecastHint": "EMA за 24 ч · калибровка по квоте Codex", "quota.forecastAtReset": "Прогноз к сбросу", "quota.emaHour": "Среднее EMA / час", "quota.emaDay": "Среднее EMA / день", "quota.margin": "Ожидаемый запас {n} %", "quota.overrun": "На {n} % выше лимита", "quota.actual": "Израсходовано", "quota.projected": "Прогноз", "quota.limit": "Лимит 100 %", "quota.renew": "Начало", "quota.reset": "Сброс", "quota.observed": "Наблюдение", "quota.unavailable": "Прогноз недоступен: необходимы недельная квота и дата её сброса.", "quota.insufficient": "Пока недостаточно данных о расходе для калибровки прогноза.", "quota.forecastAria": "Наблюдаемый и прогнозируемый расход недельной квоты",
+    "settings.source": "Источник данных", "settings.sourceCopy": "Локальный режим читает сеансы этого компьютера. Централизованный агрегирует узлы частной сети.", "settings.pricingHint": "Эти тарифы моделируют стандартный API и не соответствуют подписке Codex.", "settings.machines": "Наблюдаемые компьютеры", "settings.noMachines": "Пока нет компьютеров mesh. Локальный режим показывает только этот ПК.",
+  },
+  zh: {
+    "overview.recent": "最近对话", "overview.viewAll": "查看全部",
+    "projects.viewAll": "全部项目", "projects.select": "选择一个项目以查看详情。", "projects.models": "按模型成本", "projects.openConversations": "查看对话", "search.projects": "搜索项目…",
+    "quota.window": "每周窗口", "quota.weekCost": "本周成本", "quota.weekTokens": "本周令牌", "quota.weekCredits": "本周点数",
+    "quota.forecastEyebrow": "预测", "quota.forecastTitle": "窗口结束时预测", "quota.forecastHint": "24 小时 EMA · 按 Codex 额度校准", "quota.forecastAtReset": "重置时预测", "quota.emaHour": "EMA 平均 / 小时", "quota.emaDay": "EMA 平均 / 天", "quota.margin": "预计剩余 {n}%", "quota.overrun": "超出上限 {n}%", "quota.actual": "已消耗", "quota.projected": "预测", "quota.limit": "100% 上限", "quota.renew": "续期", "quota.reset": "重置", "quota.observed": "观测", "quota.unavailable": "无法预测：必须提供每周额度及重置日期。", "quota.insufficient": "观测到的消耗量不足，暂时无法校准预测。", "quota.forecastAria": "每周额度的已观测和预测消耗",
+    "settings.source": "数据来源", "settings.sourceCopy": "本地读取此电脑的会话。集中模式汇总私有网络中的节点。", "settings.pricingHint": "这些价格模拟标准 API，并不代表你的 Codex 订阅。", "settings.machines": "观测设备", "settings.noMachines": "尚无 mesh 设备。本地模式只显示此电脑。",
+  },
+};
+for (const [language, messages] of Object.entries(pageMessages)) {
   Object.assign({ es, it, pt, ja, ru, zh }[language], messages);
 }
 

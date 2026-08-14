@@ -28,7 +28,7 @@ test("agent enrolls, signs minimized snapshots, and only resends changes", async
   const enrollment = await store.createEnrollment();
   const requests = [];
   const fetchImpl = async (url, options) => {
-    requests.push({ url, body: options.body });
+    requests.push({ url, body: options.body, headers: options.headers });
     try {
       if (url.endsWith("/enroll")) return Response.json(await store.enroll(JSON.parse(options.body)), { status: 201 });
       if (url.endsWith("/ingest")) return Response.json(await store.ingest(JSON.parse(options.body)), { status: 202 });
@@ -38,7 +38,7 @@ test("agent enrolls, signs minimized snapshots, and only resends changes", async
       return Response.json({ error: error.message, code: error.code }, { status: error.status || 500 });
     }
   };
-  const agent = new MeshAgent({ hubUrl: "https://mesh.example", alias: "PC Bureau", statePath: path.join(directory, "agent.json"), enrollmentCode: enrollment.code, fetchImpl, logger: { log() {} } });
+  const agent = new MeshAgent({ hubUrl: "https://mesh.example", alias: "PC Bureau", statePath: path.join(directory, "agent.json"), enrollmentCode: enrollment.code, sitesBypassToken: "private-sites-token", fetchImpl, logger: { log() {} } });
   const data = usageData();
   const first = await agent.sync(data);
   const second = await agent.sync(data);
@@ -47,6 +47,7 @@ test("agent enrolls, signs minimized snapshots, and only resends changes", async
   const centralized = await agent.centralizedUsage();
   assert.equal(centralized.sessions[0].nodeAlias, "PC Bureau");
   assert.equal(requests.filter((request) => request.url.endsWith("/enroll")).length, 1);
+  assert.ok(requests.every((request) => request.headers["OAI-Sites-Authorization"] === "Bearer private-sites-token"));
   const aggregated = store.aggregate();
   assert.equal(aggregated.sessions.length, 1);
   assert.match(aggregated.sessions[0].title, /^Conversation /);
@@ -67,6 +68,32 @@ test("agent uses the operating-system hostname when no alias override is configu
   await agent.load();
   assert.equal(agent.status().alias, "WORKSTATION-42");
   assert.equal(agent.state.alias, "WORKSTATION-42");
+});
+
+test("agent never reuses a reserved sequence after an interrupted request", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-mesh-sequence-"));
+  const sequences = [];
+  let fail = true;
+  const agent = new MeshAgent({
+    hubUrl: "https://mesh.example",
+    statePath: path.join(directory, "agent.json"),
+    fetchImpl: async (_url, options) => {
+      sequences.push(JSON.parse(options.body).sequence);
+      if (fail) {
+        fail = false;
+        return Response.json({ error: "interrupted" }, { status: 503 });
+      }
+      return Response.json({ accepted: true });
+    },
+  });
+  await agent.load();
+  agent.state.nodeId = "node_test";
+  await agent.persist();
+  await assert.rejects(() => agent.sendSigned("/api/mesh/usage", { kind: "read", requestVersion: 1 }), /interrupted/);
+  const persisted = JSON.parse(await readFile(path.join(directory, "agent.json"), "utf8"));
+  assert.equal(persisted.sequence, 1);
+  await agent.sendSigned("/api/mesh/usage", { kind: "read", requestVersion: 1 });
+  assert.deepEqual(sequences, [1, 2]);
 });
 
 test("hub rejects unexpected private fields before storing a snapshot", async () => {

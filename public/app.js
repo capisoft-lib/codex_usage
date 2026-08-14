@@ -2,7 +2,8 @@ import { codexCreditsOfCalls, fastMultiplierFor, usageProfilesOfCalls } from "./
 import { DEFAULT_API_PRICING, apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 import { ADDITIONAL_I18N, LOCALE_TAGS, resolveLanguage } from "./translations.js";
 import { percentageOf, stackedChartSegments } from "./visualization.js";
-import { latestTimestamp, normalizeCustomRange, resolveDateRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
+import { latestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
+import { buildQuotaForecast } from "./quota-forecast.js";
 
 // Paint the last browser snapshot immediately, then replace it from the server's
 // background-refreshed snapshot. Session files remain the source of truth.
@@ -16,7 +17,7 @@ const DATA_MODE_KEY = "codex-usage-data-mode";
 
 const I18N = {
   fr: {
-    "app.title": "Local Usage — Coûts et activité", "brand.tagline": "pour Codex · local", "license.independent": "Projet libre et indépendant pour les données locales Codex.", "license.source": "Code source", "nav.period": "Période", "action.language": "Langue", "action.close": "Fermer", "summary.label": "Synthèse de la période", "summary.kpis": "Indicateurs principaux",
+    "app.title": "Local Usage — Coûts et activité", "brand.tagline": "pour Codex · local", "license.independent": "Projet libre et indépendant pour les données locales Codex.", "license.source": "Code source", "nav.period": "Période", "nav.main": "Navigation principale", "nav.overview": "Aperçu", "nav.projects": "Projets", "nav.quota": "Quota", "nav.conversations": "Conversations", "nav.settings": "Réglages", "action.language": "Langue", "action.close": "Fermer", "summary.label": "Synthèse de la période", "summary.kpis": "Indicateurs principaux",
     "period.today": "Aujourd’hui", "period.7d": "7 jours", "period.30d": "30 jours", "period.all": "Tout", "period.custom": "Personnalisé", "period.customStart": "Début", "period.customEnd": "Fin", "period.now": "Maintenant",
     "period.todayLabel": "Aujourd’hui", "period.7dLabel": "7 derniers jours", "period.30dLabel": "30 derniers jours", "period.allLabel": "Tout l’historique local", "period.customLabel": "Du {start} au {end}",
     "action.refresh": "Actualiser", "action.pricing": "Configurer les tarifs", "hero.title": "Coûts et activité", "hero.privacy": "Données locales uniquement",
@@ -37,7 +38,7 @@ const I18N = {
     "duration.seconds": "{n} s", "duration.minutes": "{m} min {s} s", "hero.privacyMesh": "Métadonnées minimisées · réseau privé", "node.all": "Toutes les machines", "filter.node": "Filtrer par machine", "table.node": "Machine", "detail.node": "Machine observée", "freshness.mesh": "{n} sessions · {nodes} machines · relevé {time}",
   },
   en: {
-    "app.title": "Local Usage — Costs and activity", "brand.tagline": "for Codex · local", "license.independent": "Independent free software for local Codex data.", "license.source": "Source code", "nav.period": "Period", "action.language": "Language", "action.close": "Close", "summary.label": "Period summary", "summary.kpis": "Key indicators",
+    "app.title": "Local Usage — Costs and activity", "brand.tagline": "for Codex · local", "license.independent": "Independent free software for local Codex data.", "license.source": "Source code", "nav.period": "Period", "nav.main": "Main navigation", "nav.overview": "Overview", "nav.projects": "Projects", "nav.quota": "Quota", "nav.conversations": "Conversations", "nav.settings": "Settings", "action.language": "Language", "action.close": "Close", "summary.label": "Period summary", "summary.kpis": "Key indicators",
     "period.today": "Today", "period.7d": "7 days", "period.30d": "30 days", "period.all": "All", "period.custom": "Custom", "period.customStart": "Start", "period.customEnd": "End", "period.now": "Now",
     "period.todayLabel": "Today", "period.7dLabel": "Last 7 days", "period.30dLabel": "Last 30 days", "period.allLabel": "All local history", "period.customLabel": "From {start} to {end}",
     "action.refresh": "Refresh", "action.pricing": "Configure prices", "hero.title": "Costs and activity", "hero.privacy": "Local data only",
@@ -58,7 +59,7 @@ const I18N = {
     "duration.seconds": "{n}s", "duration.minutes": "{m}m {s}s", "hero.privacyMesh": "Minimized metadata · private network", "node.all": "All machines", "filter.node": "Filter by machine", "table.node": "Machine", "detail.node": "Observed machine", "freshness.mesh": "{n} sessions · {nodes} machines · updated {time}",
   },
   de: {
-    "app.title": "Local Usage — Kosten und Aktivität", "brand.tagline": "für Codex · lokal", "license.independent": "Unabhängige freie Software für lokale Codex-Daten.", "license.source": "Quellcode", "nav.period": "Zeitraum", "action.language": "Sprache", "action.close": "Schließen", "summary.label": "Zusammenfassung des Zeitraums", "summary.kpis": "Wichtigste Kennzahlen",
+    "app.title": "Local Usage — Kosten und Aktivität", "brand.tagline": "für Codex · lokal", "license.independent": "Unabhängige freie Software für lokale Codex-Daten.", "license.source": "Quellcode", "nav.period": "Zeitraum", "nav.main": "Hauptnavigation", "nav.overview": "Übersicht", "nav.projects": "Projekte", "nav.quota": "Kontingent", "nav.conversations": "Konversationen", "nav.settings": "Einstellungen", "action.language": "Sprache", "action.close": "Schließen", "summary.label": "Zusammenfassung des Zeitraums", "summary.kpis": "Wichtigste Kennzahlen",
     "period.today": "Heute", "period.7d": "7 Tage", "period.30d": "30 Tage", "period.all": "Alle", "period.custom": "Benutzerdefiniert", "period.customStart": "Beginn", "period.customEnd": "Ende", "period.now": "Jetzt",
     "period.todayLabel": "Heute", "period.7dLabel": "Letzte 7 Tage", "period.30dLabel": "Letzte 30 Tage", "period.allLabel": "Gesamter lokaler Verlauf", "period.customLabel": "Von {start} bis {end}",
     "action.refresh": "Aktualisieren", "action.pricing": "Preise konfigurieren", "hero.title": "Kosten und Aktivität", "hero.privacy": "Nur lokale Daten",
@@ -110,12 +111,102 @@ const DATA_MODE_I18N = {
 };
 for (const [language, messages] of Object.entries(DATA_MODE_I18N)) Object.assign(I18N[language], messages);
 
+const PAGE_I18N = {
+  fr: {
+    "overview.recent": "Conversations récentes", "overview.viewAll": "Voir tout",
+    "projects.viewAll": "Tous les projets", "projects.select": "Sélectionnez un projet pour voir son détail.", "projects.models": "Coût par modèle", "projects.openConversations": "Voir les conversations", "search.projects": "Rechercher un projet…",
+    "quota.window": "Fenêtre hebdomadaire", "quota.weekCost": "Coût de la semaine", "quota.weekTokens": "Tokens de la semaine", "quota.weekCredits": "Crédits de la semaine",
+    "quota.forecastEyebrow": "PRÉVISION", "quota.forecastTitle": "Projection à la fin de la fenêtre", "quota.forecastHint": "EMA 24 h · recalée sur le quota Codex", "quota.forecastAtReset": "Prévision au reset", "quota.emaHour": "Moyenne EMA / heure", "quota.emaDay": "Moyenne EMA / jour", "quota.margin": "{n} % de marge prévue", "quota.overrun": "{n} % au-dessus de la limite", "quota.actual": "Consommé", "quota.projected": "Prévision", "quota.limit": "Limite 100 %", "quota.renew": "Renew", "quota.reset": "Reset", "quota.observed": "Observé", "quota.unavailable": "Prévision indisponible : le quota hebdomadaire et sa date de reset doivent être communiqués.", "quota.insufficient": "Pas encore assez de consommation observée pour calibrer la prévision.", "quota.forecastAria": "Consommation hebdomadaire observée et projetée du quota",
+    "settings.source": "Source des données", "settings.sourceCopy": "Local lit les sessions de cette machine. Centralisé agrège les nœuds du réseau privé.", "settings.pricingHint": "Les tarifs simulent l’API standard et ne représentent pas votre abonnement Codex.", "settings.machines": "Machines observées", "settings.noMachines": "Aucune machine mesh pour le moment. Le mode local n’affiche que ce PC.",
+  },
+  en: {
+    "overview.recent": "Recent conversations", "overview.viewAll": "View all",
+    "projects.viewAll": "All projects", "projects.select": "Select a project to see its details.", "projects.models": "Cost by model", "projects.openConversations": "View conversations", "search.projects": "Search projects…",
+    "quota.window": "Weekly window", "quota.weekCost": "Cost this week", "quota.weekTokens": "Tokens this week", "quota.weekCredits": "Credits this week",
+    "quota.forecastEyebrow": "FORECAST", "quota.forecastTitle": "End-of-window projection", "quota.forecastHint": "24h EMA · calibrated to the Codex quota", "quota.forecastAtReset": "Forecast at reset", "quota.emaHour": "EMA average / hour", "quota.emaDay": "EMA average / day", "quota.margin": "{n}% expected headroom", "quota.overrun": "{n}% above the limit", "quota.actual": "Consumed", "quota.projected": "Forecast", "quota.limit": "100% limit", "quota.renew": "Renew", "quota.reset": "Reset", "quota.observed": "Observed", "quota.unavailable": "Forecast unavailable: the weekly quota and its reset date must be reported.", "quota.insufficient": "Not enough observed consumption yet to calibrate the forecast.", "quota.forecastAria": "Observed and projected weekly quota consumption",
+    "settings.source": "Data source", "settings.sourceCopy": "Local reads sessions from this machine. Centralized aggregates nodes on the private network.", "settings.pricingHint": "These rates simulate the standard API and do not represent your Codex subscription.", "settings.machines": "Observed machines", "settings.noMachines": "No mesh machines yet. Local mode only shows this PC.",
+  },
+  de: {
+    "overview.recent": "Letzte Konversationen", "overview.viewAll": "Alle anzeigen",
+    "projects.viewAll": "Alle Projekte", "projects.select": "Wählen Sie ein Projekt, um die Details zu sehen.", "projects.models": "Kosten nach Modell", "projects.openConversations": "Konversationen anzeigen", "search.projects": "Projekte suchen…",
+    "quota.window": "Wochenfenster", "quota.weekCost": "Kosten dieser Woche", "quota.weekTokens": "Tokens dieser Woche", "quota.weekCredits": "Credits dieser Woche",
+    "quota.forecastEyebrow": "PROGNOSE", "quota.forecastTitle": "Projektion zum Fensterende", "quota.forecastHint": "24-h-EMA · am Codex-Kontingent kalibriert", "quota.forecastAtReset": "Prognose beim Reset", "quota.emaHour": "EMA-Mittel / Stunde", "quota.emaDay": "EMA-Mittel / Tag", "quota.margin": "{n} % erwartete Reserve", "quota.overrun": "{n} % über dem Limit", "quota.actual": "Verbraucht", "quota.projected": "Prognose", "quota.limit": "100-%-Limit", "quota.renew": "Beginn", "quota.reset": "Reset", "quota.observed": "Beobachtet", "quota.unavailable": "Prognose nicht verfügbar: Wochenkontingent und Reset-Datum müssen gemeldet sein.", "quota.insufficient": "Noch nicht genug Verbrauchsdaten zur Kalibrierung der Prognose.", "quota.forecastAria": "Beobachteter und prognostizierter Verbrauch des Wochenkontingents",
+    "settings.source": "Datenquelle", "settings.sourceCopy": "Lokal liest Sitzungen dieser Maschine. Zentral aggregiert Knoten im privaten Netzwerk.", "settings.pricingHint": "Diese Tarife simulieren die Standard-API und entsprechen nicht Ihrem Codex-Abo.", "settings.machines": "Beobachtete Geräte", "settings.noMachines": "Noch keine Mesh-Geräte. Der lokale Modus zeigt nur diesen PC.",
+  },
+  es: {
+    "overview.recent": "Conversaciones recientes", "overview.viewAll": "Ver todo",
+    "projects.viewAll": "Todos los proyectos", "projects.select": "Selecciona un proyecto para ver su detalle.", "projects.models": "Coste por modelo", "projects.openConversations": "Ver conversaciones", "search.projects": "Buscar proyectos…",
+    "quota.window": "Ventana semanal", "quota.weekCost": "Coste de la semana", "quota.weekTokens": "Tokens de la semana", "quota.weekCredits": "Créditos de la semana",
+    "quota.forecastEyebrow": "PREVISIÓN", "quota.forecastTitle": "Proyección al final de la ventana", "quota.forecastHint": "EMA de 24 h · calibrada con la cuota de Codex", "quota.forecastAtReset": "Previsión al reiniciar", "quota.emaHour": "Media EMA / hora", "quota.emaDay": "Media EMA / día", "quota.margin": "{n} % de margen previsto", "quota.overrun": "{n} % por encima del límite", "quota.actual": "Consumido", "quota.projected": "Previsión", "quota.limit": "Límite del 100 %", "quota.renew": "Renovación", "quota.reset": "Reinicio", "quota.observed": "Observado", "quota.unavailable": "Previsión no disponible: deben conocerse la cuota semanal y su fecha de reinicio.", "quota.insufficient": "Aún no hay suficiente consumo observado para calibrar la previsión.", "quota.forecastAria": "Consumo semanal de cuota observado y proyectado",
+    "settings.source": "Fuente de datos", "settings.sourceCopy": "Local lee las sesiones de este equipo. Centralizado agrega los nodos de la red privada.", "settings.pricingHint": "Estas tarifas simulan la API estándar y no representan tu suscripción Codex.", "settings.machines": "Equipos observados", "settings.noMachines": "Aún no hay equipos mesh. El modo local solo muestra este PC.",
+  },
+  it: {
+    "overview.recent": "Conversazioni recenti", "overview.viewAll": "Vedi tutto",
+    "projects.viewAll": "Tutti i progetti", "projects.select": "Seleziona un progetto per vederne i dettagli.", "projects.models": "Costo per modello", "projects.openConversations": "Vedi conversazioni", "search.projects": "Cerca progetti…",
+    "quota.window": "Finestra settimanale", "quota.weekCost": "Costo della settimana", "quota.weekTokens": "Token della settimana", "quota.weekCredits": "Crediti della settimana",
+    "quota.forecastEyebrow": "PREVISIONE", "quota.forecastTitle": "Proiezione a fine finestra", "quota.forecastHint": "EMA 24 h · calibrata sulla quota Codex", "quota.forecastAtReset": "Previsione al reset", "quota.emaHour": "Media EMA / ora", "quota.emaDay": "Media EMA / giorno", "quota.margin": "{n} % di margine previsto", "quota.overrun": "{n} % oltre il limite", "quota.actual": "Consumata", "quota.projected": "Previsione", "quota.limit": "Limite 100 %", "quota.renew": "Rinnovo", "quota.reset": "Reset", "quota.observed": "Osservato", "quota.unavailable": "Previsione non disponibile: devono essere indicati quota settimanale e data di reset.", "quota.insufficient": "Consumo osservato ancora insufficiente per calibrare la previsione.", "quota.forecastAria": "Consumo della quota settimanale osservato e previsto",
+    "settings.source": "Origine dati", "settings.sourceCopy": "Locale legge le sessioni di questo computer. Centralizzato aggrega i nodi della rete privata.", "settings.pricingHint": "Queste tariffe simulano l’API standard e non rappresentano l’abbonamento Codex.", "settings.machines": "Computer osservati", "settings.noMachines": "Nessun computer mesh al momento. La modalità locale mostra solo questo PC.",
+  },
+  pt: {
+    "overview.recent": "Conversas recentes", "overview.viewAll": "Ver tudo",
+    "projects.viewAll": "Todos os projetos", "projects.select": "Selecione um projeto para ver os detalhes.", "projects.models": "Custo por modelo", "projects.openConversations": "Ver conversas", "search.projects": "Pesquisar projetos…",
+    "quota.window": "Janela semanal", "quota.weekCost": "Custo da semana", "quota.weekTokens": "Tokens da semana", "quota.weekCredits": "Créditos da semana",
+    "quota.forecastEyebrow": "PREVISÃO", "quota.forecastTitle": "Projeção no fim da janela", "quota.forecastHint": "EMA de 24 h · calibrada pela quota Codex", "quota.forecastAtReset": "Previsão no reset", "quota.emaHour": "Média EMA / hora", "quota.emaDay": "Média EMA / dia", "quota.margin": "{n} % de margem prevista", "quota.overrun": "{n} % acima do limite", "quota.actual": "Consumido", "quota.projected": "Previsão", "quota.limit": "Limite de 100 %", "quota.renew": "Renovação", "quota.reset": "Reset", "quota.observed": "Observado", "quota.unavailable": "Previsão indisponível: a quota semanal e a data de reset têm de ser comunicadas.", "quota.insufficient": "Ainda não há consumo observado suficiente para calibrar a previsão.", "quota.forecastAria": "Consumo semanal da quota observado e projetado",
+    "settings.source": "Fonte de dados", "settings.sourceCopy": "Local lê as sessões desta máquina. Centralizado agrega os nós da rede privada.", "settings.pricingHint": "Estas tarifas simulam a API padrão e não representam a sua subscrição Codex.", "settings.machines": "Computadores observados", "settings.noMachines": "Ainda não há máquinas mesh. O modo local mostra apenas este PC.",
+  },
+  ja: {
+    "overview.recent": "最近の会話", "overview.viewAll": "すべて表示",
+    "projects.viewAll": "すべてのプロジェクト", "projects.select": "プロジェクトを選ぶと詳細を表示します。", "projects.models": "モデル別コスト", "projects.openConversations": "会話を表示", "search.projects": "プロジェクトを検索…",
+    "quota.window": "週間ウィンドウ", "quota.weekCost": "今週のコスト", "quota.weekTokens": "今週のトークン", "quota.weekCredits": "今週のクレジット",
+    "quota.forecastEyebrow": "予測", "quota.forecastTitle": "期間終了時の予測", "quota.forecastHint": "24時間EMA・Codexクォータで較正", "quota.forecastAtReset": "リセット時の予測", "quota.emaHour": "EMA平均 / 時間", "quota.emaDay": "EMA平均 / 日", "quota.margin": "予測余裕 {n}%", "quota.overrun": "上限を {n}% 超過", "quota.actual": "消費済み", "quota.projected": "予測", "quota.limit": "100% 上限", "quota.renew": "更新", "quota.reset": "リセット", "quota.observed": "観測時点", "quota.unavailable": "予測できません。週間クォータとリセット日時が必要です。", "quota.insufficient": "予測を較正するための観測消費量がまだ不足しています。", "quota.forecastAria": "週間クォータ消費量の実績と予測",
+    "settings.source": "データソース", "settings.sourceCopy": "ローカルはこのマシンのセッションを読みます。集中管理はプライベートネットワーク上のノードを集約します。", "settings.pricingHint": "これらの料金は標準APIのシミュレーションであり、Codexのサブスクリプションではありません。", "settings.machines": "観測したマシン", "settings.noMachines": "Meshマシンはまだありません。ローカルモードはこのPCのみを表示します。",
+  },
+  ru: {
+    "overview.recent": "Недавние диалоги", "overview.viewAll": "Показать все",
+    "projects.viewAll": "Все проекты", "projects.select": "Выберите проект, чтобы увидеть подробности.", "projects.models": "Стоимость по моделям", "projects.openConversations": "Показать диалоги", "search.projects": "Поиск проектов…",
+    "quota.window": "Недельное окно", "quota.weekCost": "Стоимость за неделю", "quota.weekTokens": "Токены за неделю", "quota.weekCredits": "Кредиты за неделю",
+    "quota.forecastEyebrow": "ПРОГНОЗ", "quota.forecastTitle": "Прогноз к концу окна", "quota.forecastHint": "EMA за 24 ч · калибровка по квоте Codex", "quota.forecastAtReset": "Прогноз к сбросу", "quota.emaHour": "Среднее EMA / час", "quota.emaDay": "Среднее EMA / день", "quota.margin": "Ожидаемый запас {n} %", "quota.overrun": "На {n} % выше лимита", "quota.actual": "Израсходовано", "quota.projected": "Прогноз", "quota.limit": "Лимит 100 %", "quota.renew": "Начало", "quota.reset": "Сброс", "quota.observed": "Наблюдение", "quota.unavailable": "Прогноз недоступен: необходимы недельная квота и дата её сброса.", "quota.insufficient": "Пока недостаточно данных о расходе для калибровки прогноза.", "quota.forecastAria": "Наблюдаемый и прогнозируемый расход недельной квоты",
+    "settings.source": "Источник данных", "settings.sourceCopy": "Локальный режим читает сеансы этого компьютера. Централизованный агрегирует узлы частной сети.", "settings.pricingHint": "Эти тарифы моделируют стандартный API и не соответствуют подписке Codex.", "settings.machines": "Наблюдаемые компьютеры", "settings.noMachines": "Пока нет компьютеров mesh. Локальный режим показывает только этот ПК.",
+  },
+  zh: {
+    "overview.recent": "最近对话", "overview.viewAll": "查看全部",
+    "projects.viewAll": "全部项目", "projects.select": "选择一个项目以查看详情。", "projects.models": "按模型成本", "projects.openConversations": "查看对话", "search.projects": "搜索项目…",
+    "quota.window": "每周窗口", "quota.weekCost": "本周成本", "quota.weekTokens": "本周令牌", "quota.weekCredits": "本周点数",
+    "quota.forecastEyebrow": "预测", "quota.forecastTitle": "窗口结束时预测", "quota.forecastHint": "24 小时 EMA · 按 Codex 额度校准", "quota.forecastAtReset": "重置时预测", "quota.emaHour": "EMA 平均 / 小时", "quota.emaDay": "EMA 平均 / 天", "quota.margin": "预计剩余 {n}%", "quota.overrun": "超出上限 {n}%", "quota.actual": "已消耗", "quota.projected": "预测", "quota.limit": "100% 上限", "quota.renew": "续期", "quota.reset": "重置", "quota.observed": "观测", "quota.unavailable": "无法预测：必须提供每周额度及重置日期。", "quota.insufficient": "观测到的消耗量不足，暂时无法校准预测。", "quota.forecastAria": "每周额度的已观测和预测消耗",
+    "settings.source": "数据来源", "settings.sourceCopy": "本地读取此电脑的会话。集中模式汇总私有网络中的节点。", "settings.pricingHint": "这些价格模拟标准 API，并不代表你的 Codex 订阅。", "settings.machines": "观测设备", "settings.noMachines": "尚无 mesh 设备。本地模式只显示此电脑。",
+  },
+};
+for (const [language, messages] of Object.entries(PAGE_I18N)) Object.assign(I18N[language], messages);
+
+const PAGES = ["overview", "projects", "quota", "conversations", "settings"];
+const PAGE_TITLE_KEYS = {
+  overview: "hero.title",
+  projects: "projects.title",
+  quota: "kpi.weeklyQuota",
+  conversations: "table.title",
+  settings: "nav.settings",
+};
+const VIEW_KEY = "codex-usage-view";
+
+function loadView() {
+  const hash = location.hash.replace(/^#/, "").split("/")[0];
+  if (PAGES.includes(hash)) return hash;
+  try {
+    const stored = localStorage.getItem(VIEW_KEY);
+    if (PAGES.includes(stored)) return stored;
+  } catch { /* Hash routing still works without storage. */ }
+  return "overview";
+}
+
 const state = {
   data: null,
   dataMode: loadDataMode(),
+  view: loadView(),
   period: "today",
   customRange: loadCustomRange(),
   query: "",
+  projectQuery: "",
+  selectedProject: null,
   model: "all",
   node: "all",
   folders: new Set(),
@@ -286,31 +377,57 @@ function projectGroups(sessions) {
     .sort((left, right) => right.cost.cost - left.cost.cost);
 }
 
-function scopedSessions() {
+function sessionsInRange({ node = "all", folders = new Set(), model = "all", range = dateRange() } = {}) {
   if (!state.data) return [];
-  const range = dateRange();
-  return state.data.sessions.filter((session) => state.node === "all" || session.nodeId === state.node).map((session) => {
-    if (state.folders.size && !state.folders.has(session.cwd || "")) return null;
-    const calls = session.calls.filter((call) => inRange(call.timestamp, range) && (state.model === "all" || call.model === state.model));
-    const turns = session.turns.filter((turn) => inRange(turn.startedAt, range) && (state.model === "all" || turn.model === state.model));
+  return state.data.sessions.filter((session) => node === "all" || session.nodeId === node).map((session) => {
+    if (folders.size && !folders.has(session.cwd || "")) return null;
+    const calls = session.calls.filter((call) => inRange(call.timestamp, range) && (model === "all" || call.model === model));
+    const turns = session.turns.filter((turn) => inRange(turn.startedAt, range) && (model === "all" || turn.model === model));
     return { ...session, calls, turns, usage: sumUsage(calls), modelCalls: calls.length, exchanges: turns.length, durationMs: turns.reduce((sum, turn) => sum + (turn.durationMs || 0), 0) };
-  // Ignore heartbeat/maintenance sessions that complete without a model call;
-  // they otherwise swamp the conversation view with zero-token rows.
   }).filter((session) => session?.calls.length);
+}
+
+function scopedSessions() {
+  return sessionsInRange({ node: state.node, folders: state.folders, model: state.model });
+}
+
+function overviewSessions() {
+  return sessionsInRange();
+}
+
+function weeklyRange(now = new Date()) {
+  return resolveWeeklyRange(state.data?.weeklyQuota, now);
 }
 
 function allScopedCalls(sessions = scopedSessions()) { return sessions.flatMap((session) => session.calls); }
 
+function modelGroups(calls) {
+  const groups = new Map();
+  for (const call of calls) {
+    const model = call.model || t("detail.unknown");
+    const group = groups.get(model) || { model, calls: [] };
+    group.calls.push(call);
+    groups.set(model, group);
+  }
+  return [...groups.values()]
+    .map((group) => ({ ...group, cost: costOfCalls(group.calls), tokens: sumUsage(group.calls).totalTokens }))
+    .sort((left, right) => right.cost.cost - left.cost.cost);
+}
+
 function render() {
-  const sessions = scopedSessions();
-  const calls = allScopedCalls(sessions);
-  const turns = sessions.flatMap((session) => session.turns);
-  const usage = sumUsage(calls);
-  renderCostSummary(calls);
-  renderKpis(sessions, calls, usage);
-  renderProjects(sessions);
-  renderCostChart(calls);
-  renderTable(sessions);
+  syncPageChrome();
+  const overview = overviewSessions();
+  const overviewCalls = allScopedCalls(overview);
+  const overviewUsage = sumUsage(overviewCalls);
+  renderCostSummary(overviewCalls);
+  renderKpis(overview, overviewCalls, overviewUsage);
+  renderCostChart(overviewCalls, "#costChart");
+  renderProjectRows("#overviewProjects", projectGroups(overview).slice(0, 6), { navigate: true });
+  renderRecentConversations(overview);
+  renderProjectsPage(overview);
+  renderQuotaPage();
+  renderTable(scopedSessions());
+  renderSettingsNodes();
   renderFreshness();
 }
 
@@ -351,43 +468,266 @@ function renderKpis(sessions, calls, usage) {
     [t("kpi.tokens"), formatCompact(usage.totalTokens), `${formatInt(usage.totalTokens)} · ${t("kpi.cacheRate", { n: Math.round(cacheRate * 100) })}`, "T"],
     [t("kpi.calls"), formatInt(calls.length), calls.length ? t("kpi.tokensPerCall", { n: formatCompact(usage.totalTokens / calls.length) }) : t("kpi.noCall"), "↗"],
   ];
-  const quota = state.data?.weeklyQuota;
-  const quotaMarkup = quota && Number.isFinite(quota.remainingPercent)
-    ? `<article class="kpi weekly-quota"><span class="kpi-label">${t("kpi.weeklyQuota")}<b class="kpi-icon">%</b></span><strong class="kpi-value">${t("kpi.remaining", { n: new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(quota.remainingPercent) })}</strong><progress class="weekly-quota-bar" max="100" value="${quota.remainingPercent}" aria-label="${escapeHtml(t("kpi.remaining", { n: quota.remainingPercent }))}"></progress><div class="weekly-quota-meta"><span>${quota.resetsAt ? t("kpi.weeklyReset", { date: new Date(quota.resetsAt).toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" }) }) : t("kpi.weeklyReset", { date: "—" })}</span><span>${Number.isFinite(quota.resetsAvailable) ? t("kpi.resetsAvailable", { n: formatInt(quota.resetsAvailable) }) : t("kpi.resetsUnknown")}</span></div></article>`
-    : `<article class="kpi weekly-quota"><span class="kpi-label">${t("kpi.weeklyQuota")}<b class="kpi-icon">%</b></span><strong class="kpi-value">—</strong><span class="kpi-meta">${t("kpi.weeklyUnavailable")}</span></article>`;
-  $("#kpis").innerHTML = cards.map(([label, value, meta, icon]) => `<article class="kpi"><span class="kpi-label">${label}<b class="kpi-icon">${icon}</b></span><strong class="kpi-value">${value}</strong><span class="kpi-meta" title="${escapeHtml(meta)}">${meta}</span></article>`).join("") + quotaMarkup;
+  $("#kpis").innerHTML = cards.map(([label, value, meta, icon]) => `<article class="kpi"><span class="kpi-label">${label}<b class="kpi-icon">${icon}</b></span><strong class="kpi-value">${value}</strong><span class="kpi-meta" title="${escapeHtml(meta)}">${meta}</span></article>`).join("");
 }
 
-function renderProjects(sessions) {
-  const groups = projectGroups(sessions);
-  const total = groups.reduce((sum, group) => sum + group.cost.cost, 0);
-  const max = Math.max(0.0001, ...groups.map((group) => group.cost.cost));
-  const visible = groups.slice(0, 6);
-  if (!visible.length) {
-    $("#projectBreakdown").innerHTML = `<div class="project-empty">${t("projects.none")}</div>`;
+function renderQuota() {
+  renderQuotaNav();
+  const target = $("#quotaHero");
+  if (!target) return;
+  const quota = state.data?.weeklyQuota;
+  const available = quota && Number.isFinite(quota.remainingPercent);
+  const label = `<span class="kpi-label">${t("kpi.weeklyQuota")}<b class="kpi-icon">%</b></span>`;
+  if (!available) {
+    target.innerHTML = `${label}<strong class="kpi-value">—</strong><span class="kpi-meta">${t("kpi.weeklyUnavailable")}</span>`;
     return;
   }
-  $("#projectBreakdown").innerHTML = visible.map((group, index) => {
-    const active = state.folders.size === group.paths.length && group.paths.every((folder) => state.folders.has(folder));
+  const remaining = quota.remainingPercent;
+  const resetAt = currentQuotaResetAt();
+  const resetText = resetAt
+    ? t("kpi.weeklyReset", { date: resetAt.toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" }) })
+    : t("kpi.weeklyReset", { date: "—" });
+  const resetsText = Number.isFinite(quota.resetsAvailable)
+    ? t("kpi.resetsAvailable", { n: formatInt(quota.resetsAvailable) })
+    : t("kpi.resetsUnknown");
+  target.innerHTML = `${label}<strong class="kpi-value">${t("kpi.remaining", { n: new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(remaining) })}</strong><progress class="weekly-quota-bar${remaining < 20 ? " is-low" : ""}" max="100" value="${remaining}" aria-label="${escapeHtml(t("kpi.remaining", { n: remaining }))}"></progress><div class="weekly-quota-meta"><span class="quota-badge">${escapeHtml(resetText)}</span><span class="quota-badge">${escapeHtml(resetsText)}</span></div>`;
+}
+
+function currentQuotaResetAt() {
+  const quota = state.data?.weeklyQuota;
+  return weeklyRange().resetsAt || (quota?.resetsAt ? new Date(quota.resetsAt) : null);
+}
+
+function renderQuotaNav() {
+  const quota = state.data?.weeklyQuota;
+  const available = quota && Number.isFinite(quota.remainingPercent);
+  const remainingText = available
+    ? t("kpi.remaining", { n: new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(quota.remainingPercent) })
+    : "—";
+  const resetAt = available ? currentQuotaResetAt() : null;
+  const resetText = resetAt ? resetAt.toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" }) : "";
+  $$("[data-quota-nav-remaining]").forEach((element) => { element.textContent = remainingText; });
+  $$("[data-quota-nav-reset]").forEach((element) => { element.textContent = resetText; });
+  $$('[data-nav-section="quota"]').forEach((link) => {
+    const parts = [t("nav.quota")];
+    if (available) parts.push(remainingText);
+    if (resetText) parts.push(resetText);
+    link.setAttribute("aria-label", parts.join(", "));
+  });
+}
+
+function renderQuotaPage() {
+  renderQuota();
+  const sessions = sessionsInRange({ range: weeklyRange() });
+  const calls = allScopedCalls(sessions);
+  const usage = sumUsage(calls);
+  const cost = costOfCalls(calls);
+  const credits = codexCreditsOfCalls(calls);
+  const cards = [
+    [t("quota.weekCost"), formatCost(cost.cost), t("cost.disclaimer"), "$"],
+    [t("quota.weekCredits"), formatCredits(credits.credits), creditSummaryMeta(credits), "◇"],
+    [t("quota.weekTokens"), formatCompact(usage.totalTokens), `${formatInt(usage.totalTokens)} · ${t("kpi.cacheRate", { n: usage.inputTokens ? Math.round(usage.cachedInputTokens / usage.inputTokens * 100) : 0 })}`, "T"],
+  ];
+  $("#quotaKpis").innerHTML = cards.map(([label, value, meta, icon]) => `<article class="kpi"><span class="kpi-label">${label}<b class="kpi-icon">${icon}</b></span><strong class="kpi-value">${value}</strong><span class="kpi-meta" title="${escapeHtml(meta)}">${meta}</span></article>`).join("");
+  renderCostChart(calls, "#quotaChart", "week");
+  renderQuotaForecast();
+}
+
+function forecastPercent(value) {
+  return new Intl.NumberFormat(locale(), { maximumFractionDigits: value < 10 ? 1 : 0 }).format(value);
+}
+
+function forecastDateLabel(value) {
+  return new Intl.DateTimeFormat(locale(), { weekday: "short", day: "2-digit", hour: "2-digit" }).format(new Date(value));
+}
+
+function quotaForecastSamples(quota) {
+  const sessions = (state.data?.sessions || []).filter((session) => !quota?.nodeId || session.nodeId === quota.nodeId);
+  return sessions.flatMap((session) => session.calls.map((call) => ({
+    timestamp: call.timestamp,
+    value: codexCreditsOfCalls([call]).credits,
+  })));
+}
+
+function quotaForecastSvg(forecast) {
+  const width = Math.max(320, Math.round($("#quotaForecastChart")?.clientWidth || 760));
+  const height = 260;
+  const plot = { left: 62, right: 22, top: 18, bottom: 42 };
+  const plotWidth = width - plot.left - plot.right;
+  const plotHeight = height - plot.top - plot.bottom;
+  const startTime = Date.parse(forecast.rangeStart);
+  const endTime = Date.parse(forecast.rangeEnd);
+  const observedTime = Date.parse(forecast.observedAt);
+  const maximumPercent = Math.max(100, forecast.expectedFinalPercent, ...forecast.actual.map((point) => point.percent));
+  const yMaximum = Math.max(125, Math.ceil(maximumPercent * 1.08 / 25) * 25);
+  const x = (timestamp) => plot.left + (Date.parse(timestamp) - startTime) / (endTime - startTime) * plotWidth;
+  const y = (percent) => plot.top + (1 - percent / yMaximum) * plotHeight;
+  const polyline = (points) => points.map((point) => `${x(point.timestamp).toFixed(2)},${y(point.percent).toFixed(2)}`).join(" ");
+  const yTicks = Array.from({ length: 6 }, (_, index) => index * yMaximum / 5);
+  const xTicks = Array.from({ length: 5 }, (_, index) => startTime + index * (endTime - startTime) / 4);
+  const limitY = y(100);
+  const observedX = x(forecast.observedAt);
+  const actualPoint = forecast.actual.at(-1);
+  const projectedPoint = forecast.projected.at(-1);
+  const dangerClass = forecast.expectedFinalPercent > 100 ? " is-over" : "";
+  const grid = yTicks.map((tick) => `<g class="quota-axis-grid"><line x1="${plot.left}" y1="${y(tick)}" x2="${width - plot.right}" y2="${y(tick)}"></line><text x="${plot.left - 10}" y="${y(tick) + 4}" text-anchor="end">${escapeHtml(forecastPercent(tick))} %</text></g>`).join("");
+  const timeTicks = xTicks.map((tick, index) => `<g class="quota-axis-time${index > 0 && index < xTicks.length - 1 ? " is-minor" : ""}"><line x1="${x(new Date(tick).toISOString())}" y1="${plot.top}" x2="${x(new Date(tick).toISOString())}" y2="${height - plot.bottom}"></line><text x="${x(new Date(tick).toISOString())}" y="${height - 14}" text-anchor="${index === 0 ? "start" : index === xTicks.length - 1 ? "end" : "middle"}">${escapeHtml(forecastDateLabel(tick))}</text></g>`).join("");
+  return `<svg class="quota-forecast-svg" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="quotaForecastSvgTitle quotaForecastSvgDescription">
+    <title id="quotaForecastSvgTitle">${escapeHtml(t("quota.forecastAria"))}</title>
+    <desc id="quotaForecastSvgDescription">${escapeHtml(t(forecast.marginPercent >= 0 ? "quota.margin" : "quota.overrun", { n: forecastPercent(Math.abs(forecast.marginPercent)) }))}</desc>
+    ${grid}${timeTicks}
+    <line class="quota-limit-line" x1="${plot.left}" y1="${limitY}" x2="${width - plot.right}" y2="${limitY}"></line>
+    <text class="quota-limit-label" x="${width - plot.right - 4}" y="${limitY - 7}" text-anchor="end">${escapeHtml(t("quota.limit"))}</text>
+    <line class="quota-observed-line" x1="${observedX}" y1="${plot.top}" x2="${observedX}" y2="${height - plot.bottom}"></line>
+    <text class="quota-observed-label" x="${Math.min(width - plot.right - 4, observedX + 7)}" y="${plot.top + 13}">${escapeHtml(t("quota.observed"))}</text>
+    <polyline class="quota-actual-line" points="${polyline(forecast.actual)}"></polyline>
+    <polyline class="quota-projected-line${dangerClass}" points="${polyline(forecast.projected)}"></polyline>
+    <circle class="quota-actual-point" cx="${x(actualPoint.timestamp)}" cy="${y(actualPoint.percent)}" r="4"><title>${escapeHtml(`${t("quota.actual")} · ${forecastPercent(actualPoint.percent)} %`)}</title></circle>
+    <circle class="quota-projected-point${dangerClass}" cx="${x(projectedPoint.timestamp)}" cy="${y(projectedPoint.percent)}" r="5"><title>${escapeHtml(`${t("quota.forecastAtReset")} · ${forecastPercent(projectedPoint.percent)} %`)}</title></circle>
+    <text class="quota-endpoint-label${dangerClass}" x="${x(projectedPoint.timestamp) - 8}" y="${Math.max(plot.top + 14, y(projectedPoint.percent) - 10)}" text-anchor="end">${escapeHtml(`${forecastPercent(projectedPoint.percent)} %`)}</text>
+    <text class="quota-window-label" x="${plot.left}" y="${height - 28}" text-anchor="start">${escapeHtml(t("quota.renew"))}</text>
+    <text class="quota-window-label" x="${width - plot.right}" y="${height - 28}" text-anchor="end">${escapeHtml(t("quota.reset"))}</text>
+  </svg>`;
+}
+
+function renderQuotaForecast() {
+  const summary = $("#quotaForecastSummary");
+  const chart = $("#quotaForecastChart");
+  if (!summary || !chart) return;
+  const quota = state.data?.weeklyQuota;
+  const range = weeklyRange();
+  if (!quota || !Number.isFinite(quota.usedPercent) || !range.resetsAt) {
+    summary.innerHTML = "";
+    chart.innerHTML = `<p class="quota-forecast-empty">${t("quota.unavailable")}</p>`;
+    return;
+  }
+  const forecast = buildQuotaForecast({
+    samples: quotaForecastSamples(quota),
+    rangeStart: range.start,
+    rangeEnd: range.resetsAt,
+    observedAt: quota.observedAt || new Date(),
+    usedPercent: quota.usedPercent,
+  });
+  if (forecast.status !== "ready") {
+    summary.innerHTML = "";
+    chart.innerHTML = `<p class="quota-forecast-empty">${t(forecast.status === "unavailable" ? "quota.unavailable" : "quota.insufficient")}</p>`;
+    return;
+  }
+  const over = forecast.marginPercent < 0;
+  const outcome = t(over ? "quota.overrun" : "quota.margin", { n: forecastPercent(Math.abs(forecast.marginPercent)) });
+  summary.innerHTML = `
+    <article class="forecast-stat forecast-outcome${over ? " is-over" : " is-safe"}"><span>${t("quota.forecastAtReset")}</span><strong>${forecastPercent(forecast.expectedFinalPercent)} %</strong><small>${escapeHtml(outcome)}</small></article>
+    <article class="forecast-stat"><span>${t("quota.emaHour")}</span><strong>${formatCredits(forecast.creditsPerHour)}</strong><small>${t("quota.forecastHint")}</small></article>
+    <article class="forecast-stat"><span>${t("quota.emaDay")}</span><strong>${formatCredits(forecast.creditsPerDay)}</strong><small>${t("quota.forecastHint")}</small></article>`;
+  chart.innerHTML = quotaForecastSvg(forecast);
+}
+
+function isSelectedProject(group) {
+  return Boolean(state.selectedProject && state.selectedProject.name === group.name && state.selectedProject.paths.length === group.paths.length && group.paths.every((path) => state.selectedProject.paths.includes(path)));
+}
+
+function selectProject(group) {
+  state.selectedProject = isSelectedProject(group) ? null : { name: group.name, paths: group.paths };
+}
+
+function renderProjectRows(selector, groups, { navigate = false } = {}) {
+  const target = $(selector);
+  if (!target) return;
+  const total = groups.reduce((sum, group) => sum + group.cost.cost, 0);
+  const max = Math.max(0.0001, ...groups.map((group) => group.cost.cost));
+  if (!groups.length) {
+    target.innerHTML = `<div class="project-empty">${t("projects.none")}</div>`;
+    return;
+  }
+  target.innerHTML = groups.map((group, index) => {
+    const active = isSelectedProject(group);
     const share = total ? group.cost.cost / total * 100 : 0;
-    return `<button class="project-row${active ? " active" : ""}" type="button" data-project-index="${index}" aria-pressed="${active}" aria-label="${escapeHtml(t("projects.filter", { name: group.name }))}"><span class="project-name">${escapeHtml(group.name)}</span><span class="project-value">${formatCost(group.cost.cost)}</span><span class="project-meta">${formatInt(group.sessions.length)} · ${new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(share)} %</span><progress class="project-bar" max="${max}" value="${group.cost.cost}" aria-label="${escapeHtml(group.name)}"></progress></button>`;
+    const tokens = sumUsage(group.calls).totalTokens;
+    return `<button class="project-row${active ? " active" : ""}" type="button" data-project-index="${index}" aria-pressed="${active}" aria-label="${escapeHtml(t("projects.filter", { name: group.name }))}"><span class="project-name">${escapeHtml(group.name)}</span><span class="project-value">${formatCost(group.cost.cost)}</span><span class="project-meta">${formatInt(group.sessions.length)} · ${new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(share)} % · ${formatCompact(tokens)}</span><progress class="project-bar" max="${max}" value="${group.cost.cost}" aria-label="${escapeHtml(group.name)}"></progress></button>`;
   }).join("");
-  $$("#projectBreakdown .project-row").forEach((row) => row.addEventListener("click", () => {
-    const group = visible[Number(row.dataset.projectIndex)];
-    const active = state.folders.size === group.paths.length && group.paths.every((folder) => state.folders.has(folder));
-    state.folders = active ? new Set() : new Set(group.paths);
-    state.page = 1;
-    $$("#folderFilterOptions input").forEach((input) => { input.checked = state.folders.has(input.value); });
-    updateFolderFilterSummary();
-    render();
+  $$(`${selector} .project-row`).forEach((row) => row.addEventListener("click", () => {
+    selectProject(groups[Number(row.dataset.projectIndex)]);
+    if (navigate) showPage("projects");
+    else render();
   }));
 }
 
-function bucketsFor(calls) {
-  if (state.period === "custom") return customBucketsFor(calls);
-  const byHour = state.period === "today";
-  const byMonth = state.period === "all";
-  const count = byHour ? 24 : state.period === "7d" ? 7 : state.period === "30d" ? 30 : 12;
+function renderProjectsPage(periodSessions) {
+  const query = normalizeSearch(state.projectQuery);
+  const groups = projectGroups(periodSessions).filter((group) => !query || normalizeSearch(group.name).includes(query));
+  renderProjectRows("#projectList", groups);
+  const selected = groups.find((group) => isSelectedProject(group)) || (query ? null : projectGroups(periodSessions).find((group) => isSelectedProject(group)));
+  renderProjectDetail(selected);
+}
+
+function renderProjectDetail(group) {
+  const target = $("#projectDetail");
+  if (!group) {
+    target.innerHTML = `<div class="project-detail-empty">${t("projects.select")}</div>`;
+    return;
+  }
+  const usage = sumUsage(group.calls);
+  const credits = codexCreditsOfCalls(group.calls);
+  const models = modelGroups(group.calls);
+  const maxCost = Math.max(0.0001, ...models.map((item) => item.cost.cost));
+  const recent = [...group.sessions].sort((left, right) => Date.parse(latestTimestamp(right.calls)) - Date.parse(latestTimestamp(left.calls))).slice(0, 6);
+  const modelMarkup = models.map((item) => `<div class="model-row"><div class="model-row-head"><strong>${escapeHtml(item.model)}</strong><span>${formatCost(item.cost.cost)} · ${formatCompact(item.tokens)}</span></div><progress class="project-bar" max="${maxCost}" value="${item.cost.cost}" aria-label="${escapeHtml(item.model)}"></progress></div>`).join("") || `<p class="kpi-meta">${t("projects.none")}</p>`;
+  target.innerHTML = `
+    <div><p class="eyebrow">${t("projects.label")}</p><h2>${escapeHtml(group.name)}</h2></div>
+    <div class="project-detail-kpis">
+      <div class="detail-kpi"><span>${t("table.cost")}</span><strong class="cost">${formatCost(group.cost.cost)}</strong></div>
+      <div class="detail-kpi"><span>${t("kpi.credits")}</span><strong class="credits">${formatCredits(credits.credits)}</strong></div>
+      <div class="detail-kpi"><span>${t("table.tokens")}</span><strong>${formatCompact(usage.totalTokens)}</strong></div>
+    </div>
+    <section><h3 class="eyebrow">${t("projects.models")}</h3><div class="model-breakdown">${modelMarkup}</div></section>
+    <section><h3 class="eyebrow">${t("overview.recent")}</h3><div class="recent-list">${recentConversationMarkup(recent)}</div></section>
+    <button type="button" class="primary-button" id="openProjectConversations">${t("projects.openConversations")}</button>`;
+  bindRecentConversationClicks(target);
+  $("#openProjectConversations")?.addEventListener("click", () => {
+    state.folders = new Set(group.paths);
+    state.page = 1;
+    $$("#folderFilterOptions input").forEach((input) => { input.checked = state.folders.has(input.value); });
+    updateFolderFilterSummary();
+    showPage("conversations");
+  });
+}
+
+function recentConversationMarkup(sessions) {
+  if (!sessions.length) return `<p class="project-empty">${t("conversation.none")}</p>`;
+  return sessions.map((session) => {
+    const lastCall = latestTimestamp(session.calls);
+    const cost = costOfCalls(session.calls);
+    return `<button class="recent-item" type="button" data-session-id="${escapeHtml(session.id)}"><div class="recent-item-top"><span class="recent-title">${escapeHtml(sessionTitle(session))}</span><span class="cost">${formatCost(cost.cost)}</span></div><div class="recent-meta">${escapeHtml(session.nodeAlias || t("node.local"))} · ${formatDate(new Date(lastCall))} · ${formatCompact(session.usage.totalTokens)}</div></button>`;
+  }).join("");
+}
+
+function bindRecentConversationClicks(root = document) {
+  root.querySelectorAll(".recent-item[data-session-id]").forEach((row) => {
+    row.addEventListener("click", () => openDrawer(row.dataset.sessionId));
+  });
+}
+
+function renderRecentConversations(sessions) {
+  const recent = [...sessions].sort((left, right) => Date.parse(latestTimestamp(right.calls)) - Date.parse(latestTimestamp(left.calls))).slice(0, 6);
+  $("#recentConversations").innerHTML = recentConversationMarkup(recent);
+  bindRecentConversationClicks($("#recentConversations"));
+}
+
+function renderSettingsNodes() {
+  const nodes = (state.data?.nodes || []).filter((node) => !node.revokedAt);
+  const target = $("#settingsNodes");
+  if (!nodes.length) {
+    target.innerHTML = `<p class="kpi-meta">${t("settings.noMachines")}</p>`;
+    return;
+  }
+  target.innerHTML = `<div class="node-list">${nodes.map((node) => `<article class="node-row"><span class="node-pill">${escapeHtml(node.alias)}</span></article>`).join("")}</div>`;
+}
+
+function bucketsFor(calls, period = state.period) {
+  if (period === "custom" || period === "week") return customBucketsFor(calls, period === "week" ? weeklyRange() : dateRange());
+  const byHour = period === "today";
+  const byMonth = period === "all";
+  const count = byHour ? 24 : period === "7d" ? 7 : period === "30d" ? 30 : 12;
   const buckets = [];
   const now = new Date();
   for (let i = count - 1; i >= 0; i--) {
@@ -405,8 +745,7 @@ function bucketsFor(calls) {
   return buckets;
 }
 
-function customBucketsFor(calls) {
-  const range = dateRange();
+function customBucketsFor(calls, range = dateRange()) {
   const rangeEnd = range.end || new Date();
   const span = Math.max(60_000, rangeEnd.getTime() - range.start.getTime());
   const hour = 60 * 60 * 1_000;
@@ -431,10 +770,12 @@ function customBucketsFor(calls) {
   return buckets;
 }
 
-function renderCostChart(calls) {
-  const buckets = bucketsFor(calls).map((bucket) => ({ ...bucket, cost: costOfCalls(bucket.calls) }));
+function renderCostChart(calls, target = "#costChart", period = state.period) {
+  const host = $(target);
+  if (!host) return;
+  const buckets = bucketsFor(calls, period).map((bucket) => ({ ...bucket, cost: costOfCalls(bucket.calls) }));
   const max = Math.max(0.0001, ...buckets.map((bucket) => bucket.cost.cost));
-  $("#costChart").innerHTML = buckets.map((bucket, index) => {
+  host.innerHTML = buckets.map((bucket, index) => {
     const segments = stackedChartSegments([
       { key: "fresh", value: bucket.cost.freshInputCost },
       { key: "cached", value: bucket.cost.cachedInputCost },
@@ -520,7 +861,7 @@ function compareSessions(left, right) {
 }
 
 function openDrawer(id) {
-  const session = scopedSessions().find((item) => item.id === id); if (!session) return;
+  const session = overviewSessions().find((item) => item.id === id) || scopedSessions().find((item) => item.id === id); if (!session) return;
   const cost = costOfCalls(session.calls); const credits = codexCreditsOfCalls(session.calls); const usage = session.usage;
   const turns = session.turns.map((turn, index) => {
     const effort = `<span class="effort-badge">${escapeHtml(effortLabel(turn.effort))}</span>`;
@@ -553,7 +894,16 @@ function openDrawer(id) {
 }
 
 function renderFreshness() {
-  if (state.period === "custom") {
+  if (state.view === "quota") {
+    const range = weeklyRange();
+    const options = { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" };
+    $("#periodLabel").textContent = t("period.customLabel", {
+      start: range.start.toLocaleString(locale(), options),
+      end: range.resetsAt ? range.resetsAt.toLocaleString(locale(), options) : t("period.now"),
+    });
+  } else if (state.view === "settings") {
+    $("#periodLabel").textContent = t("nav.settings");
+  } else if (state.period === "custom") {
     const range = dateRange();
     const options = { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" };
     $("#periodLabel").textContent = t("period.customLabel", {
@@ -566,7 +916,7 @@ function renderFreshness() {
   if (state.data) {
     const time = new Date(state.data.generatedAt).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     const mesh = state.data.source?.mode === "mesh";
-    $("#privacyLabel").textContent = t(mesh ? "hero.privacyMesh" : "hero.privacy");
+    $$(".privacy-copy").forEach((element) => { element.textContent = t(mesh ? "hero.privacyMesh" : "hero.privacy"); });
     $("#freshness").textContent = mesh
       ? t("freshness.mesh", { n: state.data.sessions.length, nodes: (state.data.nodes || []).filter((node) => !node.revokedAt).length, time })
       : t("freshness", { n: state.data.sessions.length, time });
@@ -602,6 +952,7 @@ function updateFolderFilterSummary() {
 }
 
 function openPricing() {
+  if (!state.data) return;
   const models = [...new Set(state.data.sessions.flatMap((session) => session.models))].sort();
   const effortCalls = [...new Map(state.data.sessions.flatMap((session) => session.calls)
     .filter((call) => call.effort)
@@ -693,7 +1044,10 @@ function applyTranslations() {
   syncDataModeControls();
   updateFolderFilterSummary();
   $("#searchInput").setAttribute("aria-label", t("search.aria"));
+  $("#projectSearch")?.setAttribute("aria-label", t("search.projects"));
   if (!state.data && state.dataMode === "centralized") $("#freshness").textContent = t("load.loadingCentralized");
+  syncPageChrome();
+  renderQuota();
 }
 
 function syncDataModeControls() {
@@ -817,9 +1171,57 @@ $("#savePricing").addEventListener("click", savePricing);
 $("#resetPricing").addEventListener("click", () => { state.pricing = mergeApiPricing(DEFAULT_API_PRICING); localStorage.setItem("codex-usage-pricing", JSON.stringify(state.pricing)); $("#pricingDialog").close(); openPricing(); render(); });
 $$('[data-close-drawer]').forEach((element) => element.addEventListener("click", () => { $("#detailDrawer").setAttribute("aria-hidden", "true"); document.body.classList.remove("drawer-open"); }));
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") { $("#detailDrawer").setAttribute("aria-hidden", "true"); document.body.classList.remove("drawer-open"); } });
+$("#projectSearch").addEventListener("input", (event) => { state.projectQuery = event.target.value; if (state.data) renderProjectsPage(overviewSessions()); });
+$("#settingsPricingButton").addEventListener("click", openPricing);
+
+function setActiveNav(section) {
+  $$("[data-nav-section]").forEach((item) => {
+    item.classList.toggle("active", item.dataset.navSection === section);
+  });
+}
+
+function syncPageChrome() {
+  const page = state.view;
+  document.body.dataset.page = page;
+  $$(".page").forEach((section) => { section.hidden = section.dataset.page !== page; });
+  setActiveNav(page);
+  const title = $("#pageTitle");
+  if (title) title.textContent = t(PAGE_TITLE_KEYS[page]);
+}
+
+function showPage(page, { updateHash = true } = {}) {
+  if (!PAGES.includes(page)) page = "overview";
+  state.view = page;
+  try { localStorage.setItem(VIEW_KEY, page); } catch { /* Hash routing remains available. */ }
+  if (updateHash) {
+    const hash = `#${page}`;
+    if (location.hash !== hash) history.pushState(null, "", hash);
+  }
+  if (state.data) render();
+  else { syncPageChrome(); renderFreshness(); }
+}
+
+window.addEventListener("hashchange", () => {
+  const page = PAGES.includes(location.hash.replace(/^#/, "")) ? location.hash.replace(/^#/, "") : "overview";
+  if (page === state.view) {
+    syncPageChrome();
+    return;
+  }
+  showPage(page, { updateHash: false });
+});
+
+let quotaForecastResizeTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(quotaForecastResizeTimer);
+  quotaForecastResizeTimer = setTimeout(() => {
+    if (state.data && state.view === "quota") renderQuotaForecast();
+  }, 120);
+});
 
 applyTranslations();
 syncCustomRangeControls();
+if (location.hash.replace(/^#/, "") !== state.view) history.replaceState(null, "", `#${state.view}`);
+syncPageChrome();
 loadData();
 setInterval(() => {
   if (!document.hidden) void pollForNewData();
