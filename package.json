@@ -6,10 +6,12 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "build": "node --check server.mjs && node --check src/analyzer.mjs && node --check src/public-usage.mjs && node --check src/usage-store.mjs && node --check src/mesh-protocol.mjs && node --check src/mesh-privacy.mjs && node --check src/mesh-hub-store.mjs && node --check src/mesh-agent.mjs && node --check public/api-pricing.js && node --check public/usage-pricing.js && node --check public/translations.js && node --check public/visualization.js && node --check public/quota-forecast.js && node --check public/date-range.js && node --check public/app.js",
-    "check": "npm run build && npm test",
-    "start": "node server.mjs",
-    "test": "node --test test"
+    "build:ui": "node scripts/build-dashboard-ui.mjs",
+    "build": "npm run build:ui && node --check server.mjs && node --check agent.mjs && node --check src/analyzer.mjs && node --check src/dashboard-contract.mjs && node --check src/public-usage.mjs && node --check src/usage-store.mjs && node --check src/usage-collector.mjs && node --check src/mesh-protocol.mjs && node --check src/mesh-privacy.mjs && node --check src/mesh-hub-store.mjs && node --check src/mesh-agent.mjs && node --check public/api-pricing.js && node --check public/usage-pricing.js && node --check public/translations.js && node --check public/visualization.js && node --check public/quota-forecast.js && node --check public/date-range.js && node --check public/app.js",
+    "check": "npm run build && node --test test",
+    "start": "npm run build:ui && node server.mjs",
+    "start:agent": "node agent.mjs",
+    "test": "npm run build:ui && node --test test"
   },
   "engines": {
     "node": ">=20"

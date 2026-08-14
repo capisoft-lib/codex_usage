@@ -25,13 +25,16 @@ npm run build
 This project does not use `wrangler.jsonc`.
 
 The authenticated home page redirects to the shared dashboard at
-`/dashboard/index.html?hosted=1`. Machine enrollment and status remain on the
+`/dashboard/index.html`. Machine enrollment and status remain on the
 separate `/admin` page.
 
 The root `public/` directory is the source of truth for the dashboard UI.
 `npm run dev` and `npm run build` automatically run `npm run sync:dashboard`
-to copy the required browser assets into `public/dashboard/` before Sites is
-built. Do not edit the generated copies directly.
+to build `../dist/dashboard/`, verify its manifest, and copy that generated
+bundle into `public/dashboard/` before Sites is built. Do not edit the generated
+copies directly. The browser discovers hosted mode through authenticated
+`/api/capabilities` and reads the aggregate through the common `/api/usage`
+contract.
 
 ## Included Shape
 

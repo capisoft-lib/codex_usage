@@ -3,7 +3,7 @@ import { DEFAULT_API_PRICING, apiCostOfCalls, apiPriceFor, mergeApiPricing } fro
 import { ADDITIONAL_I18N, LOCALE_TAGS, resolveLanguage } from "./translations.js";
 import { percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
-import { buildQuotaForecast } from "./quota-forecast.js";
+import { buildQuotaForecast, weeklyForecastTicks } from "./quota-forecast.js";
 
 // Paint the last browser snapshot immediately, then replace it from the server's
 // background-refreshed snapshot. Session files remain the source of truth.
@@ -14,13 +14,22 @@ const POLL_INTERVAL_MS = 15_000;
 const CENTRALIZED_POLL_INTERVAL_MS = 60_000;
 const CUSTOM_RANGE_KEY = "codex-usage-custom-range";
 const DATA_MODE_KEY = "codex-usage-data-mode";
-const HOSTED_SITE_MODE = new URLSearchParams(location.search).get("hosted") === "1";
+const HOSTED_RUNTIME_HINT = new URLSearchParams(location.search).get("hosted") === "1";
+let runtimeCapabilities = {
+  apiVersion: 1,
+  runtime: HOSTED_RUNTIME_HINT ? "hosted" : "local",
+  sources: HOSTED_RUNTIME_HINT ? ["centralized"] : ["local", "centralized"],
+  defaultSource: HOSTED_RUNTIME_HINT ? "centralized" : "local",
+  canRefresh: true,
+  adminUrl: HOSTED_RUNTIME_HINT ? "/admin" : null,
+};
+const isHostedRuntime = () => ["hosted", "hub"].includes(runtimeCapabilities.runtime);
 
-if (HOSTED_SITE_MODE) document.documentElement.dataset.hosted = "true";
+if (isHostedRuntime()) document.documentElement.dataset.hosted = "true";
 
 const I18N = {
   fr: {
-    "app.title": "Local Usage — Coûts et activité", "brand.tagline": "pour Codex · local", "license.independent": "Projet libre et indépendant pour les données locales Codex.", "license.source": "Code source", "nav.period": "Période", "nav.main": "Navigation principale", "nav.overview": "Aperçu", "nav.projects": "Projets", "nav.quota": "Quota", "nav.conversations": "Conversations", "nav.settings": "Réglages", "action.language": "Langue", "action.close": "Fermer", "summary.label": "Synthèse de la période", "summary.kpis": "Indicateurs principaux",
+    "app.title": "Local Usage — Coûts et activité", "brand.tagline": "pour Codex · local", "license.independent": "Projet libre et indépendant pour les données locales Codex.", "license.source": "Code source", "nav.period": "Période", "nav.main": "Navigation principale", "nav.overview": "Aperçu", "nav.projects": "Projets", "nav.quota": "Quota hebdomadaire", "nav.conversations": "Conversations", "nav.settings": "Réglages", "action.language": "Langue", "action.close": "Fermer", "summary.label": "Synthèse de la période", "summary.kpis": "Indicateurs principaux",
     "period.today": "Aujourd’hui", "period.7d": "7 jours", "period.30d": "30 jours", "period.all": "Tout", "period.custom": "Personnalisé", "period.customStart": "Début", "period.customEnd": "Fin", "period.now": "Maintenant",
     "period.todayLabel": "Aujourd’hui", "period.7dLabel": "7 derniers jours", "period.30dLabel": "30 derniers jours", "period.allLabel": "Tout l’historique local", "period.customLabel": "Du {start} au {end}",
     "action.refresh": "Actualiser", "action.pricing": "Configurer les tarifs", "hero.title": "Coûts et activité", "hero.privacy": "Données locales uniquement",
@@ -41,7 +50,7 @@ const I18N = {
     "duration.seconds": "{n} s", "duration.minutes": "{m} min {s} s", "hero.privacyMesh": "Métadonnées minimisées · réseau privé", "node.all": "Toutes les machines", "filter.node": "Filtrer par machine", "table.node": "Machine", "detail.node": "Machine observée", "freshness.mesh": "{n} sessions · {nodes} machines · relevé {time}",
   },
   en: {
-    "app.title": "Local Usage — Costs and activity", "brand.tagline": "for Codex · local", "license.independent": "Independent free software for local Codex data.", "license.source": "Source code", "nav.period": "Period", "nav.main": "Main navigation", "nav.overview": "Overview", "nav.projects": "Projects", "nav.quota": "Quota", "nav.conversations": "Conversations", "nav.settings": "Settings", "action.language": "Language", "action.close": "Close", "summary.label": "Period summary", "summary.kpis": "Key indicators",
+    "app.title": "Local Usage — Costs and activity", "brand.tagline": "for Codex · local", "license.independent": "Independent free software for local Codex data.", "license.source": "Source code", "nav.period": "Period", "nav.main": "Main navigation", "nav.overview": "Overview", "nav.projects": "Projects", "nav.quota": "Weekly Quota", "nav.conversations": "Conversations", "nav.settings": "Settings", "action.language": "Language", "action.close": "Close", "summary.label": "Period summary", "summary.kpis": "Key indicators",
     "period.today": "Today", "period.7d": "7 days", "period.30d": "30 days", "period.all": "All", "period.custom": "Custom", "period.customStart": "Start", "period.customEnd": "End", "period.now": "Now",
     "period.todayLabel": "Today", "period.7dLabel": "Last 7 days", "period.30dLabel": "Last 30 days", "period.allLabel": "All local history", "period.customLabel": "From {start} to {end}",
     "action.refresh": "Refresh", "action.pricing": "Configure prices", "hero.title": "Costs and activity", "hero.privacy": "Local data only",
@@ -62,7 +71,7 @@ const I18N = {
     "duration.seconds": "{n}s", "duration.minutes": "{m}m {s}s", "hero.privacyMesh": "Minimized metadata · private network", "node.all": "All machines", "filter.node": "Filter by machine", "table.node": "Machine", "detail.node": "Observed machine", "freshness.mesh": "{n} sessions · {nodes} machines · updated {time}",
   },
   de: {
-    "app.title": "Local Usage — Kosten und Aktivität", "brand.tagline": "für Codex · lokal", "license.independent": "Unabhängige freie Software für lokale Codex-Daten.", "license.source": "Quellcode", "nav.period": "Zeitraum", "nav.main": "Hauptnavigation", "nav.overview": "Übersicht", "nav.projects": "Projekte", "nav.quota": "Kontingent", "nav.conversations": "Konversationen", "nav.settings": "Einstellungen", "action.language": "Sprache", "action.close": "Schließen", "summary.label": "Zusammenfassung des Zeitraums", "summary.kpis": "Wichtigste Kennzahlen",
+    "app.title": "Local Usage — Kosten und Aktivität", "brand.tagline": "für Codex · lokal", "license.independent": "Unabhängige freie Software für lokale Codex-Daten.", "license.source": "Quellcode", "nav.period": "Zeitraum", "nav.main": "Hauptnavigation", "nav.overview": "Übersicht", "nav.projects": "Projekte", "nav.quota": "Wochenkontingent", "nav.conversations": "Konversationen", "nav.settings": "Einstellungen", "action.language": "Sprache", "action.close": "Schließen", "summary.label": "Zusammenfassung des Zeitraums", "summary.kpis": "Wichtigste Kennzahlen",
     "period.today": "Heute", "period.7d": "7 Tage", "period.30d": "30 Tage", "period.all": "Alle", "period.custom": "Benutzerdefiniert", "period.customStart": "Beginn", "period.customEnd": "Ende", "period.now": "Jetzt",
     "period.todayLabel": "Heute", "period.7dLabel": "Letzte 7 Tage", "period.30dLabel": "Letzte 30 Tage", "period.allLabel": "Gesamter lokaler Verlauf", "period.customLabel": "Von {start} bis {end}",
     "action.refresh": "Aktualisieren", "action.pricing": "Preise konfigurieren", "hero.title": "Kosten und Aktivität", "hero.privacy": "Nur lokale Daten",
@@ -254,7 +263,7 @@ function preferredLanguage() {
 }
 
 function loadDataMode() {
-  if (HOSTED_SITE_MODE) return "centralized";
+  if (isHostedRuntime()) return runtimeCapabilities.defaultSource;
   try { return localStorage.getItem(DATA_MODE_KEY) === "centralized" ? "centralized" : "local"; }
   catch { return "local"; }
 }
@@ -567,7 +576,7 @@ function quotaForecastSvg(forecast) {
   const y = (percent) => plot.top + (1 - percent / yMaximum) * plotHeight;
   const polyline = (points) => points.map((point) => `${x(point.timestamp).toFixed(2)},${y(point.percent).toFixed(2)}`).join(" ");
   const yTicks = Array.from({ length: 6 }, (_, index) => index * yMaximum / 5);
-  const xTicks = Array.from({ length: 5 }, (_, index) => startTime + index * (endTime - startTime) / 4);
+  const xTicks = weeklyForecastTicks(startTime, endTime);
   const limitY = y(100);
   const observedX = x(forecast.observedAt);
   const actualPoint = forecast.actual.at(-1);
@@ -1007,8 +1016,9 @@ async function loadData(force = false, silent = false) {
   if (!silent) $("#refreshButton").classList.add("loading");
   dataRequest = (async () => {
   try {
-    const endpoint = state.dataMode === "centralized" ? "/api/centralized-usage" : "/api/usage";
-    const response = await fetch(`${endpoint}${force ? "?refresh=1" : ""}`);
+    const parameters = new URLSearchParams({ source: state.dataMode });
+    if (force) parameters.set("refresh", "1");
+    const response = await fetch(`/api/usage?${parameters}`);
     if (!response.ok) {
       let details = null;
       try { details = await response.json(); } catch { /* Fall back to the HTTP status. */ }
@@ -1034,8 +1044,8 @@ function toast(message) { const element = $("#toast"); element.textContent = mes
 
 function applyTranslations() {
   document.documentElement.lang = state.language;
-  document.title = HOSTED_SITE_MODE ? "Codex Usage Mesh" : t("app.title");
-  if (HOSTED_SITE_MODE) {
+  document.title = isHostedRuntime() ? "Codex Usage Mesh" : t("app.title");
+  if (isHostedRuntime()) {
     $(".brand strong").textContent = "Codex Usage Mesh";
     $('[data-i18n="brand.tagline"]').dataset.i18n = "brand.taglineHosted";
     $('[data-i18n="license.independent"]').dataset.i18n = "license.independentHosted";
@@ -1060,7 +1070,10 @@ function applyTranslations() {
 
 function syncDataModeControls() {
   $$('[data-data-mode]').forEach((button) => {
+    const supported = runtimeCapabilities.sources.includes(button.dataset.dataMode);
     const active = button.dataset.dataMode === state.dataMode;
+    button.hidden = !supported;
+    button.disabled = !supported;
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", String(active));
   });
@@ -1072,8 +1085,7 @@ function setDataMode(mode) {
 }
 
 async function runSetDataMode(mode) {
-  if (HOSTED_SITE_MODE) return;
-  if (!["local", "centralized"].includes(mode) || mode === state.dataMode) return;
+  if (!runtimeCapabilities.sources.includes(mode) || mode === state.dataMode) return;
   if (dataRequest) await dataRequest;
   state.dataMode = mode;
   try { localStorage.setItem(DATA_MODE_KEY, mode); } catch { /* The selection remains active for this tab. */ }
@@ -1227,11 +1239,34 @@ window.addEventListener("resize", () => {
   }, 120);
 });
 
-applyTranslations();
-syncCustomRangeControls();
-if (location.hash.replace(/^#/, "") !== state.view) history.replaceState(null, "", `#${state.view}`);
-syncPageChrome();
-loadData();
+async function loadRuntimeCapabilities() {
+  try {
+    const response = await fetch("/api/capabilities", { cache: "no-store" });
+    if (!response.ok) return;
+    const capabilities = await response.json();
+    if (capabilities?.apiVersion !== 1
+      || !Array.isArray(capabilities.sources)
+      || !capabilities.sources.includes(capabilities.defaultSource)) return;
+    runtimeCapabilities = capabilities;
+  } catch { /* Keep the URL-derived compatibility mode with an older server. */ }
+
+  if (!runtimeCapabilities.sources.includes(state.dataMode) || isHostedRuntime()) {
+    state.dataMode = runtimeCapabilities.defaultSource;
+  }
+  if (isHostedRuntime()) document.documentElement.dataset.hosted = "true";
+  else delete document.documentElement.dataset.hosted;
+}
+
+async function initializeDashboard() {
+  await loadRuntimeCapabilities();
+  applyTranslations();
+  syncCustomRangeControls();
+  if (location.hash.replace(/^#/, "") !== state.view) history.replaceState(null, "", `#${state.view}`);
+  syncPageChrome();
+  await loadData();
+}
+
+void initializeDashboard();
 setInterval(() => {
   if (!document.hidden) void pollForNewData();
 }, POLL_INTERVAL_MS);

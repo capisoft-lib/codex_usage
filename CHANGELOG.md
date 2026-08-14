@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Added a seven-day quota forecast with daily boundaries, EMA-weighted consumption, and localized Weekly Quota navigation.
+- Made `public/` the single editable dashboard UI source and generate one manifested bundle for the local server, Docker, and Codex Sites.
+- Unified local and hosted reads behind versioned `/api/capabilities` and `/api/usage` contracts.
+- Extracted the reusable local collector and added `npm run start:agent` plus a headless Docker target.
+- Removed generated Sites dashboard assets from version control; every Sites build now regenerates them from the shared bundle.
+
 ## 1.1.0 — 2026-08-14
 
 - Increased all visible interface font sizes by 2 px, with responsive spacing adjusted to preserve the mobile layout.

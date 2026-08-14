@@ -47,9 +47,13 @@ test("redirects an authenticated owner to the shared dashboard", async () => {
 test("packages the local dashboard as the hosted centralized interface", async () => {
   const html = await readFile(new URL("../public/dashboard/index.html", import.meta.url), "utf8");
   const app = await readFile(new URL("../public/dashboard/app.js", import.meta.url), "utf8");
+  const manifest = JSON.parse(await readFile(new URL("../public/dashboard/bundle-manifest.json", import.meta.url), "utf8"));
   assert.match(html, /data-page="overview"/);
   assert.match(html, /href="\.\/styles\.css"/);
   assert.match(html, /href="\/admin"/);
-  assert.match(app, /HOSTED_SITE_MODE/);
-  assert.match(app, /\/api\/centralized-usage/);
+  assert.match(app, /\/api\/capabilities/);
+  assert.match(app, /\/api\/usage/);
+  assert.doesNotMatch(app, /\/api\/centralized-usage/);
+  assert.equal(manifest.version, 1);
+  assert.equal(Object.keys(manifest.assets).length, 10);
 });

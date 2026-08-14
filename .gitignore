@@ -7,6 +7,8 @@ node_modules/
 .DS_Store
 Thumbs.db
 coverage/
+dist/
+sites-hub/public/dashboard/
 .cache/
 .codex/
 auth.json

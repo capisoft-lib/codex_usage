@@ -3,21 +3,16 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { analyzeCodexUsage, usageFingerprint } from "./src/analyzer.mjs";
-import { MeshAgent } from "./src/mesh-agent.mjs";
+import { createDashboardCapabilities } from "./src/dashboard-contract.mjs";
 import { MeshHubStore } from "./src/mesh-hub-store.mjs";
 import { serializePublicUsage } from "./src/public-usage.mjs";
-import { UsageStore } from "./src/usage-store.mjs";
+import { createUsageCollector } from "./src/usage-collector.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-const publicDir = path.join(root, "public");
+const publicDir = process.env.DASHBOARD_ASSETS_PATH || path.join(root, "dist", "dashboard");
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 4317);
 const dashboardMode = process.env.DASHBOARD_MODE || "local";
-const refreshIntervalMs = Math.max(1_000, Number(process.env.REFRESH_INTERVAL_MS || 60_000));
-const snapshotPath = process.env.SNAPSHOT_PATH === ""
-  ? null
-  : process.env.SNAPSHOT_PATH || path.join(root, ".cache", "usage-snapshot.json");
 const meshHubPath = process.env.MESH_HUB_PATH || path.join(root, ".cache", "mesh-hub.json");
 const meshAdminToken = process.env.MESH_ADMIN_TOKEN || null;
 const maxRequestBytes = Math.max(64 * 1_024, Number(process.env.MESH_MAX_REQUEST_BYTES || 8 * 1_024 * 1_024));
@@ -30,32 +25,9 @@ const mime = {
 
 if (!["local", "hub"].includes(dashboardMode)) throw new Error("DASHBOARD_MODE doit valoir local ou hub.");
 
-let meshAgent = null;
-if (dashboardMode === "local" && process.env.MESH_HUB_URL) {
-  meshAgent = new MeshAgent({
-    hubUrl: process.env.MESH_HUB_URL,
-    alias: process.env.MESH_NODE_ALIAS,
-    statePath: process.env.MESH_AGENT_STATE_PATH || path.join(root, ".cache", "mesh-agent.json"),
-    enrollmentCode: process.env.MESH_ENROLLMENT_CODE || null,
-    sitesBypassToken: process.env.MESH_SITES_BYPASS_TOKEN || null,
-    projectMode: process.env.MESH_PROJECT_MODE || "hash",
-    includeTitles: process.env.MESH_INCLUDE_TITLES === "1" || process.env.MESH_INCLUDE_TITLES === "true",
-    batchSize: process.env.MESH_BATCH_SIZE,
-  });
-  await meshAgent.load();
-}
-
 const meshHub = dashboardMode === "hub" ? new MeshHubStore({ storePath: meshHubPath }) : null;
 if (meshHub) await meshHub.load();
-
-const usageStore = dashboardMode === "local" ? new UsageStore({
-  analyze: (previousData) => analyzeCodexUsage({ previousData }),
-  fingerprint: usageFingerprint,
-  serialize: serializePublicUsage,
-  snapshotPath,
-  refreshIntervalMs,
-  onUpdated: meshAgent ? (data) => meshAgent.sync(data) : null,
-}) : null;
+const usageCollector = dashboardMode === "local" ? await createUsageCollector({ root }) : null;
 
 function securityHeaders(contentType) {
   return {
@@ -113,10 +85,10 @@ function adminAuthorized(request) {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-async function serializedUsage(force = false) {
-  return dashboardMode === "hub"
-    ? serializePublicUsage(meshHub.aggregate())
-    : usageStore.getSerializedUsage(force);
+async function serializedUsage(force = false, source = "local") {
+  if (dashboardMode === "hub") return serializePublicUsage(meshHub.aggregate());
+  if (source === "centralized") return JSON.stringify(await usageCollector.centralizedUsage(force));
+  return usageCollector.localUsageJson(force);
 }
 
 function healthStatus() {
@@ -124,24 +96,28 @@ function healthStatus() {
     const nodes = meshHub.nodes();
     return { ok: true, ready: true, mode: "hub", nodes: nodes.length, activeNodes: nodes.filter((node) => !node.revokedAt).length };
   }
-  return { ...usageStore.status(), mode: "local", mesh: meshAgent?.status() || { enabled: false } };
+  return usageCollector.status();
 }
 
 async function routeApi(request, response, url) {
+  if (url.pathname === "/api/capabilities" && request.method === "GET") {
+    const capabilities = dashboardMode === "hub"
+      ? createDashboardCapabilities({ runtime: "hub", sources: ["centralized"], defaultSource: "centralized", canRefresh: false })
+      : usageCollector.capabilities();
+    sendJson(response, 200, capabilities);
+    return true;
+  }
   if (url.pathname === "/api/usage" && request.method === "GET") {
-    send(response, 200, await serializedUsage(url.searchParams.get("refresh") === "1"));
+    const requestedSource = url.searchParams.get("source") || (dashboardMode === "hub" ? "centralized" : "local");
+    if (!["local", "centralized"].includes(requestedSource)) {
+      sendJson(response, 400, { error: "Source de données invalide.", code: "invalid_usage_source" });
+      return true;
+    }
+    send(response, 200, await serializedUsage(url.searchParams.get("refresh") === "1", requestedSource));
     return true;
   }
   if (url.pathname === "/api/centralized-usage" && request.method === "GET") {
-    if (dashboardMode !== "local" || !meshAgent) {
-      sendJson(response, 503, { error: "Le mode centralisé nécessite MESH_HUB_URL et une machine enrôlée.", code: "mesh_not_configured" });
-      return true;
-    }
-    if (url.searchParams.get("refresh") === "1") {
-      const data = await usageStore.getUsage(true);
-      await meshAgent.sync(data);
-    }
-    send(response, 200, serializePublicUsage(await meshAgent.centralizedUsage()));
+    send(response, 200, await serializedUsage(url.searchParams.get("refresh") === "1", "centralized"));
     return true;
   }
   if (url.pathname === "/api/health" && request.method === "GET") {
@@ -206,19 +182,16 @@ const server = createServer(async (request, response) => {
   }
 });
 
-if (usageStore) {
-  await usageStore.loadSnapshot();
-  usageStore.start();
-}
+usageCollector?.start();
 
 server.listen(port, host, () => {
   console.log(`Local Usage Dashboard for Codex: http://${host}:${port}`);
   if (dashboardMode === "hub") console.log("Mode Mesh Hub — seules les métadonnées signées et minimisées sont acceptées.");
-  else console.log(meshAgent ? "Mode local + agent Mesh sortant activé." : "Lecture locale uniquement — aucune donnée n’est envoyée ailleurs.");
+  else console.log(usageCollector.meshAgent ? "Mode local + collecteur Mesh sortant activé." : "Lecture locale uniquement — aucune donnée n’est envoyée ailleurs.");
 });
 
 function shutdown() {
-  usageStore?.stop();
+  usageCollector?.stop();
   server.close(() => process.exit(0));
 }
 

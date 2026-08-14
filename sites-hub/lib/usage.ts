@@ -19,6 +19,7 @@ export async function aggregateUsageForOwner(ownerId: string) {
   const quotas = active.filter((node) => node.quota_json).map((node) => ({ ...JSON.parse(node.quota_json!), nodeId: node.id, nodeAlias: node.alias, receivedAt: node.last_seen }));
   quotas.sort((a, b) => String(b.observedAt || b.receivedAt).localeCompare(String(a.observedAt || a.receivedAt)));
   return {
+    apiVersion: 1,
     analyzerVersion: Math.max(0, ...active.map((node) => node.analyzer_version || 0)),
     generatedAt: new Date().toISOString(),
     source: { mode: "mesh", sessionsAvailable: active.length > 0, archivedSessionsAvailable: false, sessionIndexAvailable: false },

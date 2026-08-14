@@ -202,6 +202,12 @@ npm start
 
 By default, Codex data is read from `$HOME/.codex`.
 
+### Une UI, deux environnements
+
+`public/` est l’unique source éditable de l’interface. `npm run build:ui` produit le bundle déterministe `dist/dashboard/` et son manifeste SHA-256. Le serveur local et l’image Docker servent ce bundle ; le build Sites recopie exactement le même artefact. Une modification visuelle n’a donc plus de copie à maintenir manuellement, même si le container et le Site restent deux déploiements distincts.
+
+L’interface utilise le même contrat dans les deux environnements : `GET /api/capabilities` décrit le runtime et `GET /api/usage?source=local|centralized` retourne la version 1 du snapshot public. Les adaptateurs local, hub auto-hébergé et Sites implémentent ces mêmes routes.
+
 ## Codex Usage Mesh (multi-PC, optionnel)
 
 Mesh agrège plusieurs installations sans partager les identifiants Codex. Chaque PC analyse ses propres journaux localement, retire les champs sensibles, signe un lot avec une clé Ed25519 créée sur la machine, puis l’envoie vers un hub. Le fonctionnement local reste le comportement par défaut.
@@ -209,6 +215,22 @@ Mesh agrège plusieurs installations sans partager les identifiants Codex. Chaqu
 Ce qui est transmis : compteurs d’usage et de tokens, modèles, horaires, durée, état, nom système de la machine (ou alias explicitement choisi) et identifiant de projet haché par défaut. Chaque PC fournit donc automatiquement sa propre provenance. Ce qui ne l’est jamais : `auth.json`, JSONL bruts, prompts, réponses, raisonnement, sorties d’outils, commandes, secrets, nom d’utilisateur ou chemin complet par défaut. Le quota Codex est une observation liée au compte : le hub conserve la plus récente et ne l’additionne jamais.
 
 Le sélecteur `Local / Centralisé` de la barre supérieure conserve le comportement actuel en mode Local. En mode Centralisé, le navigateur interroge une route locale ; l’agent enrôlé signe ensuite la demande vers le hub et renvoie uniquement l’agrégat du même propriétaire. Les deux modes gardent des caches navigateur distincts.
+
+### Collecteur sans interface locale
+
+Le collecteur est indépendant du serveur HTTP. `npm start` l’instancie avec le dashboard local ; la commande suivante lance uniquement l’analyse incrémentale et l’envoi Mesh, sans servir de page web :
+
+```bash
+npm run start:agent
+```
+
+`MESH_HUB_URL` est obligatoire dans ce mode. Le même Dockerfile fournit aussi une cible headless :
+
+```bash
+docker build --target agent -t codex-usage-agent .
+```
+
+Lancez cette image avec les mêmes montages Codex en lecture seule, le volume `/app-cache` et les variables `MESH_*` que le dashboard. Aucun port HTTP n’est requis pour la cible `agent`.
 
 ### Hub auto-hébergé
 
@@ -273,6 +295,7 @@ The server supports these optional environment variables:
 | `CODEX_SESSION_INDEX_PATH` | `$CODEX_HOME/session_index.jsonl` | Advanced: explicit conversation-title index. |
 | `REFRESH_INTERVAL_MS` | `60000` | Delay between source reindexing checks, in milliseconds (minimum 1000). The browser still polls the lightweight health endpoint every 15 seconds. |
 | `SNAPSHOT_PATH` | `.cache/usage-snapshot.json` | Persisted precomputed snapshot; set to an empty string to disable it. |
+| `DASHBOARD_ASSETS_PATH` | `dist/dashboard` | Advanced: generated UI bundle served by the local HTTP adapter. |
 | `DASHBOARD_MODE` | `local` | `local` analyse ce PC ; `hub` accepte et agrège les snapshots Mesh. |
 | `MESH_HUB_URL` | empty | Active l’agent sortant vers un hub HTTPS. |
 | `MESH_SITES_BYPASS_TOKEN` | empty | Jeton machine pour franchir la barrière SIWC d’un Site privé. Secret, jamais versionné. |
@@ -387,12 +410,17 @@ The license does not grant rights to third-party names or trademarks. This repos
 ## Project structure
 
 ```text
-public/             Browser interface, icon, locale catalogues, and pricing logic
+public/             Unique editable source for the browser interface
+dist/dashboard/     Generated UI bundle shared by local, Docker, and Sites builds
+scripts/            Deterministic UI build and synchronization tools
 LICENSE             GNU Affero General Public License version 3
 src/analyzer.mjs    Read-only Codex session parser
+src/usage-collector.mjs Reusable local collector and Mesh sender
 src/public-usage.mjs Browser API privacy boundary and allowlist
 test/               Parser and privacy regression tests
-server.mjs          Local HTTP server
+agent.mjs           Headless collector entrypoint
+server.mjs          Local HTTP adapter and static UI server
+sites-hub/          Authenticated Sites adapter and D1 aggregation
 start-dashboard.*   Direct local launchers for Windows and macOS/Linux
 ```
 

@@ -974,7 +974,7 @@ dialog::backdrop { background: #000b; backdrop-filter: blur(3px); }
   .forecast-legend { display: none; }
   .forecast-summary { grid-template-columns: 1fr; }
   .quota-forecast-chart { padding-right: 4px; padding-left: 4px; }
-  .quota-axis-time.is-minor { display: none; }
+  .quota-axis-time.is-minor text { display: none; }
   .cost-chart { gap: 3px; padding-right: 10px; padding-left: 10px; }
   .panel-hint { display: none; }
   .table-heading { align-items: flex-start; flex-direction: column; }

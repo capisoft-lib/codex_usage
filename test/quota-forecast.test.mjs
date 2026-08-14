@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildQuotaForecast, exponentialWeightedAverage, FORECAST_HOUR_MS } from "../public/quota-forecast.js";
+import { buildQuotaForecast, exponentialWeightedAverage, FORECAST_HOUR_MS, weeklyForecastTicks } from "../public/quota-forecast.js";
 
 test("exponential weighting gives more influence to recent credit consumption", () => {
   const olderSpike = exponentialWeightedAverage([100, 0, 0, 0], 2);
   const recentSpike = exponentialWeightedAverage([0, 0, 0, 100], 2);
   assert.ok(recentSpike > olderSpike);
+});
+
+test("weekly forecast exposes one vertical boundary for every day", () => {
+  const start = Date.parse("2026-08-13T03:29:39.000Z");
+  const ticks = weeklyForecastTicks(start, start + 7 * 24 * FORECAST_HOUR_MS);
+  assert.equal(ticks.length, 8);
+  assert.deepEqual(ticks.slice(1).map((tick, index) => tick - ticks[index]), Array(7).fill(24 * FORECAST_HOUR_MS));
 });
 
 test("forecast calibrates the EMA credit pace to the observed Codex quota", () => {

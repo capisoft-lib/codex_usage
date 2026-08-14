@@ -1,3 +1,5 @@
+import { DASHBOARD_API_VERSION } from "./dashboard-contract.mjs";
+
 function usageCounters(usage = {}) {
   return {
     inputTokens: usage.inputTokens || 0,
@@ -104,6 +106,7 @@ function publicNode(node = {}) {
 
 export function toPublicUsage(data) {
   return {
+    apiVersion: DASHBOARD_API_VERSION,
     analyzerVersion: data.analyzerVersion,
     generatedAt: data.generatedAt,
     source: publicSource(data.source),

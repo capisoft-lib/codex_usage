@@ -42,12 +42,12 @@ export class UsageStore {
     }
   }
 
-  start() {
+  start({ unrefTimer = true } = {}) {
     if (this.timer) return;
     void this.refresh().catch(() => {});
     if (this.refreshIntervalMs > 0) {
       this.timer = setInterval(() => void this.refresh().catch(() => {}), this.refreshIntervalMs);
-      this.timer.unref?.();
+      if (unrefTimer) this.timer.unref?.();
     }
   }
 

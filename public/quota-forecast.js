@@ -8,7 +8,7 @@ function finiteNonNegative(value) {
 }
 
 function validTime(value) {
-  const time = value instanceof Date ? value.getTime() : Date.parse(value);
+  const time = typeof value === "number" ? value : value instanceof Date ? value.getTime() : Date.parse(value);
   return Number.isFinite(time) ? time : null;
 }
 
@@ -31,6 +31,13 @@ export function exponentialWeightedAverage(values, halfLifePeriods = DEFAULT_EMA
     weightTotal += weight;
   }
   return weightTotal ? weighted / weightTotal : 0;
+}
+
+export function weeklyForecastTicks(rangeStart, rangeEnd) {
+  const startTime = validTime(rangeStart);
+  const endTime = validTime(rangeEnd);
+  if (startTime === null || endTime === null || endTime <= startTime) return [];
+  return Array.from({ length: 8 }, (_, index) => startTime + index * (endTime - startTime) / 7);
 }
 
 function rollingHourlyValues(samples, anchorTime, lookbackHours) {

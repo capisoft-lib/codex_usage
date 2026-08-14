@@ -16,5 +16,5 @@ export default async function Home() {
       </main>
     );
   }
-  redirect("/dashboard/index.html?hosted=1");
+  redirect("/dashboard/index.html");
 }

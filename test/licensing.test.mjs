@@ -16,7 +16,10 @@ test("publishes the complete project as AGPL-3.0-or-later free software", async 
   assert.match(license, /13\. Remote Network Interaction/);
   assert.equal(packageJson.license, "AGPL-3.0-or-later");
   assert.match(dockerfile, /org\.opencontainers\.image\.licenses="AGPL-3\.0-or-later"/);
-  assert.match(dockerfile, /COPY --chown=node:node package\.json server\.mjs LICENSE/);
+  assert.match(dockerfile, /COPY --chown=node:node package\.json agent\.mjs LICENSE/);
+  assert.match(dockerfile, /COPY --chown=node:node server\.mjs \.\//);
+  assert.match(dockerfile, /COPY --chown=node:node src \.\/src/);
+  assert.match(dockerfile, /COPY --from=ui-build --chown=node:node \/build\/dist\/dashboard \.\/dist\/dashboard/);
   assert.match(readme, /Copyright © 2026 capisoft-lib and contributors/);
   assert.match(readme, /free software licensed under \[GNU AGPL version 3 or any later version\]\(LICENSE\)/);
   assert.doesNotMatch(readme, /No open-source license has been selected/i);

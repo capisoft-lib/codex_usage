@@ -33,6 +33,7 @@ test("public usage exposes only explicitly allowed fields", () => {
 
   const publicData = toPublicUsage(raw);
   const serialized = serializePublicUsage(raw);
+  assert.equal(publicData.apiVersion, 1);
   assert.equal(publicData.sessions[0].id, "session-1");
   assert.equal(publicData.errorCount, 1);
   assert.equal(publicData.weeklyQuota.remainingPercent, 76);

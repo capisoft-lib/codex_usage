@@ -1,26 +1,20 @@
-import { copyFile, mkdir } from "node:fs/promises";
+import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildDashboardUi, dashboardDistRoot } from "../../scripts/build-dashboard-ui.mjs";
+import { DASHBOARD_ASSETS } from "../../scripts/dashboard-assets.mjs";
 
 const projectRoot = fileURLToPath(new URL("../..", import.meta.url));
-const sourceRoot = fileURLToPath(new URL("../../public/", import.meta.url));
 const targetRoot = fileURLToPath(new URL("../public/dashboard/", import.meta.url));
-const assets = [
-  "api-pricing.js",
-  "app.js",
-  "date-range.js",
-  "icon.svg",
-  "index.html",
-  "quota-forecast.js",
-  "styles.css",
-  "translations.js",
-  "usage-pricing.js",
-  "visualization.js",
-];
+
+await buildDashboardUi();
 
 await mkdir(targetRoot, { recursive: true });
-for (const asset of assets) {
-  await copyFile(join(sourceRoot, asset), join(targetRoot, asset));
+for (const asset of DASHBOARD_ASSETS) {
+  await copyFile(join(dashboardDistRoot, asset), join(targetRoot, asset));
 }
+await copyFile(join(dashboardDistRoot, "bundle-manifest.json"), join(targetRoot, "bundle-manifest.json"));
 
-console.log(`Dashboard partagé synchronisé depuis ${basename(projectRoot)} (${assets.length} fichiers).`);
+const manifest = JSON.parse(await readFile(join(targetRoot, "bundle-manifest.json"), "utf8"));
+
+console.log(`Dashboard partagé synchronisé depuis ${basename(projectRoot)} (${Object.keys(manifest.assets).length} fichiers, bundle v${manifest.version}).`);
