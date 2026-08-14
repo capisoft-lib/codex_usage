@@ -1,7 +1,7 @@
 import { codexCreditsOfCalls, fastMultiplierFor, usageProfilesOfCalls } from "./usage-pricing.js";
 import { DEFAULT_API_PRICING, apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 import { ADDITIONAL_I18N, LOCALE_TAGS, resolveLanguage } from "./translations.js";
-import { percentageOf, stackedChartSegments } from "./visualization.js";
+import { chartDrilldownBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { buildQuotaForecast, weeklyForecastTicks } from "./quota-forecast.js";
 import { OVERVIEW_PROJECT_LIMIT, projectIdentity } from "./project-identity.js";
@@ -41,7 +41,7 @@ const I18N = {
     "search.placeholder": "Rechercher…", "search.aria": "Rechercher une conversation", "model.all": "Tous les modèles", "filter.model": "Filtrer par modèle", "filter.folderAll": "Tous les dossiers", "filter.folderSelected": "Dossiers sélectionnés : {n}", "filter.folder": "Filtrer par projet ou dossier", "filter.usage": "Filtrer par consommation", "filter.usageAll": "Tous les volumes", "filter.usage100k": "≥ 100k tokens", "filter.usage1m": "≥ 1M tokens", "filter.usage10m": "≥ 10M tokens", "filter.reset": "Réinitialiser", "conversation.untitled": "Conversation sans titre", "conversation.none": "Aucune conversation pour ces filtres.",
     "kpi.credits": "Crédits Codex", "kpi.officialRates": "tarifs officiels par token", "kpi.fastPremium": "Prime Fast", "kpi.fastCalls": "{n} appels Fast détectés", "kpi.fastUsage": "{n} appels Fast · prime {premium}", "kpi.standardUsage": "tarification Codex Standard", "kpi.unrated": "{n} appels non tarifés", "kpi.cost": "Équivalent API", "kpi.prices": "tarifs API configurés", "kpi.referenceCalls": "{n} appels au tarif de référence", "kpi.tokens": "Tokens traités", "kpi.cacheRate": "{n} % des entrées en cache", "kpi.calls": "Appels modèle", "kpi.tokensPerCall": "{n} tokens / appel", "kpi.noCall": "aucun appel", "kpi.exchanges": "Échanges", "kpi.conversations": "Conversations : {n}", "kpi.projects": "Projets actifs", "kpi.median": "Durée médiane", "kpi.p95": "p95 {value}", "kpi.completed": "échanges terminés", "kpi.weeklyQuota": "Crédit hebdomadaire", "kpi.remaining": "{n} % restant", "kpi.weeklyReset": "Fin et reset : {date}", "kpi.resetsAvailable": "Resets disponibles : {n}", "kpi.resetsUnknown": "Resets disponibles : non communiqué", "kpi.weeklyUnavailable": "Quota non présent dans les sessions locales",
     "cost.estimate": "ESTIMATION API", "cost.officialCoverage": "{n} % des appels tarifés", "cost.referenceCoverage": "{n} appels au tarif de référence", "cost.fastUsage": "{n} appels Fast API · supplément {premium}", "cost.standardTier": "tarification API Standard", "cost.fastUnavailable": "{n} appels Fast sans tarif API Fast publié", "cost.longContext": "{n} appels > 272 k · majoration incluse", "cost.standardContext": "Aucun appel > 272 k tokens", "cost.disclaimer": "Hors frais d’outils et écritures de cache", "cost.fresh": "Entrée fraîche", "cost.cached": "Entrée cache", "cost.output": "Sortie", "cost.config": "Ajuster les tarifs",
-    "projects.label": "PROJETS", "projects.title": "Coût par projet", "projects.hint": "Cliquez sur un projet pour filtrer", "projects.none": "Aucun projet sur cette période", "projects.unknown": "Sans projet", "projects.filter": "Filtrer sur {name}", "chart.cost": "Coût API dans le temps", "chart.costHint": "Ventilé par type de token",
+    "projects.label": "PROJETS", "projects.title": "Coût par projet", "projects.hint": "Cliquez sur un projet pour filtrer", "projects.none": "Aucun projet sur cette période", "projects.unknown": "Sans projet", "projects.filter": "Filtrer sur {name}", "chart.cost": "Coût API dans le temps", "chart.costHint": "Ventilé par type de token", "chart.zoomBack": "Retour", "chart.zoomInto": "Afficher le détail de {label}",
     "calls.peak": "pic {label} · {n}", "calls.none": "aucun appel", "calls.count": "{n} appels", "calls.one": "1 appel",
     "insight.dominant": "Conversation dominante", "insight.dominantText": "{title} concentre {n} % des tokens.", "insight.cache": "Cache utile", "insight.cacheText": "{n} % des tokens d’entrée ont bénéficié du cache.", "insight.fast": "Prime Fast", "insight.fastText": "{n} appels Fast ajoutent {premium} au tarif Standard.", "insight.longest": "Échange le plus long", "insight.longestText": "{duration} avec {calls}.", "insight.noCompleted": "Aucun échange terminé sur la période.", "insight.quiet": "Période calme", "insight.quietText": "Aucun appel modèle trouvé sur cette période.",
     "table.count": "{n} conversation{s}", "table.range": "{start}–{end} sur {total}", "table.tokens": "Tokens", "table.lastCall": "Dernier appel", "pagination.label": "Pagination", "pagination.perPage": "Par page", "pagination.page": "Page {page} / {pages}", "pagination.previous": "Page précédente", "pagination.next": "Page suivante",
@@ -62,7 +62,7 @@ const I18N = {
     "search.placeholder": "Search…", "search.aria": "Search conversations", "model.all": "All models", "filter.model": "Filter by model", "filter.folderAll": "All folders", "filter.folderSelected": "Folders selected: {n}", "filter.folder": "Filter by project or folder", "filter.usage": "Filter by usage", "filter.usageAll": "All usage levels", "filter.usage100k": "≥ 100k tokens", "filter.usage1m": "≥ 1M tokens", "filter.usage10m": "≥ 10M tokens", "filter.reset": "Reset", "conversation.untitled": "Untitled conversation", "conversation.none": "No conversations match these filters.",
     "kpi.credits": "Codex credits", "kpi.officialRates": "official per-token rates", "kpi.fastPremium": "Fast premium", "kpi.fastCalls": "{n} Fast calls detected", "kpi.fastUsage": "{n} Fast calls · {premium} premium", "kpi.standardUsage": "Standard Codex pricing", "kpi.unrated": "{n} unrated calls", "kpi.cost": "API equivalent", "kpi.prices": "configured API prices", "kpi.referenceCalls": "{n} calls use reference pricing", "kpi.tokens": "Tokens processed", "kpi.cacheRate": "{n}% of input was cached", "kpi.calls": "Model calls", "kpi.tokensPerCall": "{n} tokens / call", "kpi.noCall": "no calls", "kpi.exchanges": "Turns", "kpi.conversations": "Conversations: {n}", "kpi.projects": "Active projects", "kpi.median": "Median duration", "kpi.p95": "p95 {value}", "kpi.completed": "completed turns", "kpi.weeklyQuota": "Weekly credit", "kpi.remaining": "{n}% remaining", "kpi.weeklyReset": "Ends and resets: {date}", "kpi.resetsAvailable": "Available resets: {n}", "kpi.resetsUnknown": "Available resets: not reported", "kpi.weeklyUnavailable": "Quota not present in local sessions",
     "cost.estimate": "API ESTIMATE", "cost.officialCoverage": "{n}% of calls priced", "cost.referenceCoverage": "{n} calls use the reference rate", "cost.fastUsage": "{n} API Fast calls · {premium} premium", "cost.standardTier": "Standard API pricing", "cost.fastUnavailable": "{n} Fast calls have no published API Fast rate", "cost.longContext": "{n} calls > 272k · surcharge included", "cost.standardContext": "No calls above 272k tokens", "cost.disclaimer": "Excludes tool fees and cache writes", "cost.fresh": "Fresh input", "cost.cached": "Cached input", "cost.output": "Output", "cost.config": "Adjust rates",
-    "projects.label": "PROJECTS", "projects.title": "Cost by project", "projects.hint": "Click a project to filter", "projects.none": "No project in this period", "projects.unknown": "No project", "projects.filter": "Filter on {name}", "chart.cost": "API cost over time", "chart.costHint": "Split by token type",
+    "projects.label": "PROJECTS", "projects.title": "Cost by project", "projects.hint": "Click a project to filter", "projects.none": "No project in this period", "projects.unknown": "No project", "projects.filter": "Filter on {name}", "chart.cost": "API cost over time", "chart.costHint": "Split by token type", "chart.zoomBack": "Back", "chart.zoomInto": "Show details for {label}",
     "calls.peak": "peak {label} · {n}", "calls.none": "no calls", "calls.count": "{n} calls", "calls.one": "1 call",
     "insight.dominant": "Dominant conversation", "insight.dominantText": "{title} accounts for {n}% of tokens.", "insight.cache": "Effective cache", "insight.cacheText": "{n}% of input tokens were served from cache.", "insight.fast": "Fast premium", "insight.fastText": "{n} Fast calls add {premium} over Standard pricing.", "insight.longest": "Longest turn", "insight.longestText": "{duration} with {calls}.", "insight.noCompleted": "No completed turns in this period.", "insight.quiet": "Quiet period", "insight.quietText": "No model calls found in this period.",
     "table.count": "{n} conversation{s}", "table.range": "{start}–{end} of {total}", "table.tokens": "Tokens", "table.lastCall": "Last call", "pagination.label": "Pagination", "pagination.perPage": "Per page", "pagination.page": "Page {page} / {pages}", "pagination.previous": "Previous page", "pagination.next": "Next page",
@@ -83,7 +83,7 @@ const I18N = {
     "search.placeholder": "Suchen…", "search.aria": "Konversationen durchsuchen", "model.all": "Alle Modelle", "filter.model": "Nach Modell filtern", "filter.folderAll": "Alle Ordner", "filter.folderSelected": "Ausgewählte Ordner: {n}", "filter.folder": "Nach Projekt oder Ordner filtern", "filter.usage": "Nach Nutzung filtern", "filter.usageAll": "Alle Nutzungsstufen", "filter.usage100k": "≥ 100k Tokens", "filter.usage1m": "≥ 1M Tokens", "filter.usage10m": "≥ 10M Tokens", "filter.reset": "Zurücksetzen", "conversation.untitled": "Unbenannte Konversation", "conversation.none": "Keine Konversationen für diese Filter.",
     "kpi.credits": "Codex-Credits", "kpi.officialRates": "offizielle Token-Tarife", "kpi.fastPremium": "Fast-Aufpreis", "kpi.fastCalls": "{n} Fast-Aufrufe erkannt", "kpi.fastUsage": "{n} Fast-Aufrufe · {premium} Aufpreis", "kpi.standardUsage": "Standard-Codex-Tarif", "kpi.unrated": "{n} Aufrufe ohne Tarif", "kpi.cost": "API-Äquivalent", "kpi.prices": "konfigurierte API-Preise", "kpi.referenceCalls": "{n} Aufrufe zum Referenzpreis", "kpi.tokens": "Verarbeitete Tokens", "kpi.cacheRate": "{n} % der Eingabe aus Cache", "kpi.calls": "Modellaufrufe", "kpi.tokensPerCall": "{n} Tokens / Aufruf", "kpi.noCall": "keine Aufrufe", "kpi.exchanges": "Runden", "kpi.conversations": "Konversationen: {n}", "kpi.projects": "Aktive Projekte", "kpi.median": "Median-Dauer", "kpi.p95": "p95 {value}", "kpi.completed": "abgeschlossene Runden", "kpi.weeklyQuota": "Wöchentliches Guthaben", "kpi.remaining": "{n} % verbleibend", "kpi.weeklyReset": "Ende und Reset: {date}", "kpi.resetsAvailable": "Verfügbare Resets: {n}", "kpi.resetsUnknown": "Verfügbare Resets: nicht gemeldet", "kpi.weeklyUnavailable": "Kontingent nicht in lokalen Sitzungen vorhanden",
     "cost.estimate": "API-SCHÄTZUNG", "cost.officialCoverage": "{n} % der Aufrufe tarifiert", "cost.referenceCoverage": "{n} Aufrufe zum Referenztarif", "cost.fastUsage": "{n} API-Fast-Aufrufe · {premium} Aufpreis", "cost.standardTier": "Standard-API-Tarif", "cost.fastUnavailable": "{n} Fast-Aufrufe ohne veröffentlichten API-Fast-Tarif", "cost.longContext": "{n} Aufrufe > 272k · Aufpreis enthalten", "cost.standardContext": "Keine Aufrufe über 272k Tokens", "cost.disclaimer": "Ohne Tool-Gebühren und Cache-Schreibvorgänge", "cost.fresh": "Frische Eingabe", "cost.cached": "Cache-Eingabe", "cost.output": "Ausgabe", "cost.config": "Tarife anpassen",
-    "projects.label": "PROJEKTE", "projects.title": "Kosten nach Projekt", "projects.hint": "Projekt anklicken zum Filtern", "projects.none": "Kein Projekt in diesem Zeitraum", "projects.unknown": "Ohne Projekt", "projects.filter": "Nach {name} filtern", "chart.cost": "API-Kosten im Zeitverlauf", "chart.costHint": "Nach Token-Typ aufgeteilt",
+    "projects.label": "PROJEKTE", "projects.title": "Kosten nach Projekt", "projects.hint": "Projekt anklicken zum Filtern", "projects.none": "Kein Projekt in diesem Zeitraum", "projects.unknown": "Ohne Projekt", "projects.filter": "Nach {name} filtern", "chart.cost": "API-Kosten im Zeitverlauf", "chart.costHint": "Nach Token-Typ aufgeteilt", "chart.zoomBack": "Zurück", "chart.zoomInto": "Details für {label} anzeigen",
     "calls.peak": "Spitze {label} · {n}", "calls.none": "keine Aufrufe", "calls.count": "{n} Aufrufe", "calls.one": "1 Aufruf",
     "insight.dominant": "Dominante Konversation", "insight.dominantText": "{title} verursacht {n} % der Tokens.", "insight.cache": "Effektiver Cache", "insight.cacheText": "{n} % der Eingabe-Tokens kamen aus dem Cache.", "insight.fast": "Fast-Aufpreis", "insight.fastText": "{n} Fast-Aufrufe erhöhen den Standardtarif um {premium}.", "insight.longest": "Längste Runde", "insight.longestText": "{duration} mit {calls}.", "insight.noCompleted": "Keine abgeschlossene Runde in diesem Zeitraum.", "insight.quiet": "Ruhiger Zeitraum", "insight.quietText": "Keine Modellaufrufe in diesem Zeitraum.",
     "table.count": "{n} Konversation{s}", "table.range": "{start}–{end} von {total}", "table.tokens": "Tokens", "table.lastCall": "Letzter Aufruf", "pagination.label": "Seitennavigation", "pagination.perPage": "Pro Seite", "pagination.page": "Seite {page} / {pages}", "pagination.previous": "Vorherige Seite", "pagination.next": "Nächste Seite",
@@ -230,6 +230,7 @@ const state = {
   sortDirection: "desc",
   language: preferredLanguage(),
   pricing: loadPricing(),
+  chartZoom: {},
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -758,7 +759,7 @@ function bucketsFor(calls, period = state.period) {
     else { start.setDate(now.getDate() - i); start.setHours(0, 0, 0, 0); }
     const end = new Date(start);
     if (byHour) end.setHours(end.getHours() + 1); else if (byMonth) end.setMonth(end.getMonth() + 1); else end.setDate(end.getDate() + 1);
-    buckets.push({ start, end, label: byHour ? `${String(start.getHours()).padStart(2, "0")}h` : byMonth ? start.toLocaleDateString(locale(), { month: "short" }) : start.toLocaleDateString(locale(), { day: "2-digit", month: count > 7 ? "2-digit" : "short" }), calls: [] });
+    buckets.push({ start, end, label: byHour ? `${String(start.getHours()).padStart(2, "0")}h` : byMonth ? start.toLocaleDateString(locale(), { month: "short" }) : start.toLocaleDateString(locale(), { day: "2-digit", month: count > 7 ? "2-digit" : "short" }), granularity: byHour ? "hour" : byMonth ? "month" : "day", calls: [] });
   }
   for (const call of calls) {
     const time = Date.parse(call.timestamp); const bucket = buckets.find((item) => time >= item.start && time < item.end); if (bucket) bucket.calls.push(call);
@@ -781,7 +782,7 @@ function customBucketsFor(calls, range = dateRange()) {
     const label = span <= 48 * hour
       ? start.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })
       : start.toLocaleDateString(locale(), { day: "2-digit", month: span <= 370 * day ? "short" : "2-digit", year: span > 370 * day ? "2-digit" : undefined });
-    return { start, end, label, calls: [] };
+    return { start, end, label, granularity: span <= 48 * hour ? "hour" : span <= 45 * day ? "day" : null, calls: [] };
   });
   for (const call of calls) {
     const time = Date.parse(call.timestamp);
@@ -794,9 +795,16 @@ function customBucketsFor(calls, range = dateRange()) {
 function renderCostChart(calls, target = "#costChart", period = state.period) {
   const host = $(target);
   if (!host) return;
-  const buckets = bucketsFor(calls, period).map((bucket) => ({ ...bucket, cost: costOfCalls(bucket.calls) }));
+  const zoomStack = state.chartZoom[target] || [];
+  const zoom = zoomStack.at(-1);
+  const sourceBuckets = zoom
+    ? chartDrilldownBuckets(calls, zoom, zoom.granularity, locale())
+    : bucketsFor(calls, period);
+  const buckets = sourceBuckets.map((bucket) => ({ ...bucket, cost: costOfCalls(bucket.calls) }));
   const max = Math.max(0.0001, ...buckets.map((bucket) => bucket.cost.cost));
-  host.innerHTML = buckets.map((bucket, index) => {
+  const context = zoom ? chartZoomContext(zoom) : "";
+  const toolbar = zoom ? `<div class="chart-zoom-toolbar"><button type="button" class="chart-zoom-back">← ${escapeHtml(t("chart.zoomBack"))}</button><strong>${escapeHtml(context)}</strong></div>` : "";
+  host.innerHTML = toolbar + buckets.map((bucket, index) => {
     const segments = stackedChartSegments([
       { key: "fresh", value: bucket.cost.freshInputCost },
       { key: "cached", value: bucket.cost.cachedInputCost },
@@ -804,12 +812,43 @@ function renderCostChart(calls, target = "#costChart", period = state.period) {
     ], max);
     const showLabel = buckets.length <= 12 || index % Math.ceil(buckets.length / 8) === 0;
     const detail = `${bucket.label} · ${formatCost(bucket.cost.cost)}`;
+    const drillable = Boolean(nextChartGranularity(bucket.granularity));
+    const drillLabel = t("chart.zoomInto", { label: bucket.label });
     const rectangles = segments
       .filter((segment) => segment.height > 0)
       .map((segment) => `<rect class="chart-segment ${segment.key}" x="0" y="${segment.y}" width="30" height="${segment.height}"></rect>`)
       .join("");
-    return `<div class="chart-column" data-tip="${escapeHtml(detail)}" aria-label="${escapeHtml(detail)}" tabindex="0"><svg class="chart-stack" viewBox="0 0 30 205" preserveAspectRatio="none" aria-hidden="true" focusable="false">${rectangles}</svg><label>${showLabel ? escapeHtml(bucket.label) : ""}</label></div>`;
+    return `<div class="chart-column${drillable ? " is-drillable" : ""}" data-bucket-index="${index}" data-tip="${escapeHtml(detail)}" aria-label="${escapeHtml(drillable ? `${detail}. ${drillLabel}` : detail)}"${drillable ? ' role="button"' : ""} tabindex="0"><svg class="chart-stack" viewBox="0 0 30 205" preserveAspectRatio="none" aria-hidden="true" focusable="false">${rectangles}</svg><label>${showLabel ? escapeHtml(bucket.label) : ""}</label></div>`;
   }).join("");
+
+  const drillInto = (column) => {
+    const bucket = buckets[Number(column.dataset.bucketIndex)];
+    const granularity = nextChartGranularity(bucket?.granularity);
+    if (!bucket || !granularity) return;
+    state.chartZoom[target] = [...zoomStack, { start: bucket.start, end: bucket.end, granularity }];
+    renderCostChart(calls, target, period);
+  };
+  host.querySelectorAll(".chart-column.is-drillable").forEach((column) => {
+    column.addEventListener("click", () => drillInto(column));
+    column.addEventListener("keydown", (event) => {
+      if (!["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      drillInto(column);
+    });
+  });
+  host.querySelector(".chart-zoom-back")?.addEventListener("click", () => {
+    const nextStack = zoomStack.slice(0, -1);
+    if (nextStack.length) state.chartZoom[target] = nextStack;
+    else delete state.chartZoom[target];
+    renderCostChart(calls, target, period);
+  });
+}
+
+function chartZoomContext(zoom) {
+  const start = new Date(zoom.start);
+  return zoom.granularity === "day"
+    ? start.toLocaleDateString(locale(), { month: "long", year: "numeric" })
+    : start.toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
 function renderTable(sessions) {
@@ -1135,6 +1174,7 @@ $$('[data-period]').forEach((button) => button.addEventListener("click", () => {
   const togglePanel = period === "custom" && state.period === "custom" && !$("#customRangePanel").hidden;
   $$('[data-period]').forEach((item) => item.classList.toggle("active", item === button));
   state.period = period;
+  state.chartZoom = {};
   state.page = 1;
   if (period === "custom") syncCustomRangeControls();
   setCustomPanel(period === "custom" && !togglePanel);
