@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1786697207697,
+      "tag": "0000_unique_the_order",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786697753530,
+      "tag": "0001_stale_moonstone",
+      "breakpoints": true
+    }
+  ]
+}

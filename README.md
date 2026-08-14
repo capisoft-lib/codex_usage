@@ -202,6 +202,60 @@ npm start
 
 By default, Codex data is read from `$HOME/.codex`.
 
+## Codex Usage Mesh (multi-PC, optionnel)
+
+Mesh agrège plusieurs installations sans partager les identifiants Codex. Chaque PC analyse ses propres journaux localement, retire les champs sensibles, signe un lot avec une clé Ed25519 créée sur la machine, puis l’envoie vers un hub. Le fonctionnement local reste le comportement par défaut.
+
+Ce qui est transmis : compteurs d’usage et de tokens, modèles, horaires, durée, état, alias choisi pour la machine et identifiant de projet haché par défaut. Ce qui ne l’est jamais : `auth.json`, JSONL bruts, prompts, réponses, raisonnement, sorties d’outils, commandes, secrets, nom d’utilisateur ou chemin complet par défaut. Le quota Codex est une observation liée au compte : le hub conserve la plus récente et ne l’additionne jamais.
+
+### Hub auto-hébergé
+
+Créez un jeton administrateur long et aléatoire dans un fichier `.env` non versionné, puis démarrez le hub :
+
+```powershell
+$env:MESH_ADMIN_TOKEN = '<secret-long-et-aléatoire>'
+docker compose -f compose.mesh-hub.yaml up -d --build
+```
+
+Créez un code valable dix minutes :
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:4318/api/mesh/enrollments `
+  -Headers @{ Authorization = "Bearer $env:MESH_ADMIN_TOKEN" }
+```
+
+Sur chaque PC, ajoutez à l’environnement du dashboard local :
+
+```text
+MESH_HUB_URL=http://adresse-privee-du-hub:4318
+MESH_NODE_ALIAS=PC Bureau
+MESH_ENROLLMENT_CODE=AAAA-BBBB-CCCC-DDDD
+MESH_AGENT_STATE_PATH=/app-cache/mesh-agent.json
+```
+
+Le code peut être retiré après le premier succès. Conservez le fichier d’état : il contient la clé privée de la machine et doit rester lisible uniquement par son compte de service. Pour exposer le hub hors d’un réseau privé, placez-le derrière HTTPS et une couche d’authentification pour l’interface ; les routes d’ingestion restent protégées par signatures, séquences monotones, horodatage et révocation.
+
+### Hub OpenAI Sites
+
+Le projet prêt à héberger se trouve dans `sites-hub/`. Il utilise Sites pour l’authentification ChatGPT du navigateur et D1 pour les codes, machines et snapshots. Les routes d’enrôlement et d’ingestion acceptent uniquement le protocole signé ; elles ne réutilisent jamais la session Codex ou `auth.json` d’un PC.
+
+```powershell
+cd sites-hub
+npm install
+npm run db:generate
+npm test
+```
+
+Le déploiement reste volontairement séparé de la préparation du code : vérifiez la migration D1 générée puis publiez avec le flux Sites lorsque vous souhaitez réellement créer l’agrégateur distant.
+
+### Confidentialité et révocation
+
+- `MESH_PROJECT_MODE=hash` (défaut) envoie un pseudonyme salé localement ; `basename` et `full` sont des choix explicites plus révélateurs.
+- `MESH_INCLUDE_TITLES=false` (défaut) supprime les titres de conversations.
+- Le hub est « push-only » : il ne peut ni lire les fichiers du PC, ni lancer une commande, ni réclamer un champ supplémentaire.
+- Révoquer une machine bloque immédiatement ses futurs lots. Changez le jeton administrateur s’il a pu être exposé.
+- Deux PC qui possèdent une copie du même journal restent deux observations distinctes en version 1 ; l’alias rend cette provenance explicite. Les numéros de séquence empêchent en revanche le rejeu et le double traitement d’un même lot par machine.
+
 ## Configuration
 
 The server supports these optional environment variables:
@@ -216,6 +270,13 @@ The server supports these optional environment variables:
 | `CODEX_SESSION_INDEX_PATH` | `$CODEX_HOME/session_index.jsonl` | Advanced: explicit conversation-title index. |
 | `REFRESH_INTERVAL_MS` | `60000` | Delay between source reindexing checks, in milliseconds (minimum 1000). The browser still polls the lightweight health endpoint every 15 seconds. |
 | `SNAPSHOT_PATH` | `.cache/usage-snapshot.json` | Persisted precomputed snapshot; set to an empty string to disable it. |
+| `DASHBOARD_MODE` | `local` | `local` analyse ce PC ; `hub` accepte et agrège les snapshots Mesh. |
+| `MESH_HUB_URL` | empty | Active l’agent sortant vers un hub HTTPS. |
+| `MESH_NODE_ALIAS` | empty | Alias explicite de ce PC, requis quand l’agent est activé. |
+| `MESH_ENROLLMENT_CODE` | empty | Code à usage unique requis seulement au premier enrôlement. |
+| `MESH_AGENT_STATE_PATH` | `.cache/mesh-agent.json` | État et clé privée de l’agent ; à conserver et protéger. |
+| `MESH_PROJECT_MODE` | `hash` | Confidentialité projet : `hash`, `basename` ou `full`. |
+| `MESH_INCLUDE_TITLES` | `false` | Active explicitement l’envoi des titres nettoyés. |
 
 Windows PowerShell example:
 

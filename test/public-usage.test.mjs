@@ -15,6 +15,7 @@ test("public usage exposes only explicitly allowed fields", () => {
       sessionsPath: "C:\\Users\\private\\.codex\\sessions",
     },
     weeklyQuota: { usedPercent: 24, remainingPercent: 76, windowMinutes: 10080, resetsAt: "2026-08-20T12:00:00.000Z", resetsAvailable: null, observedAt: "2026-08-13T12:00:00.000Z", planType: "pro", secret: "hidden" },
+    nodes: [{ id: "node-1", alias: "PC Bureau", publicKey: "must-not-leak", fingerprint: "private", privacy: { projectMode: "hash", includeTitles: false } }],
     sessions: [{
       id: "session-1",
       title: "Safe title",
@@ -37,6 +38,7 @@ test("public usage exposes only explicitly allowed fields", () => {
   assert.equal(publicData.weeklyQuota.remainingPercent, 76);
   assert.equal(publicData.weeklyQuota.secret, undefined);
   assert.equal(publicData.sessions[0].filePath, undefined);
+  assert.equal(publicData.nodes[0].publicKey, undefined);
   assert.equal(publicData.source.sessionsPath, undefined);
   assert.equal(serialized.includes("private"), false);
   assert.equal(serialized.includes("must-not-leak"), false);

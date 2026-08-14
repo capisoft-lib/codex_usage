@@ -36,6 +36,9 @@ function publicTurn(turn = {}) {
 function publicSession(session = {}) {
   return {
     id: session.id,
+    sourceSessionId: session.sourceSessionId || null,
+    nodeId: session.nodeId || null,
+    nodeAlias: session.nodeAlias || null,
     title: session.title,
     startedAt: session.startedAt || null,
     updatedAt: session.updatedAt || null,
@@ -77,6 +80,25 @@ function publicWeeklyQuota(quota) {
     resetsAvailable: quota.resetsAvailable ?? null,
     observedAt: quota.observedAt || null,
     planType: quota.planType || null,
+    nodeId: quota.nodeId || null,
+    nodeAlias: quota.nodeAlias || null,
+    receivedAt: quota.receivedAt || null,
+  };
+}
+
+function publicNode(node = {}) {
+  return {
+    id: node.id,
+    alias: node.alias,
+    enrolledAt: node.enrolledAt || null,
+    lastSeen: node.lastSeen || null,
+    lastGeneratedAt: node.lastGeneratedAt || null,
+    revokedAt: node.revokedAt || null,
+    sessionCount: node.sessionCount || 0,
+    privacy: node.privacy && {
+      projectMode: node.privacy.projectMode,
+      includeTitles: Boolean(node.privacy.includeTitles),
+    },
   };
 }
 
@@ -86,6 +108,7 @@ export function toPublicUsage(data) {
     generatedAt: data.generatedAt,
     source: publicSource(data.source),
     weeklyQuota: publicWeeklyQuota(data.weeklyQuota),
+    nodes: (data.nodes || []).map(publicNode),
     sessions: (data.sessions || []).map(publicSession),
     errorCount: Array.isArray(data.errors) ? data.errors.length : 0,
   };

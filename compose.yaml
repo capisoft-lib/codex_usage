@@ -14,6 +14,12 @@ services:
       - "127.0.0.1:4317:4317"
     environment:
       REFRESH_INTERVAL_MS: ${REFRESH_INTERVAL_MS:-60000}
+      MESH_HUB_URL: ${MESH_HUB_URL:-}
+      MESH_NODE_ALIAS: ${MESH_NODE_ALIAS:-}
+      MESH_ENROLLMENT_CODE: ${MESH_ENROLLMENT_CODE:-}
+      MESH_AGENT_STATE_PATH: /app-cache/mesh-agent.json
+      MESH_PROJECT_MODE: ${MESH_PROJECT_MODE:-hash}
+      MESH_INCLUDE_TITLES: ${MESH_INCLUDE_TITLES:-false}
     volumes:
       - type: bind
         source: ${CODEX_DATA_PATH:?Définissez CODEX_DATA_PATH vers votre dossier .codex}/sessions

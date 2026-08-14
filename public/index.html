@@ -52,7 +52,7 @@
         <h1 data-i18n="hero.title">Coûts et activité</h1>
       </div>
       <div class="hero-status">
-        <div class="privacy-pill"><span></span> <span data-i18n="hero.privacy">Données locales uniquement</span></div>
+        <div class="privacy-pill"><span></span> <span id="privacyLabel" data-i18n="hero.privacy">Données locales uniquement</span></div>
         <p class="subtitle" id="freshness" data-i18n="load.loading">Chargement des sessions locales…</p>
       </div>
     </section>
@@ -84,6 +84,7 @@
       <div class="panel-heading table-heading">
         <div><p class="eyebrow" data-i18n="section.conversations">DÉTAIL</p><h2 data-i18n="table.title">Conversations</h2></div>
         <div class="table-tools">
+          <select id="nodeFilter" aria-label="Filtrer par machine"><option value="all" data-i18n="node.all">Toutes les machines</option></select>
           <details id="folderFilter" class="folder-filter">
             <summary id="folderFilterSummary" aria-label="Filtrer par projet ou dossier">Tous les dossiers</summary>
             <div id="folderFilterOptions" class="folder-filter-options"></div>
@@ -103,6 +104,7 @@
         <table>
           <thead><tr>
             <th><button class="sort-button" data-sort="title"><span data-i18n="table.conversation">Conversation</span><i></i></button></th>
+            <th><button class="sort-button" data-sort="node"><span data-i18n="table.node">Machine</span><i></i></button></th>
             <th><button class="sort-button" data-sort="project"><span data-i18n="table.project">Projet</span><i></i></button></th>
             <th><button class="sort-button" data-sort="model"><span data-i18n="table.model">Configuration</span><i></i></button></th>
             <th><button class="sort-button" data-sort="lastCall"><span data-i18n="table.lastCall">Dernier appel</span><i></i></button></th>

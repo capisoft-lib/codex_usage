@@ -31,7 +31,7 @@ const I18N = {
     "detail.label": "DÉTAIL CONVERSATION", "detail.unknownModel": "modèle inconnu", "detail.configuration": "Configuration détectée", "detail.credits": "Crédits Codex", "detail.cost": "Coût API théorique", "detail.calls": "Appels", "detail.exchanges": "Échanges", "detail.cache": "Cache input", "detail.duration": "Durée cumulée", "detail.periodExchanges": "Échanges de la période", "detail.noExchange": "Aucun échange.", "detail.cwd": "Dossier de travail", "detail.id": "Identifiant", "detail.unknown": "Non renseigné", "fast.badge": "Fast ×{n}", "mode.standard": "Standard", "effort.minimal": "Minimal", "effort.low": "Low", "effort.medium": "Medium", "effort.high": "High", "effort.xhigh": "Extra-high", "effort.max": "Maximum", "effort.ultra": "Ultra", "effort.unknown": "Effort inconnu", "profile.more": "Autres : {n}",
     "pricing.simulation": "ESTIMATION", "pricing.title": "Tarifs API", "pricing.copy": "Prix en dollars par million de tokens. Les tarifs GPT-5.6 officiels et les majorations long contexte sont appliqués. Les frais d’outils et d’écriture de cache ne sont pas observables dans les sessions locales.", "pricing.reset": "Valeurs officielles", "pricing.save": "Enregistrer", "pricing.model": "Modèle", "pricing.input": "Entrée", "pricing.reference": "Référence (GPT-5.6 Sol)", "pricing.modelType": "modèle", "pricing.effortType": "raisonnement : {effort}", "pricing.saved": "Tarifs enregistrés",
     "freshness": "{n} sessions indexées · relevé {time}", "refresh.done": "Sessions actualisées", "load.loading": "Chargement des sessions locales…", "load.error": "Impossible de lire les sessions : {error}", "load.errorToast": "Erreur de chargement", "units.tokens": "tokens",
-    "duration.seconds": "{n} s", "duration.minutes": "{m} min {s} s",
+    "duration.seconds": "{n} s", "duration.minutes": "{m} min {s} s", "hero.privacyMesh": "Métadonnées minimisées · réseau privé", "node.all": "Toutes les machines", "filter.node": "Filtrer par machine", "table.node": "Machine", "detail.node": "Machine observée", "freshness.mesh": "{n} sessions · {nodes} machines · relevé {time}",
   },
   en: {
     "app.title": "Local Usage — Costs and activity", "brand.tagline": "for Codex · local", "license.independent": "Independent free software for local Codex data.", "license.source": "Source code", "nav.period": "Period", "action.language": "Language", "action.close": "Close", "summary.label": "Period summary", "summary.kpis": "Key indicators",
@@ -52,7 +52,7 @@ const I18N = {
     "detail.label": "CONVERSATION DETAILS", "detail.unknownModel": "unknown model", "detail.configuration": "Detected configuration", "detail.credits": "Codex credits", "detail.cost": "Theoretical API cost", "detail.calls": "Calls", "detail.exchanges": "Turns", "detail.cache": "Input cache", "detail.duration": "Total duration", "detail.periodExchanges": "Turns in this period", "detail.noExchange": "No turns.", "detail.cwd": "Working directory", "detail.id": "Identifier", "detail.unknown": "Not available", "fast.badge": "Fast ×{n}", "mode.standard": "Standard", "effort.minimal": "Minimal", "effort.low": "Low", "effort.medium": "Medium", "effort.high": "High", "effort.xhigh": "Extra-high", "effort.max": "Maximum", "effort.ultra": "Ultra", "effort.unknown": "Unknown effort", "profile.more": "Other: {n}",
     "pricing.simulation": "ESTIMATE", "pricing.title": "API rates", "pricing.copy": "Prices in US dollars per million tokens. Official GPT-5.6 rates and long-context surcharges are applied. Tool and cache-write fees are not observable in local sessions.", "pricing.reset": "Official defaults", "pricing.save": "Save", "pricing.model": "Model", "pricing.input": "Input", "pricing.reference": "Reference (GPT-5.6 Sol)", "pricing.modelType": "model", "pricing.effortType": "reasoning: {effort}", "pricing.saved": "Prices saved",
     "freshness": "{n} sessions indexed · updated {time}", "refresh.done": "Sessions refreshed", "load.loading": "Loading local sessions…", "load.error": "Unable to read sessions: {error}", "load.errorToast": "Loading error", "units.tokens": "tokens",
-    "duration.seconds": "{n}s", "duration.minutes": "{m}m {s}s",
+    "duration.seconds": "{n}s", "duration.minutes": "{m}m {s}s", "hero.privacyMesh": "Minimized metadata · private network", "node.all": "All machines", "filter.node": "Filter by machine", "table.node": "Machine", "detail.node": "Observed machine", "freshness.mesh": "{n} sessions · {nodes} machines · updated {time}",
   },
   de: {
     "app.title": "Local Usage — Kosten und Aktivität", "brand.tagline": "für Codex · lokal", "license.independent": "Unabhängige freie Software für lokale Codex-Daten.", "license.source": "Quellcode", "nav.period": "Zeitraum", "action.language": "Sprache", "action.close": "Schließen", "summary.label": "Zusammenfassung des Zeitraums", "summary.kpis": "Wichtigste Kennzahlen",
@@ -73,7 +73,7 @@ const I18N = {
     "detail.label": "KONVERSATIONSDETAILS", "detail.unknownModel": "unbekanntes Modell", "detail.configuration": "Erkannte Konfiguration", "detail.credits": "Codex-Credits", "detail.cost": "Theoretische API-Kosten", "detail.calls": "Aufrufe", "detail.exchanges": "Runden", "detail.cache": "Eingabe-Cache", "detail.duration": "Gesamtdauer", "detail.periodExchanges": "Runden im Zeitraum", "detail.noExchange": "Keine Runden.", "detail.cwd": "Arbeitsverzeichnis", "detail.id": "Kennung", "detail.unknown": "Nicht verfügbar", "fast.badge": "Fast ×{n}", "mode.standard": "Standard", "effort.minimal": "Minimal", "effort.low": "Niedrig", "effort.medium": "Mittel", "effort.high": "Hoch", "effort.xhigh": "Sehr hoch", "effort.max": "Maximum", "effort.ultra": "Ultra", "effort.unknown": "Unbekannter Aufwand", "profile.more": "Weitere: {n}",
     "pricing.simulation": "SCHÄTZUNG", "pricing.title": "API-Tarife", "pricing.copy": "Preise in US-Dollar pro Million Tokens. Offizielle GPT-5.6-Tarife und Langkontext-Aufpreise werden angewendet. Tool- und Cache-Schreibgebühren sind in lokalen Sitzungen nicht sichtbar.", "pricing.reset": "Offizielle Werte", "pricing.save": "Speichern", "pricing.model": "Modell", "pricing.input": "Eingabe", "pricing.reference": "Referenz (GPT-5.6 Sol)", "pricing.modelType": "Modell", "pricing.effortType": "Reasoning: {effort}", "pricing.saved": "Preise gespeichert",
     "freshness": "{n} Sitzungen indexiert · Stand {time}", "refresh.done": "Sitzungen aktualisiert", "load.loading": "Lokale Sitzungen werden geladen…", "load.error": "Sitzungen konnten nicht gelesen werden: {error}", "load.errorToast": "Ladefehler", "units.tokens": "Tokens",
-    "duration.seconds": "{n} s", "duration.minutes": "{m} min {s} s",
+    "duration.seconds": "{n} s", "duration.minutes": "{m} min {s} s", "hero.privacyMesh": "Minimierte Metadaten · privates Netzwerk", "node.all": "Alle Geräte", "filter.node": "Nach Gerät filtern", "table.node": "Gerät", "detail.node": "Beobachtetes Gerät", "freshness.mesh": "{n} Sitzungen · {nodes} Geräte · Stand {time}",
   },
 };
 
@@ -81,12 +81,26 @@ for (const [language, messages] of Object.entries(ADDITIONAL_I18N)) {
   I18N[language] = { ...I18N.en, ...messages };
 }
 
+const MESH_I18N = {
+  fr: { "hero.privacyMesh": "Métadonnées minimisées · réseau privé", "node.all": "Toutes les machines", "node.local": "Ce PC", "filter.node": "Filtrer par machine", "table.node": "Machine", "detail.node": "Machine observée", "freshness.mesh": "{n} sessions · {nodes} machines · relevé {time}" },
+  en: { "hero.privacyMesh": "Minimized metadata · private network", "node.all": "All machines", "node.local": "This PC", "filter.node": "Filter by machine", "table.node": "Machine", "detail.node": "Observed machine", "freshness.mesh": "{n} sessions · {nodes} machines · updated {time}" },
+  de: { "hero.privacyMesh": "Minimierte Metadaten · privates Netzwerk", "node.all": "Alle Geräte", "node.local": "Dieser PC", "filter.node": "Nach Gerät filtern", "table.node": "Gerät", "detail.node": "Beobachtetes Gerät", "freshness.mesh": "{n} Sitzungen · {nodes} Geräte · Stand {time}" },
+  es: { "hero.privacyMesh": "Metadatos minimizados · red privada", "node.all": "Todos los equipos", "node.local": "Este PC", "filter.node": "Filtrar por equipo", "table.node": "Equipo", "detail.node": "Equipo observado", "freshness.mesh": "{n} sesiones · {nodes} equipos · actualizado {time}" },
+  it: { "hero.privacyMesh": "Metadati minimizzati · rete privata", "node.all": "Tutti i computer", "node.local": "Questo PC", "filter.node": "Filtra per computer", "table.node": "Computer", "detail.node": "Computer osservato", "freshness.mesh": "{n} sessioni · {nodes} computer · aggiornato {time}" },
+  pt: { "hero.privacyMesh": "Metadados minimizados · rede privada", "node.all": "Todos os computadores", "node.local": "Este PC", "filter.node": "Filtrar por computador", "table.node": "Computador", "detail.node": "Computador observado", "freshness.mesh": "{n} sessões · {nodes} computadores · atualizado às {time}" },
+  ja: { "hero.privacyMesh": "最小化されたメタデータ · プライベートネットワーク", "node.all": "すべてのマシン", "node.local": "このPC", "filter.node": "マシンで絞り込む", "table.node": "マシン", "detail.node": "観測したマシン", "freshness.mesh": "{n}件のセッション · {nodes}台 · {time}更新" },
+  ru: { "hero.privacyMesh": "Минимизированные метаданные · частная сеть", "node.all": "Все компьютеры", "node.local": "Этот ПК", "filter.node": "Фильтр по компьютеру", "table.node": "Компьютер", "detail.node": "Компьютер наблюдения", "freshness.mesh": "Сеансов: {n} · компьютеров: {nodes} · обновлено в {time}" },
+  zh: { "hero.privacyMesh": "最小化元数据 · 私有网络", "node.all": "所有设备", "node.local": "此电脑", "filter.node": "按设备筛选", "table.node": "设备", "detail.node": "观测设备", "freshness.mesh": "{n} 个会话 · {nodes} 台设备 · {time} 更新" },
+};
+for (const [language, messages] of Object.entries(MESH_I18N)) Object.assign(I18N[language], messages);
+
 const state = {
   data: null,
   period: "today",
   customRange: loadCustomRange(),
   query: "",
   model: "all",
+  node: "all",
   folders: new Set(),
   usageThreshold: 0,
   page: 1,
@@ -249,7 +263,7 @@ function projectGroups(sessions) {
 function scopedSessions() {
   if (!state.data) return [];
   const range = dateRange();
-  return state.data.sessions.map((session) => {
+  return state.data.sessions.filter((session) => state.node === "all" || session.nodeId === state.node).map((session) => {
     if (state.folders.size && !state.folders.has(session.cwd || "")) return null;
     const calls = session.calls.filter((call) => inRange(call.timestamp, range) && (state.model === "all" || call.model === state.model));
     const turns = session.turns.filter((turn) => inRange(turn.startedAt, range) && (state.model === "all" || turn.model === state.model));
@@ -414,6 +428,7 @@ function renderTable(sessions) {
   const query = normalizeSearch(state.query);
   const prepared = sessions.map((session) => ({
     ...session,
+    tableNode: session.nodeAlias || t("node.local"),
     tableProject: projectName(session),
     tableModel: [...new Set(session.calls.map((call) => call.model))].join(", ") || session.models.join(", ") || "unknown",
     tableProfiles: usageProfilesOfCalls(session.calls),
@@ -423,7 +438,7 @@ function renderTable(sessions) {
   }));
   const filtered = prepared.filter((session) => {
     const profileSearch = session.tableProfiles.map((profile) => `${profile.model} ${effortLabel(profile.effort)} ${profile.fast ? "fast" : "standard"}`).join(" ");
-    const haystack = normalizeSearch(`${sessionTitle(session)} ${session.tableModel} ${profileSearch} ${session.cwd || ""}`);
+    const haystack = normalizeSearch(`${sessionTitle(session)} ${session.tableNode} ${session.tableModel} ${profileSearch} ${session.cwd || ""}`);
     return session.usage.totalTokens >= state.usageThreshold && (!query || haystack.includes(query));
   });
   filtered.sort((left, right) => compareSessions(left, right) * (state.sortDirection === "asc" ? 1 : -1));
@@ -433,8 +448,8 @@ function renderTable(sessions) {
   const startIndex = (state.page - 1) * state.pageSize;
   const visible = filtered.slice(startIndex, startIndex + state.pageSize);
   $("#conversationRows").innerHTML = visible.length ? visible.map((session) =>
-    `<tr data-session-id="${escapeHtml(session.id)}" tabindex="0"><td><div class="conversation-name">${escapeHtml(sessionTitle(session))}</div><div class="conversation-date">${formatInt(session.exchanges)} ${session.exchanges === 1 ? t("table.exchange") : t("table.exchanges").toLocaleLowerCase(locale())} · ${formatDuration(session.durationMs)}</div></td><td><span class="project-pill" title="${escapeHtml(session.cwd || session.tableProject)}">${escapeHtml(session.tableProject)}</span></td><td>${usageProfilesMarkup(session.calls, { limit: 2, compact: true })}</td><td class="last-call"><time datetime="${escapeHtml(session.tableLastCall)}">${formatDate(new Date(session.tableLastCall))}</time></td><td>${formatInt(session.modelCalls)}</td><td title="${formatInt(session.usage.totalTokens)} ${t("units.tokens")}">${formatCompact(session.usage.totalTokens)}</td><td><div class="cost-stack"><strong>${formatCost(session.tableCost.cost)}${session.tableCost.estimatedCalls ? " ≈" : ""}</strong><span>${formatCredits(session.tableCredits.credits)} Codex</span></div></td></tr>`
-  ).join("") : `<tr><td colspan="7" class="empty">${t("conversation.none")}</td></tr>`;
+    `<tr data-session-id="${escapeHtml(session.id)}" tabindex="0"><td><div class="conversation-name">${escapeHtml(sessionTitle(session))}</div><div class="conversation-date">${formatInt(session.exchanges)} ${session.exchanges === 1 ? t("table.exchange") : t("table.exchanges").toLocaleLowerCase(locale())} · ${formatDuration(session.durationMs)}</div></td><td><span class="node-pill">${escapeHtml(session.tableNode)}</span></td><td><span class="project-pill" title="${escapeHtml(session.cwd || session.tableProject)}">${escapeHtml(session.tableProject)}</span></td><td>${usageProfilesMarkup(session.calls, { limit: 2, compact: true })}</td><td class="last-call"><time datetime="${escapeHtml(session.tableLastCall)}">${formatDate(new Date(session.tableLastCall))}</time></td><td>${formatInt(session.modelCalls)}</td><td title="${formatInt(session.usage.totalTokens)} ${t("units.tokens")}">${formatCompact(session.usage.totalTokens)}</td><td><div class="cost-stack"><strong>${formatCost(session.tableCost.cost)}${session.tableCost.estimatedCalls ? " ≈" : ""}</strong><span>${formatCredits(session.tableCredits.credits)} Codex</span></div></td></tr>`
+  ).join("") : `<tr><td colspan="8" class="empty">${t("conversation.none")}</td></tr>`;
   const rangeStart = filtered.length ? startIndex + 1 : 0;
   const rangeEnd = Math.min(startIndex + visible.length, filtered.length);
   $("#tableCount").textContent = t("table.range", { start: rangeStart, end: rangeEnd, total: filtered.length });
@@ -464,6 +479,7 @@ function normalizeSearch(value) {
 function compareSessions(left, right) {
   const values = {
     title: [sessionTitle(left), sessionTitle(right)],
+    node: [left.tableNode, right.tableNode],
     project: [left.tableProject, right.tableProject],
     model: [left.tableModel, right.tableModel],
     lastCall: [Date.parse(left.tableLastCall) || 0, Date.parse(right.tableLastCall) || 0],
@@ -504,6 +520,7 @@ function openDrawer(id) {
       <div class="detail-kpi"><span>${t("detail.duration")}</span><strong>${formatDuration(session.durationMs)}</strong></div>
     </div>
     <div class="detail-section"><h3>${t("detail.periodExchanges")}</h3>${turns}</div>
+    <div class="detail-section"><h3>${t("detail.node")}</h3><div class="path-box">${escapeHtml(session.nodeAlias || t("node.local"))}</div></div>
     <div class="detail-section"><h3>${t("detail.cwd")}</h3><div class="path-box">${escapeHtml(session.cwd || t("detail.unknown"))}</div></div>
     <div class="detail-section"><h3>${t("detail.id")}</h3><div class="path-box">${escapeHtml(session.id)}</div></div>`;
   $("#detailDrawer").setAttribute("aria-hidden", "false"); document.body.classList.add("drawer-open");
@@ -522,8 +539,20 @@ function renderFreshness() {
   }
   if (state.data) {
     const time = new Date(state.data.generatedAt).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    $("#freshness").textContent = t("freshness", { n: state.data.sessions.length, time });
+    const mesh = state.data.source?.mode === "mesh";
+    $("#privacyLabel").textContent = t(mesh ? "hero.privacyMesh" : "hero.privacy");
+    $("#freshness").textContent = mesh
+      ? t("freshness.mesh", { n: state.data.sessions.length, nodes: (state.data.nodes || []).filter((node) => !node.revokedAt).length, time })
+      : t("freshness", { n: state.data.sessions.length, time });
   }
+}
+
+function populateNodes() {
+  const nodes = (state.data.nodes || []).filter((node) => !node.revokedAt).sort((left, right) => left.alias.localeCompare(right.alias, locale(), { sensitivity: "base" }));
+  if (state.node !== "all" && !nodes.some((node) => node.id === state.node)) state.node = "all";
+  $("#nodeFilter").innerHTML = `<option value="all">${t("node.all")}</option>${nodes.map((node) => `<option value="${escapeHtml(node.id)}">${escapeHtml(node.alias)}</option>`).join("")}`;
+  $("#nodeFilter").value = state.node;
+  $("#nodeFilter").hidden = nodes.length === 0;
 }
 
 function populateModels() {
@@ -580,6 +609,7 @@ function applyUsageData(data) {
   state.data = data;
   saveUsageCache(data);
   if (!changed) return;
+  populateNodes();
   populateModels();
   populateFolders();
   render();
@@ -625,6 +655,7 @@ function applyTranslations() {
   $("#pricingButton").title = t("action.pricing");
   $("#pricingButton").setAttribute("aria-label", t("action.pricing"));
   $("#modelFilter").setAttribute("aria-label", t("filter.model"));
+  $("#nodeFilter").setAttribute("aria-label", t("filter.node"));
   $("#usageFilter").setAttribute("aria-label", t("filter.usage"));
   updateFolderFilterSummary();
   $("#searchInput").setAttribute("aria-label", t("search.aria"));
@@ -671,6 +702,7 @@ $("#customEndNow").addEventListener("change", () => {
   commitCustomRange();
 });
 $("#modelFilter").addEventListener("change", (event) => { state.model = event.target.value; state.page = 1; render(); });
+$("#nodeFilter").addEventListener("change", (event) => { state.node = event.target.value; state.page = 1; render(); });
 $("#folderFilterOptions").addEventListener("change", (event) => {
   const folder = event.target.value;
   if (!folder) return;
@@ -687,13 +719,14 @@ $("#nextPage").addEventListener("click", () => { state.page += 1; renderTable(sc
 $$(".sort-button").forEach((button) => button.addEventListener("click", () => {
   const key = button.dataset.sort;
   if (state.sortKey === key) state.sortDirection = state.sortDirection === "asc" ? "desc" : "asc";
-  else { state.sortKey = key; state.sortDirection = ["title", "project", "model"].includes(key) ? "asc" : "desc"; }
+  else { state.sortKey = key; state.sortDirection = ["title", "node", "project", "model"].includes(key) ? "asc" : "desc"; }
   state.page = 1;
   renderTable(scopedSessions());
 }));
 $("#resetTableFilters").addEventListener("click", () => {
   state.query = "";
   state.model = "all";
+  state.node = "all";
   state.folders.clear();
   state.usageThreshold = 0;
   state.sortKey = "tokens";
@@ -701,6 +734,7 @@ $("#resetTableFilters").addEventListener("click", () => {
   state.page = 1;
   $("#searchInput").value = "";
   $("#modelFilter").value = "all";
+  $("#nodeFilter").value = "all";
   $("#usageFilter").value = "0";
   $$("#folderFilterOptions input").forEach((input) => { input.checked = false; });
   updateFolderFilterSummary();
@@ -710,7 +744,7 @@ $("#languageSelect").addEventListener("change", (event) => {
   state.language = event.target.value;
   localStorage.setItem("codex-usage-language", state.language);
   applyTranslations();
-  if (state.data) { populateModels(); populateFolders(); render(); }
+  if (state.data) { populateNodes(); populateModels(); populateFolders(); render(); }
 });
 $("#refreshButton").addEventListener("click", async () => {
   if (dataRequest) await dataRequest;

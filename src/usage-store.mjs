@@ -8,12 +8,13 @@ function validUsage(data) {
 }
 
 export class UsageStore {
-  constructor({ analyze, fingerprint, serialize = JSON.stringify, snapshotPath = null, refreshIntervalMs = 15_000, logger = console }) {
+  constructor({ analyze, fingerprint, serialize = JSON.stringify, snapshotPath = null, refreshIntervalMs = 15_000, onUpdated = null, logger = console }) {
     this.analyze = analyze;
     this.fingerprint = fingerprint;
     this.serialize = serialize;
     this.snapshotPath = snapshotPath;
     this.refreshIntervalMs = refreshIntervalMs;
+    this.onUpdated = onUpdated;
     this.logger = logger;
     this.cache = { data: null, serialized: null, fingerprint: null };
     this.refreshPromise = null;
@@ -85,6 +86,9 @@ export class UsageStore {
       const currentFingerprint = await this.fingerprint();
       if (!force && this.cache.data && currentFingerprint === this.cache.fingerprint) {
         this.lastError = null;
+        if (this.onUpdated) {
+          Promise.resolve(this.onUpdated(this.cache.data)).catch((error) => this.logger.warn(`Synchronisation secondaire impossible : ${error.message}`));
+        }
         return this.cache.data;
       }
 
@@ -97,6 +101,9 @@ export class UsageStore {
       this.lastSuccessAt = new Date().toISOString();
       this.lastError = null;
       await this.persist();
+      if (this.onUpdated) {
+        Promise.resolve(this.onUpdated(data)).catch((error) => this.logger.warn(`Synchronisation secondaire impossible : ${error.message}`));
+      }
       this.logger.log(`Données actualisées en ${Date.now() - startedAt} ms (${data.sessions.length} sessions).`);
       return data;
     } catch (error) {

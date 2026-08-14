@@ -1,0 +1,28 @@
+services:
+  mesh-hub:
+    build: .
+    container_name: codex-usage-mesh-hub
+    restart: unless-stopped
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    ports:
+      - "127.0.0.1:4318:4317"
+    environment:
+      DASHBOARD_MODE: hub
+      MESH_ADMIN_TOKEN: ${MESH_ADMIN_TOKEN:?Définissez un jeton administrateur long et aléatoire}
+      MESH_HUB_PATH: /app-cache/mesh-hub.json
+    volumes:
+      - type: volume
+        source: mesh-hub-data
+        target: /app-cache
+    tmpfs:
+      - /tmp
+
+volumes:
+  mesh-hub-data:
+    name: codex-usage-mesh-hub-storage
