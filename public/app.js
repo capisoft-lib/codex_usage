@@ -531,7 +531,7 @@ function renderKpis(sessions, calls, usage) {
     [t("kpi.tokens"), formatCompact(usage.totalTokens), `${formatInt(usage.totalTokens)} · ${t("kpi.cacheRate", { n: Math.round(cacheRate * 100) })}`, "T"],
     [t("kpi.calls"), formatInt(calls.length), calls.length ? t("kpi.tokensPerCall", { n: formatCompact(usage.totalTokens / calls.length) }) : t("kpi.noCall"), "↗"],
   ];
-  $("#kpis").innerHTML = cards.map(([label, value, meta, icon]) => `<article class="kpi"><span class="kpi-label">${label}<b class="kpi-icon">${icon}</b></span><strong class="kpi-value">${value}</strong><span class="kpi-meta" title="${escapeHtml(meta)}">${meta}</span></article>`).join("");
+  $("#kpis").innerHTML = cards.map(([label, value, meta, icon]) => `<article class="kpi"><span class="kpi-label">${label}<b class="kpi-icon">${icon}</b></span><strong class="kpi-value">${value}</strong><span class="kpi-meta" title="${escapeHtml(meta)}">${escapeHtml(meta)}</span></article>`).join("");
 }
 
 function renderQuota() {
@@ -645,7 +645,7 @@ function renderQuotaPage() {
     [t("quota.weekTokens"), formatCompact(usage.totalTokens), `${formatInt(usage.totalTokens)} · ${t("kpi.cacheRate", { n: usage.inputTokens ? Math.round(usage.cachedInputTokens / usage.inputTokens * 100) : 0 })}`, "T"],
     [t("quota.estimatedCapacity"), capacityValue, capacityMeta, "≈"],
   ];
-  $("#quotaKpis").innerHTML = cards.map(([label, value, meta, icon]) => `<article class="kpi"><span class="kpi-label">${label}<b class="kpi-icon">${icon}</b></span><strong class="kpi-value">${value}</strong><span class="kpi-meta" title="${escapeHtml(meta)}">${meta}</span></article>`).join("");
+  $("#quotaKpis").innerHTML = cards.map(([label, value, meta, icon]) => `<article class="kpi"><span class="kpi-label">${label}<b class="kpi-icon">${icon}</b></span><strong class="kpi-value">${value}</strong><span class="kpi-meta" title="${escapeHtml(meta)}">${escapeHtml(meta)}</span></article>`).join("");
   renderCostChart(calls, "#quotaChart", "quota-hourly");
   renderQuotaForecast();
 }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createSignedEnvelope, generateNodeIdentity } from "../../src/mesh-protocol.mjs";
-import { validatePayload, validateReadPayload, verifyEnvelope } from "../lib/mesh.ts";
+import { MeshRequestError, readJsonBody, validatePayload, validateReadPayload, verifyEnvelope } from "../lib/mesh.ts";
 
 test("Sites verifies envelopes produced by the desktop agent", async () => {
   const identity = generateNodeIdentity();
@@ -34,4 +34,29 @@ test("Sites rejects fields outside the minimized protocol", () => {
     privacy: { projectMode: "hash", includeTitles: false }, quota: null, upserts: [], removals: [],
     rawConversation: "must not be stored",
   }), /invalide/);
+});
+
+test("Sites enforces request limits even without a Content-Length header", async () => {
+  const request = new Request("https://site.example/api/mesh/ingest", {
+    method: "POST",
+    body: JSON.stringify({ value: "larger than the limit" }),
+  });
+  await assert.rejects(
+    () => readJsonBody(request, 8),
+    (error) => error instanceof MeshRequestError && error.status === 413,
+  );
+});
+
+test("Sites parses bounded JSON and rejects malformed bodies", async () => {
+  const valid = new Request("https://site.example/api/mesh/ingest", {
+    method: "POST",
+    body: JSON.stringify({ kind: "read" }),
+  });
+  assert.deepEqual(await readJsonBody(valid, 1024), { kind: "read" });
+
+  const invalid = new Request("https://site.example/api/mesh/ingest", { method: "POST", body: "{" });
+  await assert.rejects(
+    () => readJsonBody(invalid, 1024),
+    (error) => error instanceof MeshRequestError && error.status === 400,
+  );
 });

@@ -1,10 +1,10 @@
 import { db } from "../../../../lib/db";
-import { json, normalizeAlias, sha256, sha256Bytes } from "../../../../lib/mesh";
+import { json, MeshRequestError, normalizeAlias, readJsonBody, sha256, sha256Bytes } from "../../../../lib/mesh";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { code?: string; alias?: string; publicKey?: string };
-    if (!body.code || !body.publicKey || body.publicKey.length > 4096) return json({ error: "Demande invalide." }, 400);
+    const body = await readJsonBody<{ code?: string; alias?: string; publicKey?: string }>(request, 16 * 1024);
+    if (!body.code || body.code.length > 64 || !body.publicKey || body.publicKey.length > 4096) return json({ error: "Demande invalide." }, 400);
     const alias = normalizeAlias(body.alias);
     const database = db();
     const codeHash = await sha256(body.code.trim().toUpperCase());
@@ -21,6 +21,6 @@ export async function POST(request: Request) {
     if (!results[0].meta.changes) return json({ error: "Code déjà utilisé." }, 409);
     return json({ nodeId, alias }, 201);
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Enrôlement impossible." }, 400);
+    return json({ error: error instanceof Error ? error.message : "Enrôlement impossible." }, error instanceof MeshRequestError ? error.status : 400);
   }
 }

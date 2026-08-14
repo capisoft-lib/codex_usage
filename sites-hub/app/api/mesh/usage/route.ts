@@ -1,6 +1,6 @@
 import { db } from "../../../../lib/db";
 import { requireViewer } from "../../../../lib/auth";
-import { json, validateReadPayload, verifyEnvelope, type SyncEnvelope } from "../../../../lib/mesh";
+import { json, MeshRequestError, readJsonBody, validateReadPayload, verifyEnvelope, type SyncEnvelope } from "../../../../lib/mesh";
 import { aggregateUsageForOwner } from "../../../../lib/usage";
 
 export async function GET(request: Request) {
@@ -14,8 +14,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    if (Number(request.headers.get("content-length") || 0) > 64 * 1024) return json({ error: "Charge utile trop volumineuse." }, 413);
-    const envelope = await request.json() as SyncEnvelope;
+    const envelope = await readJsonBody<SyncEnvelope>(request, 64 * 1024);
     const database = db();
     const node = await database.prepare("SELECT owner_id, public_key, last_sequence, revoked_at FROM mesh_nodes WHERE id = ?")
       .bind(envelope.nodeId).first<{ owner_id: string; public_key: string; last_sequence: number; revoked_at: string | null }>();
@@ -29,6 +28,6 @@ export async function POST(request: Request) {
     if (!update.meta.changes) return json({ error: "Séquence déjà traitée." }, 409);
     return json(await aggregateUsageForOwner(node.owner_id));
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Lecture refusée." }, 400);
+    return json({ error: error instanceof Error ? error.message : "Lecture refusée." }, error instanceof MeshRequestError ? error.status : 400);
   }
 }

@@ -1,5 +1,45 @@
 export const MAX_CLOCK_SKEW_MS = 10 * 60 * 1000;
 
+export class MeshRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "MeshRequestError";
+    this.status = status;
+  }
+}
+
+export async function readJsonBody<T>(request: Request, maxBytes: number): Promise<T> {
+  const declared = Number(request.headers.get("content-length") || 0);
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    throw new MeshRequestError("Charge utile trop volumineuse.", 413);
+  }
+
+  const reader = request.body?.getReader();
+  if (!reader) throw new MeshRequestError("JSON invalide.", 400);
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytes += value.byteLength;
+    if (bytes > maxBytes) {
+      await reader.cancel();
+      throw new MeshRequestError("Charge utile trop volumineuse.", 413);
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  text += decoder.decode();
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new MeshRequestError("JSON invalide.", 400);
+  }
+}
+
 function canonicalValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalValue);
   if (!value || typeof value !== "object") return value;

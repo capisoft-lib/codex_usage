@@ -8,6 +8,8 @@
 - Unified local and hosted reads behind versioned `/api/capabilities` and `/api/usage` contracts.
 - Extracted the reusable local collector and added `npm run start:agent` plus a headless Docker target.
 - Removed generated Sites dashboard assets from version control; every Sites build now regenerates them from the shared bundle.
+- Escaped dynamic KPI metadata and enforced byte-level request limits on Sites Mesh endpoints.
+- Updated the Sites build toolchain, added Sites validation to CI, and removed unused package managers from the runtime container image.
 
 ## 1.1.0 — 2026-08-14
 

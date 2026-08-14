@@ -1,10 +1,9 @@
 import { db } from "../../../../lib/db";
-import { json, validatePayload, verifyEnvelope, type SyncEnvelope } from "../../../../lib/mesh";
+import { json, MeshRequestError, readJsonBody, validatePayload, verifyEnvelope, type SyncEnvelope } from "../../../../lib/mesh";
 
 export async function POST(request: Request) {
   try {
-    if (Number(request.headers.get("content-length") || 0) > 8 * 1024 * 1024) return json({ error: "Charge utile trop volumineuse." }, 413);
-    const envelope = await request.json() as SyncEnvelope;
+    const envelope = await readJsonBody<SyncEnvelope>(request, 8 * 1024 * 1024);
     const database = db();
     const node = await database.prepare("SELECT public_key, last_sequence, revoked_at FROM mesh_nodes WHERE id = ?").bind(envelope.nodeId).first<{ public_key: string; last_sequence: number; revoked_at: string | null }>();
     if (!node || node.revoked_at) return json({ error: "Machine inconnue ou révoquée." }, 401);
@@ -26,6 +25,6 @@ export async function POST(request: Request) {
     if (!results[0].meta.changes) return json({ error: "Séquence déjà traitée." }, 409);
     return json({ accepted: true, sequence: envelope.sequence });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Ingestion refusée." }, 400);
+    return json({ error: error instanceof Error ? error.message : "Ingestion refusée." }, error instanceof MeshRequestError ? error.status : 400);
   }
 }
