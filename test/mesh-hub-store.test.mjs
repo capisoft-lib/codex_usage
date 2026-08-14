@@ -12,6 +12,8 @@ function session(id = "session-1") {
     startedAt: "2026-08-14T09:00:00.000Z",
     updatedAt: "2026-08-14T09:10:00.000Z",
     cwd: "project-123456789abc",
+    projectName: "dashboard",
+    projectGitHubUrl: "https://github.com/example/dashboard",
     source: "cli",
     cliVersion: null,
     modelProvider: null,

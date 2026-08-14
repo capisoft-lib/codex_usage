@@ -4,6 +4,7 @@ export const DASHBOARD_ASSETS = Object.freeze([
   "date-range.js",
   "icon.svg",
   "index.html",
+  "project-identity.js",
   "quota-forecast.js",
   "styles.css",
   "translations.js",

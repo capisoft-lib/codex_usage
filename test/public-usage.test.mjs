@@ -20,6 +20,8 @@ test("public usage exposes only explicitly allowed fields", () => {
       id: "session-1",
       title: "Safe title",
       cwd: "C:\\repo",
+      projectName: "repo",
+      projectGitHubUrl: "https://github.com/example/repo",
       usage: { totalTokens: 42 },
       turns: [],
       calls: [],
@@ -35,6 +37,8 @@ test("public usage exposes only explicitly allowed fields", () => {
   const serialized = serializePublicUsage(raw);
   assert.equal(publicData.apiVersion, 1);
   assert.equal(publicData.sessions[0].id, "session-1");
+  assert.equal(publicData.sessions[0].projectName, "repo");
+  assert.equal(publicData.sessions[0].projectGitHubUrl, "https://github.com/example/repo");
   assert.equal(publicData.errorCount, 1);
   assert.equal(publicData.weeklyQuota.remainingPercent, 76);
   assert.equal(publicData.weeklyQuota.secret, undefined);

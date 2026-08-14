@@ -11,6 +11,8 @@ const usage = {
     id: "session-private",
     title: "Nom secret de la conversation",
     cwd: "C:\\Users\\Alice\\SecretProject",
+    projectName: "SecretProject",
+    projectGitHubUrl: "https://github.com/example/secret-project",
     models: [], usage: { inputTokens: 1, cachedInputTokens: 0, outputTokens: 1, reasoningOutputTokens: 0, totalTokens: 2 },
     calls: [], turns: [],
   }],
@@ -20,8 +22,10 @@ const usage = {
 test("default mesh privacy removes titles, usernames, and full project paths", () => {
   const sanitized = sanitizeUsageForMesh(usage, { projectSalt: "test-salt" });
   const serialized = JSON.stringify(sanitized);
-  assert.doesNotMatch(serialized, /Alice|SecretProject|Nom secret/);
+  assert.doesNotMatch(serialized, /Alice|Nom secret/);
   assert.match(sanitized.sessions[0].cwd, /^project-[a-f0-9]{12}$/);
+  assert.equal(sanitized.sessions[0].projectName, "SecretProject");
+  assert.equal(sanitized.sessions[0].projectGitHubUrl, "https://github.com/example/secret-project");
   assert.match(sanitized.sessions[0].title, /^Conversation [a-f0-9]{8}$/);
 });
 

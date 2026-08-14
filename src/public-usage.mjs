@@ -45,6 +45,8 @@ function publicSession(session = {}) {
     startedAt: session.startedAt || null,
     updatedAt: session.updatedAt || null,
     cwd: session.cwd || null,
+    projectName: session.projectName || null,
+    projectGitHubUrl: session.projectGitHubUrl || null,
     source: session.source || "unknown",
     cliVersion: session.cliVersion || null,
     modelProvider: session.modelProvider || null,

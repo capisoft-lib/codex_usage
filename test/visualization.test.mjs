@@ -40,3 +40,8 @@ test("chart columns reserve the same axis-label height when labels are hidden", 
   assert.match(styles, /\.chart-column label\s*\{[^}]*min-height:\s*13px;/);
   assert.match(styles, /\.chart-column label\s*\{[^}]*line-height:\s*13px;/);
 });
+
+test("overview cards stretch together while the chart itself remains fluid", () => {
+  assert.match(styles, /\.analysis-grid\s*\{[^}]*align-items:\s*stretch;/);
+  assert.match(styles, /\.analysis-grid \.cost-chart\s*\{[^}]*flex:\s*1 1 auto;[^}]*height:\s*auto;/);
+});

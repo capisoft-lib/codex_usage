@@ -4,6 +4,7 @@ import { ADDITIONAL_I18N, LOCALE_TAGS, resolveLanguage } from "./translations.js
 import { percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { buildQuotaForecast, weeklyForecastTicks } from "./quota-forecast.js";
+import { OVERVIEW_PROJECT_LIMIT, projectIdentity } from "./project-identity.js";
 
 // Paint the last browser snapshot immediately, then replace it from the server's
 // background-refreshed snapshot. Session files remain the source of truth.
@@ -370,20 +371,17 @@ function formatDuration(ms) {
 }
 
 function sessionTitle(session) { return session.title === "Conversation sans titre" ? t("conversation.untitled") : session.title; }
-function projectName(session) {
-  const parts = String(session.cwd || "").replace(/\\/g, "/").split("/").filter(Boolean);
-  return parts.at(-1) || t("projects.unknown");
-}
+function projectName(session) { return projectIdentity(session, t("projects.unknown")).name; }
 
 function projectGroups(sessions) {
   const groups = new Map();
   for (const session of sessions) {
-    const name = projectName(session);
-    const group = groups.get(name) || { name, paths: new Set(), sessions: [], calls: [] };
+    const identity = projectIdentity(session, t("projects.unknown"));
+    const group = groups.get(identity.key) || { ...identity, paths: new Set(), sessions: [], calls: [] };
     group.paths.add(session.cwd || "");
     group.sessions.push(session);
     group.calls.push(...session.calls);
-    groups.set(name, group);
+    groups.set(identity.key, group);
   }
   return [...groups.values()]
     .map((group) => ({ ...group, paths: [...group.paths], cost: costOfCalls(group.calls) }))
@@ -435,7 +433,7 @@ function render() {
   renderCostSummary(overviewCalls);
   renderKpis(overview, overviewCalls, overviewUsage);
   renderCostChart(overviewCalls, "#costChart");
-  renderProjectRows("#overviewProjects", projectGroups(overview).slice(0, 6), { navigate: true });
+  renderProjectRows("#overviewProjects", projectGroups(overview).slice(0, OVERVIEW_PROJECT_LIMIT), { navigate: true });
   renderRecentConversations(overview);
   renderProjectsPage(overview);
   renderQuotaPage();
@@ -635,11 +633,11 @@ function renderQuotaForecast() {
 }
 
 function isSelectedProject(group) {
-  return Boolean(state.selectedProject && state.selectedProject.name === group.name && state.selectedProject.paths.length === group.paths.length && group.paths.every((path) => state.selectedProject.paths.includes(path)));
+  return Boolean(state.selectedProject && state.selectedProject.key === group.key);
 }
 
 function selectProject(group) {
-  state.selectedProject = isSelectedProject(group) ? null : { name: group.name, paths: group.paths };
+  state.selectedProject = isSelectedProject(group) ? null : { key: group.key, name: group.name, paths: group.paths };
 }
 
 function renderProjectRows(selector, groups, { navigate = false } = {}) {

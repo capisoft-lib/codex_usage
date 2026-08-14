@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { addUsage, analyzeCodexUsage, inspectCodexSource, normalizeUsage, normalizeWeeklyQuota, parseSessionFile, resolveCodexSource, usageFingerprint } from "../src/analyzer.mjs";
+import { addUsage, analyzeCodexUsage, inspectCodexSource, normalizeGitHubRepositoryUrl, normalizeUsage, normalizeWeeklyQuota, parseSessionFile, resolveCodexSource, usageFingerprint } from "../src/analyzer.mjs";
 
 test("normalizes and adds token usage", () => {
   const usage = normalizeUsage({ input_tokens: 100, cached_input_tokens: 80, output_tokens: 20, reasoning_output_tokens: 5, total_tokens: 120 });
@@ -28,7 +28,7 @@ test("parses turns, model calls and duration without message contents", async ()
   const directory = await mkdtemp(path.join(tmpdir(), "codex-usage-"));
   const file = path.join(directory, "session.jsonl");
   const rows = [
-    { timestamp: "2026-07-10T08:00:00.000Z", type: "session_meta", payload: { id: "session-1", timestamp: "2026-07-10T08:00:00.000Z", cwd: "C:\\repo", model_provider: "openai" } },
+    { timestamp: "2026-07-10T08:00:00.000Z", type: "session_meta", payload: { id: "session-1", timestamp: "2026-07-10T08:00:00.000Z", cwd: "C:\\repo", model_provider: "openai", git: { repository_url: "git@github.com:OpenAI/Example.git", branch: "main", commit_hash: "secret" } } },
     { timestamp: "2026-07-10T08:00:00.500Z", type: "event_msg", payload: { type: "thread_settings_applied", thread_settings: { service_tier: "priority" } } },
     { timestamp: "2026-07-10T08:00:01.000Z", type: "turn_context", payload: { turn_id: "turn-1", model: "gpt-test", effort: "medium" } },
     { timestamp: "2026-07-10T08:00:01.000Z", type: "event_msg", payload: { type: "task_started", turn_id: "turn-1", started_at: "2026-07-10T08:00:01.000Z" } },
@@ -50,7 +50,17 @@ test("parses turns, model calls and duration without message contents", async ()
   assert.equal(result.usage.cachedInputTokens, 50);
   assert.equal(result.weeklyQuota.remainingPercent, 79);
   assert.equal(result.weeklyQuota.resetsAvailable, 2);
+  assert.equal(result.projectName, "repo");
+  assert.equal(result.projectGitHubUrl, "https://github.com/openai/example");
+  assert.equal(JSON.stringify(result).includes("commit_hash"), false);
   assert.equal(JSON.stringify(result).includes("secret"), false);
+});
+
+test("canonicalizes only credential-free GitHub repository URLs", () => {
+  assert.equal(normalizeGitHubRepositoryUrl("https://TOKEN@GitHub.com/OpenAI/Example.git?ignored=1"), "https://github.com/openai/example");
+  assert.equal(normalizeGitHubRepositoryUrl("ssh://git@github.com/OpenAI/Example.git"), "https://github.com/openai/example");
+  assert.equal(normalizeGitHubRepositoryUrl("git@github.com:OpenAI/Example.git"), "https://github.com/openai/example");
+  assert.equal(normalizeGitHubRepositoryUrl("https://gitlab.com/OpenAI/Example.git"), null);
 });
 
 test("prefers the event timestamp when started_at is Unix seconds", async () => {
@@ -79,7 +89,7 @@ test("reuses persisted per-file analysis when a session has not changed", async 
 
   const first = await analyzeCodexUsage({ codexHome });
   const second = await analyzeCodexUsage({ codexHome, previousData: first });
-  assert.equal(first.analyzerVersion, 3);
+  assert.equal(first.analyzerVersion, 4);
   assert.equal(second.sessions[0], first.sessions[0]);
   assert.equal(second.sessions[0].fileSize > 0, true);
   assert.equal(Number.isFinite(second.sessions[0].fileModifiedAtMs), true);

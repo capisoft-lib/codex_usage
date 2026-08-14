@@ -66,7 +66,7 @@ export function normalizeAlias(value: unknown): string {
 export function validatePayload(value: unknown): asserts value is Record<string, unknown> & { upserts: Record<string, unknown>[]; removals: string[] } {
   const payload = value as Record<string, unknown>;
   const payloadKeys = new Set(["kind", "snapshotVersion", "analyzerVersion", "generatedAt", "privacy", "quota", "upserts", "removals"]);
-  const sessionKeys = new Set(["id", "sourceSessionId", "nodeId", "nodeAlias", "title", "startedAt", "updatedAt", "cwd", "source", "cliVersion", "modelProvider", "models", "exchanges", "completedExchanges", "userMessages", "assistantMessages", "modelCalls", "durationMs", "usage", "turns", "calls", "parseErrors"]);
+  const sessionKeys = new Set(["id", "sourceSessionId", "nodeId", "nodeAlias", "title", "startedAt", "updatedAt", "cwd", "projectName", "projectGitHubUrl", "source", "cliVersion", "modelProvider", "models", "exchanges", "completedExchanges", "userMessages", "assistantMessages", "modelCalls", "durationMs", "usage", "turns", "calls", "parseErrors"]);
   const turnKeys = new Set(["id", "startedAt", "completedAt", "durationMs", "model", "effort", "serviceTier", "calls", "usage"]);
   const callKeys = new Set(["timestamp", "turnId", "model", "effort", "serviceTier", "usage"]);
   const usageKeys = new Set(["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens"]);
@@ -83,6 +83,8 @@ export function validatePayload(value: unknown): asserts value is Record<string,
     return typeof session.id === "string" && session.id.length > 0 && session.id.length <= 256
       && typeof session.title === "string" && session.title.length <= 300
       && (session.cwd === null || typeof session.cwd === "string")
+      && (session.projectName == null || (typeof session.projectName === "string" && session.projectName.length <= 200))
+      && (session.projectGitHubUrl == null || (typeof session.projectGitHubUrl === "string" && /^https:\/\/github\.com\/[a-z0-9_.-]+\/[a-z0-9_.-]+$/i.test(session.projectGitHubUrl)))
       && validUsage(session.usage)
       && Array.isArray(session.calls) && session.calls.length <= 100000 && session.calls.every((call) => hasOnly(call, callKeys) && validUsage((call as Record<string, unknown>).usage))
       && Array.isArray(session.turns) && session.turns.length <= 100000 && session.turns.every((turn) => hasOnly(turn, turnKeys) && validUsage((turn as Record<string, unknown>).usage));

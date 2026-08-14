@@ -99,7 +99,7 @@ function finiteUsage(usage) {
 
 const PAYLOAD_KEYS = new Set(["kind", "snapshotVersion", "analyzerVersion", "generatedAt", "privacy", "quota", "upserts", "removals"]);
 const READ_PAYLOAD_KEYS = new Set(["kind", "requestVersion"]);
-const SESSION_KEYS = new Set(["id", "sourceSessionId", "nodeId", "nodeAlias", "title", "startedAt", "updatedAt", "cwd", "source", "cliVersion", "modelProvider", "models", "exchanges", "completedExchanges", "userMessages", "assistantMessages", "modelCalls", "durationMs", "usage", "turns", "calls", "parseErrors"]);
+const SESSION_KEYS = new Set(["id", "sourceSessionId", "nodeId", "nodeAlias", "title", "startedAt", "updatedAt", "cwd", "projectName", "projectGitHubUrl", "source", "cliVersion", "modelProvider", "models", "exchanges", "completedExchanges", "userMessages", "assistantMessages", "modelCalls", "durationMs", "usage", "turns", "calls", "parseErrors"]);
 const TURN_KEYS = new Set(["id", "startedAt", "completedAt", "durationMs", "model", "effort", "serviceTier", "calls", "usage"]);
 const CALL_KEYS = new Set(["timestamp", "turnId", "model", "effort", "serviceTier", "usage"]);
 const USAGE_KEYS = new Set(["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens"]);
@@ -118,6 +118,8 @@ function validSession(session) {
     && typeof session.title === "string"
     && session.title.length <= 300
     && (session.cwd === null || (typeof session.cwd === "string" && session.cwd.length <= 512))
+    && (session.projectName == null || (typeof session.projectName === "string" && session.projectName.length <= 200))
+    && (session.projectGitHubUrl == null || (typeof session.projectGitHubUrl === "string" && /^https:\/\/github\.com\/[a-z0-9_.-]+\/[a-z0-9_.-]+$/i.test(session.projectGitHubUrl)))
     && Array.isArray(session.calls)
     && session.calls.length <= 100_000
     && session.calls.every((call) => hasOnlyKeys(call, CALL_KEYS) && hasOnlyKeys(call.usage, USAGE_KEYS) && finiteUsage(call.usage))

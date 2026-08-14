@@ -55,5 +55,6 @@ test("packages the local dashboard as the hosted centralized interface", async (
   assert.match(app, /\/api\/usage/);
   assert.doesNotMatch(app, /\/api\/centralized-usage/);
   assert.equal(manifest.version, 1);
-  assert.equal(Object.keys(manifest.assets).length, 10);
+  assert.equal(Object.keys(manifest.assets).length, 11);
+  assert.ok(manifest.assets["project-identity.js"]);
 });

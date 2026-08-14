@@ -16,6 +16,7 @@ function usageData() {
     sessions: [{
       id: "session-1", title: "Sensitive conversation", startedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
       cwd: "C:\\Users\\alice\\secret-project", source: "cli", cliVersion: null, modelProvider: null, models: ["gpt-test"],
+      projectName: "secret-project", projectGitHubUrl: "https://github.com/example/secret-project",
       exchanges: 1, completedExchanges: 1, userMessages: 1, assistantMessages: 1, modelCalls: 1, durationMs: 1000,
       usage: counters, turns: [], calls: [{ timestamp: new Date().toISOString(), turnId: "turn-1", model: "gpt-test", effort: "medium", serviceTier: "default", usage: counters }], parseErrors: 0,
     }], errors: [],
@@ -52,6 +53,8 @@ test("agent enrolls, signs minimized snapshots, and only resends changes", async
   assert.equal(aggregated.sessions.length, 1);
   assert.match(aggregated.sessions[0].title, /^Conversation /);
   assert.match(aggregated.sessions[0].cwd, /^project-/);
+  assert.equal(aggregated.sessions[0].projectName, "secret-project");
+  assert.equal(aggregated.sessions[0].projectGitHubUrl, "https://github.com/example/secret-project");
   assert.equal(JSON.stringify(aggregated).includes("alice"), false);
   const state = JSON.parse(await readFile(path.join(directory, "agent.json"), "utf8"));
   assert.equal(state.sequence, 3);

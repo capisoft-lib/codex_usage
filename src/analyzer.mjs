@@ -12,7 +12,37 @@ const EMPTY_USAGE = Object.freeze({
   totalTokens: 0,
 });
 
-export const ANALYZER_VERSION = 3;
+export const ANALYZER_VERSION = 4;
+
+function projectNameFromCwd(value) {
+  const name = String(value || "").replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop()?.trim();
+  return name ? name.slice(0, 200) : null;
+}
+
+export function normalizeGitHubRepositoryUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  let pathname = null;
+  const scp = raw.match(/^(?:git@)?github\.com:([^/?#]+)\/([^/?#]+?)\/?$/i);
+  if (scp) pathname = `${scp[1]}/${scp[2]}`;
+  else {
+    try {
+      const url = new URL(raw);
+      if (url.hostname.toLowerCase() !== "github.com") return null;
+      pathname = url.pathname.replace(/^\/+|\/+$/g, "");
+    } catch {
+      return null;
+    }
+  }
+
+  const parts = String(pathname).split("/");
+  if (parts.length !== 2) return null;
+  const owner = parts[0].trim();
+  const repository = parts[1].replace(/\.git$/i, "").trim();
+  if (!owner || !repository || !/^[a-z0-9_.-]+$/i.test(owner) || !/^[a-z0-9_.-]+$/i.test(repository)) return null;
+  return `https://github.com/${owner.toLowerCase()}/${repository.toLowerCase()}`;
+}
 
 export function resolveCodexSource(options = {}) {
   const codexHome = options.codexHome || process.env.CODEX_HOME || path.join(homedir(), ".codex");
@@ -301,6 +331,8 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
     startedAt: meta?.timestamp || firstTimestamp,
     updatedAt: lastTimestamp || meta?.timestamp,
     cwd: meta?.cwd || null,
+    projectName: projectNameFromCwd(meta?.cwd),
+    projectGitHubUrl: normalizeGitHubRepositoryUrl(meta?.git?.repository_url),
     source: typeof meta?.source === "string" ? meta.source : meta?.source?.type || meta?.originator || "unknown",
     cliVersion: meta?.cli_version || null,
     modelProvider: meta?.model_provider || null,
