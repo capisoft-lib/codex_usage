@@ -6,7 +6,7 @@
 
 Local Usage turns the Codex session metadata stored on your computer into a fast, privacy-conscious usage dashboard. It can run entirely on one machine, or several machines can send signed, minimized usage snapshots to an optional central dashboard hosted with OpenAI Sites or on your own server.
 
-[**Stable release 1.0.2**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.0.2) · [Docker image 1.1.0](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
+[**Stable release 1.2.0**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.2.0) · [Docker image 1.2.0](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
 
 ## What the application shows
 
@@ -122,16 +122,16 @@ The dashboard image runs as a non-root user with all Linux capabilities removed.
 The public Linux AMD64/ARM64 image is:
 
 ```text
-capitaine/codex-usage-dashboard:1.1.0
+capitaine/codex-usage-dashboard:1.2.0
 ```
 
-The previous 1.0.2 release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.2`.
+The 1.0.2 release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.2`.
 
 On Windows PowerShell:
 
 ```powershell
 $codexData = Join-Path $env:USERPROFILE ".codex"
-$image = "capitaine/codex-usage-dashboard:1.1.0"
+$image = "capitaine/codex-usage-dashboard:1.2.0"
 
 docker pull $image
 docker volume create codex-usage-dashboard-storage
@@ -155,7 +155,7 @@ docker run -d `
 On macOS or Linux:
 
 ```bash
-IMAGE="capitaine/codex-usage-dashboard:1.1.0"
+IMAGE="capitaine/codex-usage-dashboard:1.2.0"
 
 docker pull "$IMAGE"
 docker volume create codex-usage-dashboard-storage
