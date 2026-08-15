@@ -46,7 +46,7 @@ test("dynamic KPI metadata is escaped before HTML insertion", async () => {
 
 test("the published image instructions keep Codex mounts scoped and read-only", async () => {
   const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
-  assert.match(readme, /capitaine\/codex-usage-dashboard:1\.1\.0/);
+  assert.match(readme, /capitaine\/codex-usage-dashboard:1\.2\.0/);
   assert.match(readme, /ghcr\.io\/capisoft-lib\/codex-usage-dashboard:1\.0\.2/);
   assert.match(readme, /target=\/codex-data\/sessions,readonly/);
   assert.match(readme, /target=\/codex-data\/archived_sessions,readonly/);

@@ -1,7 +1,7 @@
 {
   "name": "codex-usage-dashboard",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "An independent, privacy-conscious local dashboard for Codex usage, model calls, timing, and theoretical cost.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
