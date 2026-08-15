@@ -1,0 +1,1 @@
+ALTER TABLE `mesh_nodes` ADD `last_payload_hash` text;

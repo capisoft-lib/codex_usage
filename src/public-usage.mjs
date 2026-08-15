@@ -1,3 +1,5 @@
+import { DASHBOARD_API_VERSION } from "./dashboard-contract.mjs";
+
 function usageCounters(usage = {}) {
   return {
     inputTokens: usage.inputTokens || 0,
@@ -36,10 +38,15 @@ function publicTurn(turn = {}) {
 function publicSession(session = {}) {
   return {
     id: session.id,
+    sourceSessionId: session.sourceSessionId || null,
+    nodeId: session.nodeId || null,
+    nodeAlias: session.nodeAlias || null,
     title: session.title,
     startedAt: session.startedAt || null,
     updatedAt: session.updatedAt || null,
     cwd: session.cwd || null,
+    projectName: session.projectName || null,
+    projectGitHubUrl: session.projectGitHubUrl || null,
     source: session.source || "unknown",
     cliVersion: session.cliVersion || null,
     modelProvider: session.modelProvider || null,
@@ -72,20 +79,48 @@ function publicWeeklyQuota(quota) {
   return {
     usedPercent: quota.usedPercent ?? null,
     remainingPercent: quota.remainingPercent ?? null,
+    peakUsedPercent: quota.peakUsedPercent ?? quota.usedPercent ?? null,
     windowMinutes: quota.windowMinutes ?? null,
+    startsAt: quota.startsAt || null,
+    endsAt: quota.endsAt || quota.resetsAt || null,
     resetsAt: quota.resetsAt || null,
     resetsAvailable: quota.resetsAvailable ?? null,
     observedAt: quota.observedAt || null,
+    firstObservedAt: quota.firstObservedAt || null,
+    peakObservedAt: quota.peakObservedAt || quota.observedAt || null,
     planType: quota.planType || null,
+    planTypes: Array.isArray(quota.planTypes) ? quota.planTypes.filter((value) => typeof value === "string").slice(0, 20) : [],
+    nodeId: quota.nodeId || null,
+    nodeAlias: quota.nodeAlias || null,
+    receivedAt: quota.receivedAt || null,
+  };
+}
+
+function publicNode(node = {}) {
+  return {
+    id: node.id,
+    alias: node.alias,
+    enrolledAt: node.enrolledAt || null,
+    lastSeen: node.lastSeen || null,
+    lastGeneratedAt: node.lastGeneratedAt || null,
+    revokedAt: node.revokedAt || null,
+    sessionCount: node.sessionCount || 0,
+    privacy: node.privacy && {
+      projectMode: node.privacy.projectMode,
+      includeTitles: Boolean(node.privacy.includeTitles),
+    },
   };
 }
 
 export function toPublicUsage(data) {
   return {
+    apiVersion: DASHBOARD_API_VERSION,
     analyzerVersion: data.analyzerVersion,
     generatedAt: data.generatedAt,
     source: publicSource(data.source),
     weeklyQuota: publicWeeklyQuota(data.weeklyQuota),
+    weeklyQuotaHistory: (data.weeklyQuotaHistory || []).map(publicWeeklyQuota).filter(Boolean),
+    nodes: (data.nodes || []).map(publicNode),
     sessions: (data.sessions || []).map(publicSession),
     errorCount: Array.isArray(data.errors) ? data.errors.length : 0,
   };

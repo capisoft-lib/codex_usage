@@ -3,7 +3,10 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("Docker exposes only the required Codex log sources", async () => {
-  const compose = await readFile(new URL("../compose.yaml", import.meta.url), "utf8");
+  const [compose, dockerfile] = await Promise.all([
+    readFile(new URL("../compose.yaml", import.meta.url), "utf8"),
+    readFile(new URL("../Dockerfile", import.meta.url), "utf8"),
+  ]);
   assert.match(compose, /target:\s*\/codex-data\/sessions/);
   assert.match(compose, /target:\s*\/codex-data\/archived_sessions/);
   assert.match(compose, /target:\s*\/codex-data\/session_index\.jsonl/);
@@ -11,6 +14,8 @@ test("Docker exposes only the required Codex log sources", async () => {
   assert.doesNotMatch(compose, /auth\.json/i);
   assert.equal((compose.match(/read_only:\s*true/g) || []).length >= 4, true);
   assert.match(compose, /cap_drop:\s*\r?\n\s*- ALL/);
+  assert.match(dockerfile, /rm -rf \/usr\/local\/lib\/node_modules\/npm/);
+  assert.match(dockerfile, /rm -f \/usr\/local\/bin\/npm \/usr\/local\/bin\/npx/);
 });
 
 test("credential files are excluded from source control and Docker context", async () => {
@@ -31,6 +36,12 @@ test("the strict CSP is kept without runtime inline styles", async () => {
   assert.doesNotMatch(server, /style-src[^;]*'unsafe-inline'/);
   assert.doesNotMatch(app, /\sstyle=/);
   assert.doesNotMatch(app, /\.style\./);
+});
+
+test("dynamic KPI metadata is escaped before HTML insertion", async () => {
+  const app = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
+  assert.equal((app.match(/title="\$\{escapeHtml\(meta\)\}">\$\{escapeHtml\(meta\)\}/g) || []).length, 2);
+  assert.doesNotMatch(app, /title="\$\{escapeHtml\(meta\)\}">\$\{meta\}/);
 });
 
 test("the published image instructions keep Codex mounts scoped and read-only", async () => {

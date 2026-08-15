@@ -1,4 +1,17 @@
-FROM node:22-alpine
+FROM node:22-alpine AS ui-build
+
+WORKDIR /build
+COPY public ./public
+COPY scripts ./scripts
+RUN node scripts/build-dashboard-ui.mjs
+
+FROM node:22-alpine AS runtime
+
+# The runtime uses Node.js directly and has no npm dependencies. Remove the
+# bundled package managers so their unused dependency trees are not shipped.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+      /usr/local/bin/yarn /usr/local/bin/yarnpkg
 
 LABEL org.opencontainers.image.source="https://github.com/capisoft-lib/codex_usage" \
       org.opencontainers.image.documentation="https://github.com/capisoft-lib/codex_usage#readme" \
@@ -19,8 +32,7 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-COPY --chown=node:node package.json server.mjs LICENSE ./
-COPY --chown=node:node public ./public
+COPY --chown=node:node package.json agent.mjs LICENSE ./
 COPY --chown=node:node src ./src
 
 RUN mkdir -p /app-cache /codex-data/sessions /codex-data/archived_sessions \
@@ -28,6 +40,17 @@ RUN mkdir -p /app-cache /codex-data/sessions /codex-data/archived_sessions \
     && chown -R node:node /app-cache /codex-data
 
 USER node
+
+FROM runtime AS agent
+
+HEALTHCHECK NONE
+CMD ["node", "agent.mjs"]
+
+FROM runtime AS dashboard
+
+COPY --chown=node:node server.mjs ./
+COPY --from=ui-build --chown=node:node /build/dist/dashboard ./dist/dashboard
+
 EXPOSE 4317
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \

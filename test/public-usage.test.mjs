@@ -15,10 +15,14 @@ test("public usage exposes only explicitly allowed fields", () => {
       sessionsPath: "C:\\Users\\private\\.codex\\sessions",
     },
     weeklyQuota: { usedPercent: 24, remainingPercent: 76, windowMinutes: 10080, resetsAt: "2026-08-20T12:00:00.000Z", resetsAvailable: null, observedAt: "2026-08-13T12:00:00.000Z", planType: "pro", secret: "hidden" },
+    weeklyQuotaHistory: [{ startsAt: "2026-08-13T12:00:00.000Z", endsAt: "2026-08-14T12:00:00.000Z", resetsAt: "2026-08-20T12:00:00.000Z", observedAt: "2026-08-14T08:00:00.000Z", peakObservedAt: "2026-08-14T08:00:00.000Z", usedPercent: 24, peakUsedPercent: 24, remainingPercent: 76, windowMinutes: 10080, planType: "pro", planTypes: ["plus", "pro"], secret: "hidden" }],
+    nodes: [{ id: "node-1", alias: "PC Bureau", publicKey: "must-not-leak", fingerprint: "private", privacy: { projectMode: "hash", includeTitles: false } }],
     sessions: [{
       id: "session-1",
       title: "Safe title",
       cwd: "C:\\repo",
+      projectName: "repo",
+      projectGitHubUrl: "https://github.com/example/repo",
       usage: { totalTokens: 42 },
       turns: [],
       calls: [],
@@ -32,11 +36,19 @@ test("public usage exposes only explicitly allowed fields", () => {
 
   const publicData = toPublicUsage(raw);
   const serialized = serializePublicUsage(raw);
+  assert.equal(publicData.apiVersion, 1);
   assert.equal(publicData.sessions[0].id, "session-1");
+  assert.equal(publicData.sessions[0].projectName, "repo");
+  assert.equal(publicData.sessions[0].projectGitHubUrl, "https://github.com/example/repo");
   assert.equal(publicData.errorCount, 1);
   assert.equal(publicData.weeklyQuota.remainingPercent, 76);
   assert.equal(publicData.weeklyQuota.secret, undefined);
+  assert.equal(publicData.weeklyQuotaHistory[0].peakUsedPercent, 24);
+  assert.equal(publicData.weeklyQuotaHistory[0].endsAt, "2026-08-14T12:00:00.000Z");
+  assert.deepEqual(publicData.weeklyQuotaHistory[0].planTypes, ["plus", "pro"]);
+  assert.equal(publicData.weeklyQuotaHistory[0].secret, undefined);
   assert.equal(publicData.sessions[0].filePath, undefined);
+  assert.equal(publicData.nodes[0].publicKey, undefined);
   assert.equal(publicData.source.sessionsPath, undefined);
   assert.equal(serialized.includes("private"), false);
   assert.equal(serialized.includes("must-not-leak"), false);

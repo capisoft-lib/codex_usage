@@ -5,125 +5,292 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>Local Usage — Coûts et activité</title>
-  <link rel="icon" href="/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
 </head>
-<body>
-  <header class="topbar">
+<body data-page="overview">
+  <aside class="sidenav" aria-label="Navigation principale" data-i18n-aria="nav.main">
     <div class="brand">
-      <img class="brand-mark" src="/icon.svg" alt="" aria-hidden="true">
+      <img class="brand-mark" src="./icon.svg" alt="" aria-hidden="true">
       <div><strong>Local Usage</strong><span data-i18n="brand.tagline">pour Codex · local</span></div>
     </div>
-    <nav class="periods" aria-label="Période" data-i18n-aria="nav.period">
-      <button data-period="today" data-i18n="period.today" class="active">Aujourd’hui</button>
-      <button data-period="7d" data-i18n="period.7d">7 jours</button>
-      <button data-period="30d" data-i18n="period.30d">30 jours</button>
-      <button data-period="all" data-i18n="period.all">Tout</button>
-      <div class="custom-period">
-        <button id="customPeriodButton" data-period="custom" data-i18n="period.custom" aria-expanded="false" aria-controls="customRangePanel">Personnalisé</button>
-        <div id="customRangePanel" class="custom-range-panel" hidden>
-          <label><span data-i18n="period.customStart">Début</span><input id="customStart" type="datetime-local" required></label>
-          <label><span data-i18n="period.customEnd">Fin</span><input id="customEnd" type="datetime-local"></label>
-          <label class="custom-now"><input id="customEndNow" type="checkbox"><span data-i18n="period.now">Maintenant</span></label>
-        </div>
-      </div>
+    <nav class="sidenav-links">
+      <a class="sidenav-link active" href="#overview" data-nav-section="overview">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        <span data-i18n="nav.overview">Aperçu</span>
+      </a>
+      <a class="sidenav-link" href="#projects" data-nav-section="projects">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h16M4 12h16M4 16.5h10"/></svg>
+        <span data-i18n="nav.projects">Projets</span>
+      </a>
+      <a class="sidenav-link" href="#conversations" data-nav-section="conversations">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14v9H8l-3 3V6z"/></svg>
+        <span data-i18n="nav.conversations">Conversations</span>
+      </a>
     </nav>
-    <div class="actions">
-      <select id="languageSelect" class="language-select" aria-label="Langue" data-i18n-aria="action.language">
-        <option value="fr">FR</option>
-        <option value="en">EN</option>
-        <option value="de">DE</option>
-        <option value="es">ES</option>
-        <option value="it">IT</option>
-        <option value="pt">PT</option>
-        <option value="ja">JA</option>
-        <option value="ru">RU</option>
-        <option value="zh">ZH</option>
-      </select>
-      <button id="pricingButton" class="icon-button" title="Configurer les tarifs" aria-label="Configurer les tarifs">$</button>
-      <button id="refreshButton" class="refresh-button"><span>↻</span> <span data-i18n="action.refresh">Actualiser</span></button>
+    <div class="sidenav-status">
+      <div class="privacy-pill"><span></span> <span class="privacy-copy" id="privacyLabel" data-i18n="hero.privacy">Données locales uniquement</span></div>
     </div>
-  </header>
+    <nav class="sidenav-footer">
+      <a class="sidenav-link" href="#settings" data-nav-section="settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 4.5v2M12 17.5v2M4.5 12h2M17.5 12h2M6.4 6.4l1.4 1.4M16.2 16.2l1.4 1.4M17.6 6.4l-1.4 1.4M7.8 16.2l-1.4 1.4"/></svg>
+        <span data-i18n="nav.settings">Réglages</span>
+      </a>
+      <a class="sidenav-link sidenav-quota" href="#quota" data-nav-section="quota">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+        <span class="sidenav-quota-copy">
+          <span data-i18n="nav.quota">Quota hebdomadaire</span>
+          <small class="sidenav-quota-meta">
+            <span data-quota-nav-remaining>—</span>
+            <span data-quota-nav-reset></span>
+          </small>
+        </span>
+      </a>
+    </nav>
+  </aside>
 
-  <main>
-    <section class="hero">
-      <div>
+  <div class="app">
+    <header class="topbar">
+      <div class="page-heading">
         <p class="eyebrow" id="periodLabel" data-i18n="period.todayLabel">AUJOURD’HUI</p>
-        <h1 data-i18n="hero.title">Coûts et activité</h1>
-      </div>
-      <div class="hero-status">
-        <div class="privacy-pill"><span></span> <span data-i18n="hero.privacy">Données locales uniquement</span></div>
+        <h1 id="pageTitle">Coûts et activité</h1>
         <p class="subtitle" id="freshness" data-i18n="load.loading">Chargement des sessions locales…</p>
       </div>
-    </section>
-
-    <section class="summary-grid" aria-label="Synthèse de la période" data-i18n-aria="summary.label">
-      <article class="panel cost-card" id="costSummary"></article>
-      <section class="kpi-grid" id="kpis" aria-label="Indicateurs principaux" data-i18n-aria="summary.kpis"></section>
-    </section>
-
-    <section class="analysis-grid">
-      <article class="panel projects-panel">
-        <div class="panel-heading">
-          <div><p class="eyebrow" data-i18n="projects.label">PROJETS</p><h2 data-i18n="projects.title">Coût par projet</h2></div>
-          <span class="panel-hint" data-i18n="projects.hint">Cliquez sur un projet pour filtrer</span>
+      <nav class="periods" aria-label="Période" data-i18n-aria="nav.period">
+        <button data-period="today" data-i18n="period.today" class="active">Aujourd’hui</button>
+        <button data-period="7d" data-i18n="period.7d">7 jours</button>
+        <button data-period="30d" data-i18n="period.30d">30 jours</button>
+        <button data-period="all" data-i18n="period.all">Tout</button>
+        <div class="custom-period">
+          <button id="customPeriodButton" data-period="custom" data-i18n="period.custom" aria-expanded="false" aria-controls="customRangePanel">Personnalisé</button>
+          <div id="customRangePanel" class="custom-range-panel" hidden>
+            <label><span data-i18n="period.customStart">Début</span><input id="customStart" type="datetime-local" required></label>
+            <label><span data-i18n="period.customEnd">Fin</span><input id="customEnd" type="datetime-local"></label>
+            <label class="custom-now"><input id="customEndNow" type="checkbox"><span data-i18n="period.now">Maintenant</span></label>
+          </div>
         </div>
-        <div id="projectBreakdown" class="project-breakdown"></div>
-      </article>
-
-      <article class="panel activity-panel">
-        <div class="panel-heading">
-          <div><p class="eyebrow" data-i18n="section.load">ACTIVITÉ</p><h2 data-i18n="chart.cost">Coût API dans le temps</h2></div>
-          <div class="legend"><span class="dot fresh"></span><span data-i18n="cost.fresh">Entrée fraîche</span> <span class="dot cached"></span><span data-i18n="cost.cached">Cache</span> <span class="dot output"></span><span data-i18n="cost.output">Sortie</span></div>
-        </div>
-        <div id="costChart" class="cost-chart"></div>
-      </article>
-    </section>
-
-    <section class="panel conversations-panel">
-      <div class="panel-heading table-heading">
-        <div><p class="eyebrow" data-i18n="section.conversations">DÉTAIL</p><h2 data-i18n="table.title">Conversations</h2></div>
-        <div class="table-tools">
-          <details id="folderFilter" class="folder-filter">
-            <summary id="folderFilterSummary" aria-label="Filtrer par projet ou dossier">Tous les dossiers</summary>
-            <div id="folderFilterOptions" class="folder-filter-options"></div>
-          </details>
-          <select id="modelFilter" aria-label="Filtrer par modèle"><option value="all" data-i18n="model.all">Tous les modèles</option></select>
-          <select id="usageFilter" aria-label="Filtrer par consommation">
-            <option value="0" data-i18n="filter.usageAll">Tous les volumes</option>
-            <option value="100000" data-i18n="filter.usage100k">≥ 100k tokens</option>
-            <option value="1000000" data-i18n="filter.usage1m">≥ 1M tokens</option>
-            <option value="10000000" data-i18n="filter.usage10m">≥ 10M tokens</option>
-          </select>
-          <input id="searchInput" type="search" placeholder="Rechercher…" data-i18n-placeholder="search.placeholder" aria-label="Rechercher une conversation">
-          <button id="resetTableFilters" class="filter-reset" data-i18n="filter.reset">Réinitialiser</button>
-        </div>
+      </nav>
+      <div class="data-mode-switch" data-local-only role="group" aria-label="Source des données" data-i18n-aria="data.source">
+        <button type="button" data-data-mode="local" class="active" aria-pressed="true" data-i18n="data.local">Local</button>
+        <button type="button" data-data-mode="centralized" aria-pressed="false" data-i18n="data.centralized">Centralized</button>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th><button class="sort-button" data-sort="title"><span data-i18n="table.conversation">Conversation</span><i></i></button></th>
-            <th><button class="sort-button" data-sort="project"><span data-i18n="table.project">Projet</span><i></i></button></th>
-            <th><button class="sort-button" data-sort="model"><span data-i18n="table.model">Configuration</span><i></i></button></th>
-            <th><button class="sort-button" data-sort="lastCall"><span data-i18n="table.lastCall">Dernier appel</span><i></i></button></th>
-            <th><button class="sort-button" data-sort="calls"><span data-i18n="table.calls">Appels</span><i></i></button></th>
-            <th><button class="sort-button" data-sort="tokens"><span data-i18n="table.tokens">Tokens</span><i></i></button></th>
-            <th><button class="sort-button" data-sort="cost"><span data-i18n="table.cost">Coût API</span><i></i></button></th>
-          </tr></thead>
-          <tbody id="conversationRows"></tbody>
-        </table>
+      <div class="actions">
+        <select id="languageSelect" class="language-select" aria-label="Langue" data-i18n-aria="action.language">
+          <option value="fr">FR</option>
+          <option value="en">EN</option>
+          <option value="de">DE</option>
+          <option value="es">ES</option>
+          <option value="it">IT</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+          <option value="ru">RU</option>
+          <option value="zh">ZH</option>
+        </select>
+        <button id="pricingButton" class="icon-button" title="Configurer les tarifs" aria-label="Configurer les tarifs">$</button>
+        <button id="refreshButton" class="refresh-button"><span>↻</span> <span data-i18n="action.refresh">Actualiser</span></button>
       </div>
-      <div class="table-footer">
-        <span id="tableCount">—</span>
-        <div class="page-size"><label for="pageSizeSelect" data-i18n="pagination.perPage">Par page</label><select id="pageSizeSelect"><option>10</option><option selected>25</option><option>50</option><option>100</option></select></div>
-        <nav class="pagination" aria-label="Pagination" data-i18n-aria="pagination.label">
-          <button id="previousPage" data-i18n-aria="pagination.previous" aria-label="Page précédente">←</button>
-          <span id="pageIndicator">—</span>
-          <button id="nextPage" data-i18n-aria="pagination.next" aria-label="Page suivante">→</button>
+    </header>
+
+    <main>
+      <section class="page" data-page="overview">
+        <div class="hero-status">
+          <div class="privacy-pill mobile-privacy"><span></span> <span class="privacy-copy" data-i18n="hero.privacy">Données locales uniquement</span></div>
+        </div>
+        <section class="summary-grid" aria-label="Synthèse de la période" data-i18n-aria="summary.label">
+          <article class="panel cost-card" id="costSummary"></article>
+          <section class="kpi-grid" id="kpis" aria-label="Indicateurs principaux" data-i18n-aria="summary.kpis"></section>
+        </section>
+        <section class="analysis-grid">
+          <article class="panel activity-panel">
+            <div class="panel-heading">
+              <div><p class="eyebrow" data-i18n="section.load">ACTIVITÉ</p><h2 data-i18n="chart.cost">Coût API dans le temps</h2></div>
+              <div class="legend"><span class="dot fresh"></span><span data-i18n="cost.fresh">Entrée fraîche</span> <span class="dot cached"></span><span data-i18n="cost.cached">Cache</span> <span class="dot output"></span><span data-i18n="cost.output">Sortie</span></div>
+            </div>
+            <div id="costChart" class="cost-chart"></div>
+          </article>
+          <article class="panel projects-panel">
+            <div class="panel-heading">
+              <div><p class="eyebrow" data-i18n="projects.label">PROJETS</p><h2 data-i18n="projects.title">Coût par projet</h2></div>
+              <a class="panel-link" href="#projects" data-i18n="projects.viewAll">Tous les projets</a>
+            </div>
+            <div id="overviewProjects" class="project-breakdown"></div>
+          </article>
+        </section>
+        <article class="panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow" data-i18n="section.conversations">DÉTAIL</p><h2 data-i18n="overview.recent">Conversations récentes</h2></div>
+            <a class="panel-link" href="#conversations" data-i18n="overview.viewAll">Voir tout</a>
+          </div>
+          <div id="recentConversations" class="recent-list"></div>
+        </article>
+      </section>
+
+      <section class="page" data-page="projects" hidden>
+        <div class="projects-layout">
+          <article class="panel project-list-panel">
+            <div class="panel-heading">
+              <div><p class="eyebrow" data-i18n="projects.label">PROJETS</p><h2 data-i18n="projects.title">Coût par projet</h2></div>
+            </div>
+            <div class="panel-toolbar">
+              <input id="projectSearch" type="search" placeholder="Rechercher un projet…" data-i18n-placeholder="search.projects" aria-label="Rechercher un projet">
+            </div>
+            <div id="projectList" class="project-breakdown project-list"></div>
+          </article>
+          <article class="panel project-detail-panel">
+            <div id="projectDetail" class="project-detail"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" data-page="quota" hidden>
+        <nav class="quota-history-nav" aria-label="Historique du quota" data-i18n-aria="quota.historyLabel">
+          <button id="quotaPrevious" class="quota-history-button" type="button" data-i18n-aria="quota.previous" aria-label="Période précédente">←</button>
+          <label class="quota-history-select"><span data-i18n="quota.period">Période de quota</span><select id="quotaPeriodSelect"></select></label>
+          <button id="quotaNext" class="quota-history-button" type="button" data-i18n-aria="quota.next" aria-label="Période suivante">→</button>
         </nav>
-      </div>
-    </section>
-  </main>
+        <article class="panel quota-panel" id="quotaHero"></article>
+        <section class="kpi-grid quota-kpis" id="quotaKpis" aria-label="Indicateurs du quota"></section>
+        <article class="panel activity-panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow" data-i18n="quota.window">FENÊTRE HEBDOMADAIRE</p><h2 data-i18n="chart.cost">Coût API dans le temps</h2></div>
+            <div class="legend"><span class="dot fresh"></span><span data-i18n="cost.fresh">Entrée fraîche</span> <span class="dot cached"></span><span data-i18n="cost.cached">Cache</span> <span class="dot output"></span><span data-i18n="cost.output">Sortie</span></div>
+          </div>
+          <div id="quotaChart" class="cost-chart"></div>
+        </article>
+        <article class="panel quota-forecast-panel">
+          <div class="panel-heading forecast-heading">
+            <div><p class="eyebrow" data-i18n="quota.forecastEyebrow">CONSOMMATION</p><h2 data-i18n="quota.forecastTitle">Évolution de la consommation du quota</h2></div>
+            <div class="forecast-legend" aria-hidden="true"><span class="forecast-key actual"></span><span data-i18n="quota.actual">Consommé</span><span class="forecast-key projected"></span><span data-i18n="quota.projected">Prévision</span><span class="forecast-key limit"></span><span data-i18n="quota.limit">Limite 100 %</span></div>
+          </div>
+          <div id="quotaForecastSummary" class="forecast-summary"></div>
+          <div id="quotaForecastChart" class="quota-forecast-chart"></div>
+        </article>
+      </section>
+
+      <section class="page" data-page="conversations" hidden>
+        <section class="panel conversations-panel">
+          <div class="panel-heading table-heading">
+            <div><p class="eyebrow" data-i18n="section.conversations">DÉTAIL</p><h2 data-i18n="table.title">Conversations</h2></div>
+            <div class="table-tools">
+              <select id="nodeFilter" aria-label="Filtrer par machine"><option value="all" data-i18n="node.all">Toutes les machines</option></select>
+              <details id="folderFilter" class="folder-filter">
+                <summary id="folderFilterSummary" aria-label="Filtrer par projet ou dossier">Tous les dossiers</summary>
+                <div id="folderFilterOptions" class="folder-filter-options"></div>
+              </details>
+              <select id="modelFilter" aria-label="Filtrer par modèle"><option value="all" data-i18n="model.all">Tous les modèles</option></select>
+              <select id="usageFilter" aria-label="Filtrer par consommation">
+                <option value="0" data-i18n="filter.usageAll">Tous les volumes</option>
+                <option value="100000" data-i18n="filter.usage100k">≥ 100k tokens</option>
+                <option value="1000000" data-i18n="filter.usage1m">≥ 1M tokens</option>
+                <option value="10000000" data-i18n="filter.usage10m">≥ 10M tokens</option>
+              </select>
+              <input id="searchInput" type="search" placeholder="Rechercher…" data-i18n-placeholder="search.placeholder" aria-label="Rechercher une conversation">
+              <button id="resetTableFilters" class="filter-reset" data-i18n="filter.reset">Réinitialiser</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th><button class="sort-button" data-sort="title"><span data-i18n="table.conversation">Conversation</span><i></i></button></th>
+                <th><button class="sort-button" data-sort="node"><span data-i18n="table.node">Machine</span><i></i></button></th>
+                <th><button class="sort-button" data-sort="project"><span data-i18n="table.project">Projet</span><i></i></button></th>
+                <th><button class="sort-button" data-sort="model"><span data-i18n="table.model">Configuration</span><i></i></button></th>
+                <th><button class="sort-button" data-sort="lastCall"><span data-i18n="table.lastCall">Dernier appel</span><i></i></button></th>
+                <th><button class="sort-button" data-sort="calls"><span data-i18n="table.calls">Appels</span><i></i></button></th>
+                <th><button class="sort-button" data-sort="tokens"><span data-i18n="table.tokens">Tokens</span><i></i></button></th>
+                <th><button class="sort-button" data-sort="cost"><span data-i18n="table.cost">Coût API</span><i></i></button></th>
+              </tr></thead>
+              <tbody id="conversationRows"></tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span id="tableCount">—</span>
+            <div class="page-size"><label for="pageSizeSelect" data-i18n="pagination.perPage">Par page</label><select id="pageSizeSelect"><option>10</option><option selected>25</option><option>50</option><option>100</option></select></div>
+            <nav class="pagination" aria-label="Pagination" data-i18n-aria="pagination.label">
+              <button id="previousPage" data-i18n-aria="pagination.previous" aria-label="Page précédente">←</button>
+              <span id="pageIndicator">—</span>
+              <button id="nextPage" data-i18n-aria="pagination.next" aria-label="Page suivante">→</button>
+            </nav>
+          </div>
+        </section>
+      </section>
+
+      <section class="page" data-page="settings" hidden>
+        <div class="settings-layout">
+          <article class="panel settings-card" data-local-only>
+            <div class="panel-heading">
+              <div><p class="eyebrow" data-i18n="data.source">SOURCE</p><h2 data-i18n="settings.source">Source des données</h2></div>
+            </div>
+            <div class="settings-body">
+              <p class="dialog-copy" data-i18n="settings.sourceCopy">Local lit les sessions de cette machine. Centralisé agrège les nœuds du réseau privé.</p>
+              <div class="data-mode-switch" role="group" aria-label="Source des données" data-i18n-aria="data.source">
+                <button type="button" data-data-mode="local" class="active" aria-pressed="true" data-i18n="data.local">Local</button>
+                <button type="button" data-data-mode="centralized" aria-pressed="false" data-i18n="data.centralized">Centralized</button>
+              </div>
+            </div>
+          </article>
+          <article class="panel settings-card hosted-only">
+            <div class="panel-heading">
+              <div><p class="eyebrow">MESH</p><h2 data-i18n="settings.machineAdmin">Administration Mesh</h2></div>
+            </div>
+            <div class="settings-body">
+              <p class="dialog-copy" data-i18n="settings.machineAdminCopy">Ajoutez ou révoquez les machines autorisées à synchroniser avec ce Site privé.</p>
+              <a class="primary-button settings-link" href="/admin" data-i18n="settings.openMachineAdmin">Gérer les machines</a>
+            </div>
+          </article>
+          <article class="panel settings-card">
+            <div class="panel-heading">
+              <div><p class="eyebrow" data-i18n="pricing.simulation">ESTIMATION</p><h2 data-i18n="pricing.title">Tarifs API</h2></div>
+            </div>
+            <div class="settings-body">
+              <p class="dialog-copy" data-i18n="settings.pricingHint">Cette estimation reproduit les tarifs API Standard ou Fast observés et ne représente pas votre abonnement Codex.</p>
+              <button id="settingsPricingButton" type="button" class="primary-button" data-i18n="action.pricing">Configurer les tarifs</button>
+            </div>
+          </article>
+          <article class="panel settings-card">
+            <div class="panel-heading">
+              <div><p class="eyebrow" data-i18n="table.node">MACHINE</p><h2 data-i18n="settings.machines">Machines observées</h2></div>
+            </div>
+            <div class="settings-body" id="settingsNodes"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span data-i18n="license.independent">Projet libre et indépendant pour les données locales Codex.</span>
+      <span class="site-footer-links"><a href="https://github.com/capisoft-lib/codex_usage" data-i18n="license.source">Code source</a><i aria-hidden="true">·</i><a href="https://github.com/capisoft-lib/codex_usage/blob/main/LICENSE" rel="license">AGPL-3.0-or-later</a></span>
+    </footer>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Navigation principale" data-i18n-aria="nav.main">
+    <a class="sidenav-link active" href="#overview" data-nav-section="overview">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      <span data-i18n="nav.overview">Aperçu</span>
+    </a>
+    <a class="sidenav-link" href="#projects" data-nav-section="projects">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h16M4 12h16M4 16.5h10"/></svg>
+      <span data-i18n="nav.projects">Projets</span>
+    </a>
+    <a class="sidenav-link sidenav-quota" href="#quota" data-nav-section="quota">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+      <span class="sidenav-quota-copy">
+        <span data-i18n="nav.quota">Quota hebdomadaire</span>
+        <small class="sidenav-quota-meta">
+          <span data-quota-nav-remaining>—</span>
+          <span data-quota-nav-reset></span>
+        </small>
+      </span>
+    </a>
+    <a class="sidenav-link" href="#conversations" data-nav-section="conversations">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14v9H8l-3 3V6z"/></svg>
+      <span data-i18n="nav.conversations">Conversations</span>
+    </a>
+    <a class="sidenav-link" href="#settings" data-nav-section="settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 4.5v2M12 17.5v2M4.5 12h2M17.5 12h2M6.4 6.4l1.4 1.4M16.2 16.2l1.4 1.4M17.6 6.4l-1.4 1.4M7.8 16.2l-1.4 1.4"/></svg>
+      <span data-i18n="nav.settings">Réglages</span>
+    </a>
+  </nav>
 
   <aside id="detailDrawer" class="drawer" aria-hidden="true">
     <div class="drawer-backdrop" data-close-drawer></div>
@@ -136,18 +303,13 @@
   <dialog id="pricingDialog">
     <form method="dialog" class="pricing-form">
       <div class="dialog-heading"><div><p class="eyebrow" data-i18n="pricing.simulation">SIMULATION</p><h2 data-i18n="pricing.title">Tarifs théoriques</h2></div><button value="cancel" class="drawer-close" aria-label="Fermer" data-i18n-aria="action.close">×</button></div>
-      <p class="dialog-copy" data-i18n="pricing.copy">Prix en dollars par million de tokens. Les modèles sans tarif public utilisent le tarif de référence. Ces montants simulent l’API standard et ne représentent pas votre abonnement Codex.</p>
+      <p class="dialog-copy" data-i18n="pricing.copy">Prix API Standard en dollars par million de tokens. Le tarif Fast observé et les majorations long contexte sont ensuite appliqués selon la grille officielle.</p>
       <div id="pricingRows" class="pricing-rows"></div>
       <div class="dialog-actions"><button id="resetPricing" type="button" class="secondary-button" data-i18n="pricing.reset">Valeurs par défaut</button><button id="savePricing" value="default" class="primary-button" data-i18n="pricing.save">Enregistrer</button></div>
     </form>
   </dialog>
 
-  <footer class="site-footer">
-    <span data-i18n="license.independent">Projet libre et indépendant pour les données locales Codex.</span>
-    <span class="site-footer-links"><a href="https://github.com/capisoft-lib/codex_usage" data-i18n="license.source">Code source</a><i aria-hidden="true">·</i><a href="https://github.com/capisoft-lib/codex_usage/blob/main/LICENSE" rel="license">AGPL-3.0-or-later</a></span>
-  </footer>
-
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="/app.js"></script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>

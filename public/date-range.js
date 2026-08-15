@@ -39,6 +39,32 @@ export function resolveDateRange(period, customRange, now = new Date()) {
   return { start, end };
 }
 
+export const WEEKLY_WINDOW_MINUTES = 7 * 24 * 60;
+
+export function weeklyWindowMinutes(quota) {
+  const minutes = Number(quota?.windowMinutes);
+  if (Number.isFinite(minutes) && minutes > 0) return Math.min(minutes, WEEKLY_WINDOW_MINUTES);
+  return WEEKLY_WINDOW_MINUTES;
+}
+
+export function resolveWeeklyRange(quota, now = new Date()) {
+  const windowMs = weeklyWindowMinutes(quota) * 60_000;
+  const nowTime = now instanceof Date ? now.getTime() : Date.parse(now);
+  const currentNow = Number.isFinite(nowTime) ? new Date(nowTime) : new Date();
+  const currentTime = currentNow.getTime();
+  const resetTime = Date.parse(quota?.resetsAt);
+  if (!Number.isFinite(resetTime)) {
+    return { start: new Date(currentTime - windowMs), end: currentNow, resetsAt: null };
+  }
+  const periodsBehind = Math.floor((currentTime - resetTime) / windowMs) + 1;
+  const nextReset = resetTime + periodsBehind * windowMs;
+  return {
+    start: new Date(nextReset - windowMs),
+    end: currentNow,
+    resetsAt: new Date(nextReset),
+  };
+}
+
 export function timestampInRange(timestamp, range) {
   const time = Date.parse(timestamp);
   const start = range?.start?.getTime();

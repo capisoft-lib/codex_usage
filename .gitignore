@@ -3,9 +3,12 @@ node_modules/
 .env.*
 !.env.example
 *.log
+*.etl
 .DS_Store
 Thumbs.db
 coverage/
+dist/
+sites-hub/public/dashboard/
 .cache/
 .codex/
 auth.json
