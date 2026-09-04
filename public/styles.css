@@ -441,7 +441,7 @@ h1 { margin: 0; }
 .cost-caption { margin: 0; color: var(--muted); font-size: 13px; }
 .cost-breakdown {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   margin-top: 22px;
   overflow: hidden;
@@ -466,9 +466,11 @@ h1 { margin: 0; }
 .cost-share::-moz-progress-bar, .project-bar::-moz-progress-bar { border-radius: inherit; }
 .cost-share.fresh::-webkit-progress-value { background: var(--accent); }
 .cost-share.cached::-webkit-progress-value { background: var(--cached); }
+.cost-share.writes::-webkit-progress-value { background: #d8b578; }
 .cost-share.output::-webkit-progress-value { background: var(--output); }
 .cost-share.fresh::-moz-progress-bar { background: var(--accent); }
 .cost-share.cached::-moz-progress-bar { background: var(--cached); }
+.cost-share.writes::-moz-progress-bar { background: #d8b578; }
 .cost-share.output::-moz-progress-bar { background: var(--output); }
 .cost-footnote { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 13px; color: var(--subtle); font-size: 10px; }
 .cost-config { padding: 0; border: 0; color: var(--muted); background: transparent; text-decoration: underline; text-decoration-color: #5b645d; text-underline-offset: 3px; cursor: pointer; }
@@ -825,6 +827,8 @@ body[data-page="quota"] .cost-chart.is-hourly .chart-column:first-child label { 
 }
 .chart-segment.fresh { fill: var(--accent); }
 .chart-segment.cached { fill: var(--cached); }
+.chart-segment.writes { fill: #d8b578; }
+.dot.writes { background: #d8b578; }
 .chart-segment.output { fill: var(--output); }
 .chart-column label {
   min-height: 13px;
@@ -1023,6 +1027,16 @@ tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px;
 dialog { width: min(700px, calc(100vw - 28px)); padding: 0; border: 1px solid var(--line); border-radius: 17px; color: var(--text); background: #121513; box-shadow: 0 25px 90px #000b, 0 0 24px rgba(201, 244, 109, .08); }
 dialog::backdrop { background: #000b; backdrop-filter: blur(3px); }
 .pricing-form { padding: 23px; }
+.pricing-form [hidden] { display: none !important; }
+.pricing-mode-label { display: block; margin: 16px 0 8px; font-size: 14px; }
+.pricing-form select { width: 100%; min-height: 40px; padding: 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface, #111413); color: var(--text); font: inherit; }
+.pricing-history { margin: 18px 0; }
+.pricing-history summary { cursor: pointer; padding: 8px 0; font-size: 14px; }
+.pricing-history-scroll { max-width: 100%; max-height: 45vh; overflow: auto; margin-top: 12px; }
+.pricing-history-table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 14px; }
+.pricing-history-table th, .pricing-history-table td { text-align: left; vertical-align: top; padding: 10px; border-bottom: 1px solid var(--line); white-space: normal; }
+.pricing-history-table small { display: block; margin-top: 5px; font-size: 12px; }
+.pricing-history-table a { color: var(--text); text-decoration: underline; }
 .dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; }
 .dialog-copy { color: var(--muted); font-size: 12px; line-height: 1.6; }
 .pricing-rows { max-height: 48vh; overflow: auto; margin: 19px 0; }
@@ -1227,3 +1241,5 @@ dialog::backdrop { background: #000b; backdrop-filter: blur(3px); }
   .periods button { padding: 7px 5px; }
   .custom-range-panel { grid-template-columns: 1fr; align-items: stretch; }
 }
+
+.quota-forecast-history-note { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--muted); }

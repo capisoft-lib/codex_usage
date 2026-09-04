@@ -7,6 +7,7 @@ function usageCounters(usage = {}) {
     outputTokens: usage.outputTokens || 0,
     reasoningOutputTokens: usage.reasoningOutputTokens || 0,
     totalTokens: usage.totalTokens || 0,
+    ...(Object.hasOwn(usage, "cacheWriteInputTokens") ? { cacheWriteInputTokens: usage.cacheWriteInputTokens } : {}),
   };
 }
 
@@ -93,6 +94,9 @@ function publicQuota(quota) {
     nodeId: quota.nodeId || null,
     nodeAlias: quota.nodeAlias || null,
     receivedAt: quota.receivedAt || null,
+    ...(Array.isArray(quota.observations) ? { observations: quota.observations.map((point) => ({
+      observedAt: point.observedAt, usedPercent: point.usedPercent,
+    })) } : {}),
   };
 }
 

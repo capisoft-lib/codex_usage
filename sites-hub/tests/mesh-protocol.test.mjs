@@ -3,6 +3,16 @@ import test from "node:test";
 import { createSignedEnvelope, generateNodeIdentity } from "../../src/mesh-protocol.mjs";
 import { MeshRequestError, readJsonBody, validatePayload, validateReadPayload, verifyEnvelope } from "../lib/mesh.ts";
 import { publicMeshIngressUrl } from "../lib/mesh-config.ts";
+import { sanitizeUsageForMesh } from "../../src/mesh-privacy.mjs";
+
+test("Sites preserves measured quota history while rejecting private or invalid point fields", () => {
+  const quota = { usedPercent: 25, observations: [{ observedAt: "2026-09-01T01:00:00Z", usedPercent: 10 }] };
+  const payload = { kind: "sync", snapshotVersion: 1, generatedAt: "2026-09-01T02:00:00Z", privacy: { projectMode: "hash", includeTitles: false }, upserts: [], removals: [], quota, quotaHistory: [quota] };
+  assert.doesNotThrow(() => validatePayload(payload));
+  for (const point of [{ observedAt: "bad", usedPercent: 10 }, { observedAt: "2026-09-01T01:00:00Z", usedPercent: null }, { ...quota.observations[0], prompt: "private" }]) {
+    assert.throws(() => validatePayload({ ...payload, quota: { ...quota, observations: [point] } }), /Quota/);
+  }
+});
 
 test("Sites exposes only a canonical HTTPS ingress origin in association commands", () => {
   assert.equal(publicMeshIngressUrl("https://mesh.example/"), "https://mesh.example");
@@ -35,6 +45,18 @@ test("Sites verifies envelopes produced by the desktop agent", async () => {
 test("Sites accepts only the strict signed-read payload shape", () => {
   assert.doesNotThrow(() => validateReadPayload({ kind: "read", requestVersion: 1 }));
   assert.throws(() => validateReadPayload({ kind: "read", requestVersion: 1, ownerId: "forbidden" }), /invalide/);
+});
+
+test("Sites accepts optional Astra cache-write counters and still accepts old agents", () => {
+  const usage = { inputTokens: 100, cachedInputTokens: 20, cacheWriteInputTokens: 30, outputTokens: 10, reasoningOutputTokens: 0, totalTokens: 110 };
+  const mesh = sanitizeUsageForMesh({ sessions: [{ id: "astra-compat", title: "Astra", models: ["gpt-6-astra"], usage, calls: [{ timestamp: "2026-09-04", model: "gpt-6-astra", serviceTier: "fast", usage }] }], generatedAt: "2026-09-04T00:00:00Z" }, { projectSalt: "fixture" });
+  const payload = { kind: "sync", snapshotVersion: 1, analyzerVersion: 8, generatedAt: mesh.generatedAt, privacy: mesh.privacy, upserts: mesh.sessions, removals: [] };
+  assert.doesNotThrow(() => validatePayload(payload));
+  payload.upserts[0].calls[0].usage.cacheWriteInputTokens = -1;
+  assert.throws(() => validatePayload(payload), /invalide/);
+  delete payload.upserts[0].calls[0].usage.cacheWriteInputTokens;
+  delete payload.upserts[0].usage.cacheWriteInputTokens;
+  assert.doesNotThrow(() => validatePayload(payload));
 });
 
 test("Sites rejects fields outside the minimized protocol", () => {

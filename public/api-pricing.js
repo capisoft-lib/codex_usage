@@ -1,137 +1,120 @@
-import { isFastServiceTier } from "./usage-pricing.js";
+import { PRICING_CATALOG, PRICING_CATALOG_VERSION, PRICING_VERIFIED_AT, canonicalPricingModel, resolveRate } from "./pricing-catalog.js";
 
-// Official Standard API text-token prices per 1M tokens, checked 2026-08-14.
-// Sources:
-// https://developers.openai.com/api/docs/pricing
-// https://developers.openai.com/api/docs/models/compare
+const latest = PRICING_CATALOG.filter((rate) => rate.billing === "api" && !rate.effectiveTo);
 export const DEFAULT_API_PRICING = Object.freeze({
-  reference: Object.freeze({ input: 5, cached: 0.5, output: 30, label: "GPT-5.6 Sol" }),
-  models: Object.freeze({
-    "gpt-5.6": Object.freeze({ input: 5, cached: 0.5, output: 30 }),
-    "gpt-5.6-sol": Object.freeze({ input: 5, cached: 0.5, output: 30 }),
-    "gpt-5.6-terra": Object.freeze({ input: 2, cached: 0.2, output: 12 }),
-    "gpt-5.6-luna": Object.freeze({ input: 0.2, cached: 0.02, output: 1.2 }),
-    "gpt-5.5": Object.freeze({ input: 5, cached: 0.5, output: 30 }),
-    "gpt-5.5-pro": Object.freeze({ input: 30, cached: 30, output: 180 }),
-    "gpt-5.4": Object.freeze({ input: 2.5, cached: 0.25, output: 15 }),
-    "gpt-5.4-mini": Object.freeze({ input: 0.75, cached: 0.075, output: 4.5 }),
-    "gpt-5.4-nano": Object.freeze({ input: 0.2, cached: 0.02, output: 1.25 }),
-    "gpt-5.4-pro": Object.freeze({ input: 30, cached: 30, output: 180 }),
-    "gpt-5.3-codex": Object.freeze({ input: 1.75, cached: 0.175, output: 14 }),
-    "gpt-5.2": Object.freeze({ input: 1.75, cached: 0.175, output: 14 }),
-    "gpt-5": Object.freeze({ input: 1.25, cached: 0.125, output: 10 }),
-  }),
-  // Fast (formerly Priority) currently has an official API rate for GPT-5.6.
-  // It is distinct from the ChatGPT credit multiplier used by Codex subscriptions.
-  fastMultipliers: Object.freeze({
-    "gpt-5.6-sol": 2,
-    "gpt-5.6-terra": 2,
-    "gpt-5.6-luna": 2,
-  }),
+  schemaVersion: 2, mode: "historical",
+  reference: Object.freeze({ input: 4, cached: 0.4, output: 20, label: "GPT-5.6 Sol" }),
+  models: Object.freeze(Object.fromEntries(latest.map((rate) => [rate.model, rate.standard]))),
+  fastMultipliers: Object.freeze(Object.fromEntries(latest.filter((rate) => rate.fastMultiplier).map((rate) => [rate.model, rate.fastMultiplier]))),
   effortOverrides: Object.freeze({}),
 });
 
+function validPrice(value) {
+  return value && ["input", "cached", "output"].every((key) => value[key] === null || (typeof value[key] === "number" && Number.isFinite(value[key]) && value[key] >= 0));
+}
+function validPrices(values) {
+  return Object.fromEntries(Object.entries(values && typeof values === "object" ? values : {}).filter(([, value]) => validPrice(value)).map(([key, value]) => [key, { input: value.input, cached: value.cached, output: value.output }]));
+}
+
 export function mergeApiPricing(saved = {}) {
+  if (!saved || typeof saved !== "object") saved = {};
+  const legacy = saved.schemaVersion !== 2 && Object.keys(saved).length > 0;
   return {
-    reference: { ...DEFAULT_API_PRICING.reference, ...(saved.reference || {}) },
-    models: { ...DEFAULT_API_PRICING.models, ...(saved.models || {}) },
-    fastMultipliers: { ...DEFAULT_API_PRICING.fastMultipliers, ...(saved.fastMultipliers || {}) },
-    effortOverrides: { ...(saved.effortOverrides || {}) },
+    schemaVersion: 2,
+    mode: !legacy && ["historical", "current", "custom"].includes(saved.mode) ? saved.mode : "historical",
+    asOf: typeof saved.asOf === "string" && Number.isFinite(Date.parse(saved.asOf)) ? saved.asOf : new Date().toISOString(),
+    legacyCustom: Boolean(legacy || saved.legacyCustom),
+    reference: validPrice(saved.reference) ? { ...saved.reference } : { ...DEFAULT_API_PRICING.reference },
+    models: { ...DEFAULT_API_PRICING.models, ...validPrices(saved.models) },
+    fastMultipliers: { ...DEFAULT_API_PRICING.fastMultipliers, ...Object.fromEntries(Object.entries(saved.fastMultipliers || {}).filter(([, value]) => Number.isFinite(value) && value >= 1)) },
+    effortOverrides: validPrices(saved.effortOverrides),
   };
 }
 
-function modelPriceFor(pricing, model) {
-  const normalized = String(model || "unknown").toLowerCase();
-  if (pricing.models[normalized]) return { ...pricing.models[normalized], exact: true, key: normalized };
-  const key = Object.keys(pricing.models)
-    .sort((left, right) => right.length - left.length)
-    .find((candidate) => normalized === candidate || normalized.startsWith(`${candidate}-`));
-  return key
-    ? { ...pricing.models[key], exact: true, key }
-    : { ...pricing.reference, exact: false, key: "reference" };
-}
-
 export function apiPriceFor(pricing, model, effort = null) {
-  const override = effort && pricing.effortOverrides?.[`${model}::${effort}`];
-  return override
-    ? { ...override, exact: true, key: `${model}::${effort}` }
-    : modelPriceFor(pricing, model);
+  const key = canonicalPricingModel(model);
+  const override = pricing.mode === "custom" && effort && pricing.effortOverrides?.[`${model}::${effort}`];
+  const rate = resolveRate("api", model, null, { mode: "current", asOf: pricing.asOf || PRICING_VERIFIED_AT }).rate;
+  const custom = pricing.mode === "custom" && (pricing.models?.[model] || pricing.models?.[key]);
+  const values = override || custom || rate?.standard || pricing.reference;
+  return { ...values, exact: Boolean(rate && pricing.mode !== "custom"), key: override ? `${model}::${effort}` : rate || custom ? key : "reference" };
 }
 
-function matchingKey(values, model) {
-  const normalized = String(model || "unknown").toLowerCase();
-  return Object.keys(values)
-    .sort((left, right) => right.length - left.length)
-    .find((candidate) => normalized === candidate || normalized.startsWith(`${candidate}-`));
-}
-
-export function apiFastMultiplierFor(pricing, model, serviceTier) {
-  if (!isFastServiceTier(serviceTier)) return 1;
-  if (String(model || "").toLowerCase() === "gpt-5.6") return 2;
-  const key = matchingKey(pricing.fastMultipliers || {}, model);
-  return key ? Math.max(1, Number(pricing.fastMultipliers[key]) || 1) : 1;
-}
-
-function isLongContext(model, inputTokens) {
-  if (inputTokens <= 272_000) return false;
-  const normalized = String(model || "").toLowerCase();
-  const eligible = [
-    "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna",
-    "gpt-5.5", "gpt-5.4", "gpt-5.4-pro",
-  ];
-  return normalized === "gpt-5.6"
-    || eligible.some((candidate) => normalized === candidate || normalized.startsWith(`${candidate}-20`));
+export function apiFastMultiplierFor(pricing, model, serviceTier, timestamp = null) {
+  if (serviceTier !== "priority" && serviceTier !== "fast") return 1;
+  const resolved = resolveRate("api", model, timestamp, { mode: timestamp ? pricing.mode : "current", asOf: pricing.asOf || PRICING_VERIFIED_AT });
+  const custom = pricing.mode === "custom" && pricing.fastMultipliers?.[resolved.key];
+  return custom || (resolved.rate?.fastFrom && resolved.day >= resolved.rate.fastFrom ? resolved.rate.fastMultiplier : null);
 }
 
 export function apiCostOfCalls(calls = [], pricing = mergeApiPricing()) {
   const result = {
-    cost: 0,
-    freshInputCost: 0,
-    cachedInputCost: 0,
-    outputCost: 0,
-    standardCost: 0,
-    fastPremiumCost: 0,
-    fastCalls: 0,
-    unsupportedFastCalls: 0,
-    estimatedCalls: 0,
-    longContextCalls: 0,
-    totalCalls: calls.length,
+    cost: 0, freshInputCost: 0, cachedInputCost: 0, cacheWriteCost: 0, outputCost: 0,
+    standardCost: 0, fastPremiumCost: 0, fastCalls: 0, unsupportedFastCalls: 0,
+    estimatedCalls: 0, unratedCalls: 0, missingTimestampCalls: 0, boundaryCalls: 0,
+    longContextCalls: 0, unobservedCacheWriteCalls: 0, totalCalls: calls.length, ratedCalls: 0,
+    catalogVersion: PRICING_CATALOG_VERSION, mode: pricing.mode, asOf: pricing.asOf,
+    ratesUsed: {}, usageByRate: {}, unratedReasons: {},
   };
-
+  const omit = (reason) => {
+    result.unratedCalls += 1;
+    result.unratedReasons[reason] = (result.unratedReasons[reason] || 0) + 1;
+    if (reason === "missing-timestamp") result.missingTimestampCalls += 1;
+    if (reason === "unsupported-fast") result.unsupportedFastCalls += 1;
+  };
   for (const call of calls) {
     const usage = call.usage || {};
-    const input = Math.max(0, Number(usage.inputTokens) || 0);
-    const cached = Math.min(input, Math.max(0, Number(usage.cachedInputTokens) || 0));
-    const output = Math.max(0, Number(usage.outputTokens) || 0);
-    const fresh = input - cached;
-    const price = apiPriceFor(pricing, call.model, call.effort);
-    const longContext = isLongContext(call.model, input);
-    const inputMultiplier = longContext ? 2 : 1;
-    const outputMultiplier = longContext ? 1.5 : 1;
-    const fastMultiplier = apiFastMultiplierFor(pricing, call.model, call.serviceTier);
-
-    const standardFreshInputCost = fresh * price.input * inputMultiplier / 1_000_000;
-    const standardCachedInputCost = cached * price.cached * inputMultiplier / 1_000_000;
-    const standardOutputCost = output * price.output * outputMultiplier / 1_000_000;
-    const standardCallCost = standardFreshInputCost + standardCachedInputCost + standardOutputCost;
-    const freshInputCost = standardFreshInputCost * fastMultiplier;
-    const cachedInputCost = standardCachedInputCost * fastMultiplier;
-    const outputCost = standardOutputCost * fastMultiplier;
-    const callCost = freshInputCost + cachedInputCost + outputCost;
-    result.freshInputCost += freshInputCost;
-    result.cachedInputCost += cachedInputCost;
-    result.outputCost += outputCost;
-    result.standardCost += standardCallCost;
-    result.fastPremiumCost += callCost - standardCallCost;
-    result.cost += callCost;
-    if (fastMultiplier > 1) result.fastCalls += 1;
-    else if (isFastServiceTier(call.serviceTier)) result.unsupportedFastCalls += 1;
-    if (!price.exact) result.estimatedCalls += 1;
+    const counters = [usage.inputTokens ?? 0, usage.cachedInputTokens ?? 0, usage.outputTokens ?? 0];
+    if (counters.some((value) => !Number.isFinite(value) || value < 0) || counters[1] > counters[0]) { omit("invalid-usage"); continue; }
+    const [input, cached, output] = counters;
+    const writes = usage.cacheWriteInputTokens ?? 0;
+    if (!Number.isFinite(writes) || writes < 0 || cached + writes > input) { omit("invalid-usage"); continue; }
+    const fresh = input - cached - writes;
+    const resolved = resolveRate("api", call.model, call.timestamp, { mode: pricing.mode === "custom" ? "current" : pricing.mode, asOf: pricing.asOf });
+    const rate = resolved.rate;
+    if (!rate && pricing.mode !== "custom") { omit(resolved.reason); continue; }
+    const price = pricing.mode === "custom" ? apiPriceFor(pricing, call.model, call.effort) : rate.standard;
+    if (writes > 0 && (!rate?.cacheWriteMultiplier || price.input === null)) { omit("unsupported-cache-write"); continue; }
+    if ((fresh && price.input === null) || (cached && price.cached === null) || (output && price.output === null)) { omit("unsupported-token-type"); continue; }
+    const longContext = Boolean(rate?.longContextThreshold && input > rate.longContextThreshold);
+    const tier = call.serviceTier || "default";
+    const fast = tier === "priority" || tier === "fast";
+    if (!["default", "standard", "priority", "fast"].includes(tier)) { omit("unsupported-tier"); continue; }
+    let multiplier = 1;
+    if (fast) {
+      multiplier = pricing.mode === "custom" ? pricing.fastMultipliers?.[resolved.key] : rate?.fastFrom && resolved.day >= rate.fastFrom ? rate.fastMultiplier : null;
+      if (!multiplier || (longContext && (!rate?.fastLongContextFrom || resolved.day < rate.fastLongContextFrom))) { omit("unsupported-fast"); continue; }
+    }
+    const freshCost = fresh * (price.input || 0) * (longContext ? 2 : 1) / 1_000_000;
+    const cachedCost = cached * (price.cached || 0) * (longContext ? 2 : 1) / 1_000_000;
+    const writeCost = writes * (price.input || 0) * (rate?.cacheWriteMultiplier || 1) * (longContext ? 2 : 1) / 1_000_000;
+    const outputCost = output * (price.output || 0) * (longContext ? 1.5 : 1) / 1_000_000;
+    const standard = freshCost + cachedCost + writeCost + outputCost;
+    result.freshInputCost += freshCost * multiplier;
+    result.cachedInputCost += cachedCost * multiplier;
+    result.cacheWriteCost += writeCost * multiplier;
+    result.outputCost += outputCost * multiplier;
+    result.standardCost += standard;
+    result.cost += standard * multiplier;
+    result.fastPremiumCost += standard * (multiplier - 1);
+    result.ratedCalls += 1;
+    if (fast) result.fastCalls += 1;
     if (longContext) result.longContextCalls += 1;
+    const unobservedWrites = Boolean(rate?.cacheWriteMultiplier && input > cached && !Object.hasOwn(usage, "cacheWriteInputTokens"));
+    if (unobservedWrites) result.unobservedCacheWriteCalls += 1;
+    const boundary = pricing.mode === "historical" && (resolved.boundaryDay || (fast && [rate.fastFrom, rate.fastLongContextFrom].includes(resolved.day)));
+    if (boundary) result.boundaryCalls += 1;
+    if (pricing.mode === "custom" || rate?.evidence === "reconstructed" || boundary || unobservedWrites) result.estimatedCalls += 1;
+    const id = pricing.mode === "custom" ? `custom:${price.key}` : rate.id;
+    result.ratesUsed[id] = (result.ratesUsed[id] || 0) + 1;
+    const bucketKey = JSON.stringify([id, fast, longContext, price.input, price.cached, price.output, rate?.cacheWriteMultiplier || 1, multiplier]);
+    const bucket = result.usageByRate[bucketKey] ||= {
+      rateId: id, calls: 0, freshInputTokens: 0, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 0,
+      appliedRates: { input: (price.input || 0) * (longContext ? 2 : 1) * multiplier, cached: (price.cached || 0) * (longContext ? 2 : 1) * multiplier, cacheWrite: (price.input || 0) * (rate?.cacheWriteMultiplier || 1) * (longContext ? 2 : 1) * multiplier, output: (price.output || 0) * (longContext ? 1.5 : 1) * multiplier },
+    };
+    bucket.calls += 1; bucket.freshInputTokens += fresh; bucket.cachedInputTokens += cached; bucket.cacheWriteInputTokens += writes; bucket.outputTokens += output;
   }
-
-  result.officialCoverage = result.totalCalls
-    ? (result.totalCalls - result.estimatedCalls) / result.totalCalls
-    : 1;
+  result.officialCoverage = calls.length ? (result.ratedCalls - result.estimatedCalls) / calls.length : 1;
+  result.complete = result.unratedCalls === 0;
   return result;
 }

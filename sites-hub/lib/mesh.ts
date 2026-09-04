@@ -109,13 +109,24 @@ export function validatePayload(value: unknown): asserts value is Record<string,
   const sessionKeys = new Set(["id", "sourceSessionId", "nodeId", "nodeAlias", "title", "startedAt", "updatedAt", "cwd", "projectName", "projectGitHubUrl", "source", "cliVersion", "modelProvider", "models", "exchanges", "completedExchanges", "userMessages", "assistantMessages", "modelCalls", "durationMs", "usage", "turns", "calls", "parseErrors"]);
   const turnKeys = new Set(["id", "startedAt", "completedAt", "durationMs", "model", "effort", "serviceTier", "calls", "usage"]);
   const callKeys = new Set(["timestamp", "turnId", "model", "effort", "serviceTier", "usage"]);
-  const usageKeys = new Set(["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens"]);
-  const quotaKeys = new Set(["usedPercent", "remainingPercent", "peakUsedPercent", "windowMinutes", "startsAt", "endsAt", "resetsAt", "resetsAvailable", "observedAt", "firstObservedAt", "peakObservedAt", "planType", "planTypes", "nodeId", "nodeAlias", "receivedAt"]);
+  const usageKeys = new Set(["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens", "cacheWriteInputTokens"]);
+  const quotaKeys = new Set(["usedPercent", "remainingPercent", "peakUsedPercent", "windowMinutes", "startsAt", "endsAt", "resetsAt", "resetsAvailable", "observedAt", "firstObservedAt", "peakObservedAt", "planType", "planTypes", "nodeId", "nodeAlias", "receivedAt", "observations"]);
   const hasOnly = (item: unknown, keys: Set<string>) => Boolean(item && typeof item === "object" && !Array.isArray(item) && Object.keys(item).every((key) => keys.has(key)));
+  const validQuota = (item: unknown) => {
+    if (!hasOnly(item, quotaKeys)) return false;
+    const quota = item as Record<string, unknown>;
+    return quota.observations === undefined || Array.isArray(quota.observations)
+      && quota.observations.length <= 10000 && quota.observations.every((value) => {
+        if (!hasOnly(value, new Set(["observedAt", "usedPercent"]))) return false;
+        const point = value as Record<string, unknown>;
+        return typeof point.observedAt === "string" && Number.isFinite(Date.parse(point.observedAt))
+          && Number.isFinite(point.usedPercent) && Number(point.usedPercent) >= 0 && Number(point.usedPercent) <= 100;
+      });
+  };
   const validUsage = (item: unknown) => {
     if (!hasOnly(item, usageKeys)) return false;
     const usage = item as Record<string, unknown>;
-    return [...usageKeys].every((key) => Number.isFinite(usage[key]) && Number(usage[key]) >= 0);
+    return [...usageKeys].every((key) => key === "cacheWriteInputTokens" && !Object.hasOwn(usage, key) || Number.isFinite(usage[key]) && Number(usage[key]) >= 0);
   };
   const validSession = (item: unknown) => {
     if (!hasOnly(item, sessionKeys)) return false;
@@ -134,9 +145,9 @@ export function validatePayload(value: unknown): asserts value is Record<string,
   if (!Array.isArray(payload.removals) || payload.removals.length > 100 || !payload.removals.every((id) => typeof id === "string" && id.length <= 256) || payload.removals.length + payload.upserts.length > 100) throw new Error("Suppressions Mesh invalides.");
   const privacy = payload.privacy as Record<string, unknown>;
   if (!hasOnly(privacy, new Set(["projectMode", "includeTitles"])) || !["hash", "basename", "full"].includes(String(privacy.projectMode)) || typeof privacy.includeTitles !== "boolean") throw new Error("Profil de confidentialité invalide.");
-  if (payload.quota != null && !hasOnly(payload.quota, quotaKeys)) throw new Error("Quota Mesh invalide.");
-  if (payload.shortQuota != null && !hasOnly(payload.shortQuota, quotaKeys)) throw new Error("Quota court Mesh invalide.");
-  if (payload.quotaHistory !== undefined && (!Array.isArray(payload.quotaHistory) || payload.quotaHistory.length > 500 || !payload.quotaHistory.every((quota) => hasOnly(quota, quotaKeys)))) throw new Error("Historique de quota Mesh invalide.");
+  if (payload.quota != null && !validQuota(payload.quota)) throw new Error("Quota Mesh invalide.");
+  if (payload.shortQuota != null && !validQuota(payload.shortQuota)) throw new Error("Quota court Mesh invalide.");
+  if (payload.quotaHistory !== undefined && (!Array.isArray(payload.quotaHistory) || payload.quotaHistory.length > 500 || !payload.quotaHistory.every(validQuota))) throw new Error("Historique de quota Mesh invalide.");
 }
 
 export function validateReadPayload(value: unknown): asserts value is Record<string, unknown> & { kind: "read"; requestVersion: 1 } {

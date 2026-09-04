@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
 import { ADDITIONAL_I18N, LOCALE_TAGS, resolveLanguage } from "../public/translations.js";
+import { PRICING_I18N } from "../public/pricing-ui.js";
 
 const expectedLanguages = ["fr", "en", "de", "es", "it", "pt", "ja", "ru", "zh"];
 const dynamicKeys = [
@@ -58,9 +59,10 @@ test("fully translates every label used by the runtime", async () => {
   const requiredKeys = [...new Set([...messageKeysIn(app), ...attributeKeysIn(html), ...dynamicKeys])].sort();
   const englishBody = app.match(/\r?\n  en: \{([\s\S]*?)\r?\n  \},\r?\n  de:/)?.[1];
   assert.ok(englishBody, "English reference catalogue not found");
-  const english = vm.runInNewContext(`({${englishBody}\n})`);
+  const english = { ...vm.runInNewContext(`({${englishBody}\n})`), ...PRICING_I18N.en };
 
-  for (const [language, messages] of Object.entries(ADDITIONAL_I18N)) {
+  for (const [language, baseMessages] of Object.entries(ADDITIONAL_I18N)) {
+    const messages = { ...baseMessages, ...PRICING_I18N[language] };
     const missing = requiredKeys.filter((key) => !Object.hasOwn(messages, key));
     assert.deepEqual(missing, [], `${language} is missing runtime translations`);
     for (const key of requiredKeys) {

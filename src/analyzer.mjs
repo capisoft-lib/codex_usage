@@ -13,7 +13,7 @@ const EMPTY_USAGE = Object.freeze({
   totalTokens: 0,
 });
 
-export const ANALYZER_VERSION = 7;
+export const ANALYZER_VERSION = 9;
 
 function projectNameFromCwd(value) {
   const name = String(value || "").replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop()?.trim();
@@ -106,6 +106,7 @@ export function normalizeUsage(raw = {}) {
     outputTokens: number(raw.output_tokens),
     reasoningOutputTokens: number(raw.reasoning_output_tokens),
     totalTokens: number(raw.total_tokens),
+    ...(Object.hasOwn(raw, "cache_write_input_tokens") ? { cacheWriteInputTokens: number(raw.cache_write_input_tokens) } : {}),
   };
 }
 
@@ -116,6 +117,8 @@ export function addUsage(left = EMPTY_USAGE, right = EMPTY_USAGE) {
     outputTokens: left.outputTokens + right.outputTokens,
     reasoningOutputTokens: left.reasoningOutputTokens + right.reasoningOutputTokens,
     totalTokens: left.totalTokens + right.totalTokens,
+    ...(Object.hasOwn(left, "cacheWriteInputTokens") || Object.hasOwn(right, "cacheWriteInputTokens")
+      ? { cacheWriteInputTokens: (left.cacheWriteInputTokens || 0) + (right.cacheWriteInputTokens || 0) } : {}),
   };
 }
 

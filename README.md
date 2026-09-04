@@ -447,7 +447,12 @@ The dashboard derives two separate estimates from locally observed model calls. 
 
 - **Codex credits** use the published ChatGPT Codex rate card. Each call inherits its recorded service tier, and known Fast/Priority calls receive the documented credit multiplier.
 - **API-equivalent cost** estimates what the same calls would have cost through the API. Standard prices, published API Fast rates, and long-context adjustments are applied independently from ChatGPT credit multipliers.
-- Unknown models remain visibly unrated for Codex credits and use a configurable reference API price instead of pretending to have an official rate.
+- Both estimates select the rate applicable at each call's original timestamp from a shared, versioned catalog. Later price cuts do not reduce earlier consumption; late imports retain their historical rate.
+- GPT-6 Astra is supported, including independent API Fast (2x), Codex Fast (2.5x), and API long-context rules.
+- Unknown models, dates outside documented coverage and unsupported tiers remain visibly unrated and are excluded from totals. A reference API price is available only in explicitly selected custom simulation.
+- The pricing dialog includes historical/current/custom modes, sourced rate history, catalog verification status and an export of the applied calculation. Legacy custom browser prices are preserved for custom simulation.
+
+See [Dated pricing research and maintenance](docs/pricing-history.md) for the August 2025–September 2026 research ledger, evidence gaps, UTC day-boundary convention and update procedure. Historical Codex credit coverage begins at the documented observation on August 11, 2026; older credit rates are not invented.
 
 Weekly quota history is reconstructed only from observed 10,080-minute rate-limit windows. Reset timestamps within five minutes are grouped. If a free or early reset starts a new quota before the previous nominal reset, the new start becomes the previous period's effective end.
 
@@ -455,7 +460,7 @@ Each historical period displays the plan code observed at that time, hourly acti
 
 Pricing references: [ChatGPT Codex plans and credits](https://learn.chatgpt.com/docs/pricing), [Codex Fast multipliers](https://learn.chatgpt.com/docs/agent-configuration/speed), [API pricing](https://developers.openai.com/api/docs/pricing), and [API Fast mode](https://developers.openai.com/api/docs/guides/fast-mode).
 
-The displayed dollar amount is theoretical API-equivalent cost, not a bill or the subscription price. Tool-call fees and cache-write charges are excluded because they are not fully observable in local session data.
+The displayed dollar amount is theoretical API-equivalent cost, not a bill or the subscription price. Observed cache writes are included with their dated rates. Tool fees and unobserved charges remain excluded. Analyzer v8 preserves optional cache-write counters; deploy the receiving hub before updating reporting agents.
 
 ## Privacy and security
 
@@ -549,7 +554,7 @@ Confirm that `MESH_HUB_URL` is the ingress origin and that `/healthz` returns HT
 
 ### A model uses the reference price
 
-Open the pricing dialog with the `$` button and enter that model's input, cached-input, and output prices per million tokens.
+Open the pricing dialog with the `$` button, choose **Custom simulation**, and enter that model's input, cached-input, and output prices per million tokens. Historical mode always uses the dated official catalog; custom rates do not rewrite it.
 
 ### Port 4317 is already in use
 

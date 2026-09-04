@@ -20,6 +20,10 @@ function normalizedSamples(samples, from, to) {
     .sort((left, right) => left.time - right.time);
 }
 
+function hasUnratedSamples(samples, from, to) {
+  return samples.some((sample) => sample?.rated === false && (validTime(sample.timestamp) === null || (validTime(sample.timestamp) >= from && validTime(sample.timestamp) <= to)));
+}
+
 function comparableQuota(period, planType, nodeId) {
   const expectedPlan = String(planType || "").trim().toLowerCase();
   const periodPlan = String(period?.planType || "").trim().toLowerCase();
@@ -58,13 +62,14 @@ export function weeklyForecastTicks(rangeStart, rangeEnd) {
   return ticks;
 }
 
-export function interpolateForecastPercent(points, timestamp) {
+export function interpolateForecastPercent(points, timestamp, { clamp = true } = {}) {
   const targetTime = validTime(timestamp);
   const values = (points || [])
     .map((point) => ({ time: validTime(point?.timestamp), percent: Number(point?.percent) }))
     .filter((point) => point.time !== null && Number.isFinite(point.percent))
     .sort((left, right) => left.time - right.time);
   if (targetTime === null || !values.length) return null;
+  if (!clamp && (targetTime < values[0].time || targetTime > values.at(-1).time)) return null;
   if (targetTime <= values[0].time) return values[0].percent;
   if (targetTime >= values.at(-1).time) return values.at(-1).percent;
 
@@ -88,6 +93,7 @@ export function estimateQuotaCapacityCredits({
     const observedTime = validTime(period?.peakObservedAt || period?.observedAt);
     const usedPercent = Number(period?.peakUsedPercent ?? period?.usedPercent);
     if (startTime === null || observedTime === null || observedTime <= startTime || !Number.isFinite(usedPercent) || usedPercent <= 0) return null;
+    if (hasUnratedSamples(samples, startTime, observedTime)) return null;
     const consumedCredits = normalizedSamples(samples, startTime, observedTime).reduce((sum, sample) => sum + sample.value, 0);
     if (consumedCredits <= 0) return null;
     return { observedTime, capacityCredits: consumedCredits * 100 / usedPercent };
@@ -147,6 +153,7 @@ function projectedPoints(anchorTime, endTime, usedPercent, percentPerHour) {
 
 export function buildQuotaForecast({
   samples = [],
+  observations = [],
   rangeStart,
   rangeEnd,
   observedAt,
@@ -171,25 +178,53 @@ export function buildQuotaForecast({
   const anchorTime = Math.min(endTime, Math.max(observedAnchorTime, asOfTime));
   if (observedAnchorTime <= startTime || !hasUsedPercent || !Number.isFinite(parsedUsedPercent) || parsedUsedPercent < 0) return { status: "insufficient" };
 
+  const shouldProject = project !== false && anchorTime < endTime;
+  const partialHistory = hasUnratedSamples(samples, startTime, anchorTime);
   const observedSamples = normalizedSamples(samples, startTime, observedAnchorTime);
   const currentCredits = observedSamples.reduce((sum, sample) => sum + sample.value, 0);
+  const measuredByTime = new Map();
+  for (const point of observations || []) {
+    const time = validTime(point?.observedAt);
+    if (time !== null && time >= startTime && time <= observedAnchorTime
+      && Number.isFinite(point.usedPercent) && point.usedPercent >= 0 && point.usedPercent <= 100) {
+      measuredByTime.set(time, { timestamp: new Date(time).toISOString(), percent: point.usedPercent });
+    }
+  }
+  const measured = [...measuredByTime.entries()].sort((a, b) => a[0] - b[0]).map(([, point]) => point);
+  const historySource = measured.length ? "observed" : "estimated";
+  const actual = measured.length ? measured : cumulativePoints(observedSamples, startTime, observedAnchorTime, safeUsedPercent, currentCredits);
+  // A stale observation is not evidence of a plateau through the present.
+  // Measured history stops at its last actual sample, even without a forecast.
+  if (!measured.length && anchorTime > observedAnchorTime) actual.push({ timestamp: new Date(anchorTime).toISOString(), percent: safeUsedPercent });
+  const historyOnly = (reason) => measured.length ? {
+    status: "ready", rangeStart: new Date(startTime).toISOString(), rangeEnd: new Date(endTime).toISOString(),
+    observedAt: actual.at(-1).timestamp, asOf: new Date(anchorTime).toISOString(), usedPercent: safeUsedPercent,
+    historySource, partialHistory, actual, projected: [], completed: !shouldProject,
+    projectionUnavailable: shouldProject, expectedFinalPercent: actual.at(-1).percent, reason,
+  } : { status: "insufficient", ...(reason ? { reason } : {}) };
   const historicalCapacityCredits = finiteNonNegative(capacityCredits);
-  const currentCapacityCredits = safeUsedPercent > 0 && currentCredits > 0 ? currentCredits * 100 / safeUsedPercent : 0;
+  const currentCapacityCredits = (!partialHistory || !shouldProject) && safeUsedPercent > 0 && currentCredits > 0 ? currentCredits * 100 / safeUsedPercent : 0;
   const calibratedCapacityCredits = historicalCapacityCredits || currentCapacityCredits;
-  if (calibratedCapacityCredits <= 0) return { status: "insufficient" };
+  if (calibratedCapacityCredits <= 0) return historyOnly(partialHistory ? "unrated-usage" : undefined);
 
-  const hourlyValues = rollingHourlyValues(samples, anchorTime, lookbackHours);
-  if (!hourlyValues.length) return { status: "insufficient" };
+  // Old gaps must not suppress a fully priced selected window. Use only the
+  // contiguous, fully priced hourly history after the most recent gap.
+  const requestedHours = Math.max(1, Math.floor(finiteNonNegative(lookbackHours)) || DEFAULT_LOOKBACK_HOURS);
+  const historyStart = anchorTime - requestedHours * FORECAST_HOUR_MS;
+  const latestGap = samples.reduce((latest, sample) => {
+    const time = validTime(sample?.timestamp);
+    return sample?.rated === false && time !== null && time >= historyStart && time <= anchorTime ? Math.max(latest, time) : latest;
+  }, -Infinity);
+  const availableHours = Number.isFinite(latestGap) ? Math.min(requestedHours, Math.floor((anchorTime - latestGap) / FORECAST_HOUR_MS)) : requestedHours;
+  if (shouldProject && availableHours < 1) return historyOnly("unrated-usage");
+  const historySamples = Number.isFinite(latestGap) ? samples.filter((sample) => validTime(sample?.timestamp) > latestGap) : samples;
+  const hourlyValues = shouldProject ? rollingHourlyValues(historySamples, anchorTime, availableHours) : [];
+  if (shouldProject && !hourlyValues.length) return historyOnly();
   const creditsPerHour = exponentialWeightedAverage(hourlyValues, halfLifeHours);
   const quotaPercentPerCredit = 100 / calibratedCapacityCredits;
   const percentPerHour = creditsPerHour * quotaPercentPerCredit;
   const remainingHours = Math.max(0, (endTime - anchorTime) / FORECAST_HOUR_MS);
-  const shouldProject = project !== false && anchorTime < endTime;
   const expectedFinalPercent = shouldProject ? safeUsedPercent + remainingHours * percentPerHour : safeUsedPercent;
-  const actual = cumulativePoints(observedSamples, startTime, observedAnchorTime, safeUsedPercent, currentCredits);
-  if (anchorTime > observedAnchorTime) {
-    actual.push({ timestamp: new Date(anchorTime).toISOString(), percent: safeUsedPercent });
-  }
 
   return {
     status: "ready",
@@ -201,6 +236,9 @@ export function buildQuotaForecast({
     currentCredits,
     capacityCredits: calibratedCapacityCredits,
     calibrationSource: historicalCapacityCredits > 0 ? "history" : "current",
+    partialHistory,
+    historySource,
+    historyHours: hourlyValues.length,
     creditsPerHour,
     creditsPerDay: creditsPerHour * 24,
     expectedFinalPercent,

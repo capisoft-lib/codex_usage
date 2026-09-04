@@ -11,9 +11,9 @@ const usage = (inputTokens, cachedInputTokens, outputTokens) => ({
 test("recognizes current GPT-5.6 Sol pricing without a fallback", () => {
   const pricing = mergeApiPricing();
   assert.deepEqual(apiPriceFor(pricing, "gpt-5.6-sol"), {
-    input: 5,
-    cached: 0.5,
-    output: 30,
+    input: 4,
+    cached: 0.4,
+    output: 20,
     exact: true,
     key: "gpt-5.6-sol",
   });
@@ -21,7 +21,7 @@ test("recognizes current GPT-5.6 Sol pricing without a fallback", () => {
 
 test("separates fresh, cached, and output cost", () => {
   const result = apiCostOfCalls([{
-    model: "gpt-5.6-sol",
+    timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.6-sol",
     usage: usage(200_000, 160_000, 20_000),
   }], mergeApiPricing());
 
@@ -29,13 +29,14 @@ test("separates fresh, cached, and output cost", () => {
   assert.equal(result.cachedInputCost, 0.08);
   assert.equal(result.outputCost, 0.6);
   assert.equal(result.cost, 0.88);
-  assert.equal(result.estimatedCalls, 0);
-  assert.equal(result.officialCoverage, 1);
+  assert.equal(result.unobservedCacheWriteCalls, 1);
+  assert.equal(result.estimatedCalls, 1);
+  assert.equal(result.officialCoverage, 0);
 });
 
 test("applies GPT-5.6 long-context input and output multipliers", () => {
   const result = apiCostOfCalls([{
-    model: "gpt-5.6-sol",
+    timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.6-sol",
     usage: usage(300_000, 0, 10_000),
   }], mergeApiPricing());
 
@@ -48,7 +49,7 @@ test("applies GPT-5.6 long-context input and output multipliers", () => {
 test("applies the official API Fast rate instead of the ChatGPT credit multiplier", () => {
   const pricing = mergeApiPricing();
   const result = apiCostOfCalls([{
-    model: "gpt-5.6-sol",
+    timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.6-sol",
     serviceTier: "priority",
     usage: usage(200_000, 160_000, 20_000),
   }], pricing);
@@ -64,7 +65,7 @@ test("applies the official API Fast rate instead of the ChatGPT credit multiplie
 
 test("combines Fast and long-context API surcharges", () => {
   const result = apiCostOfCalls([{
-    model: "gpt-5.6-terra",
+    timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.6-terra",
     serviceTier: "fast",
     usage: usage(300_000, 0, 10_000),
   }], mergeApiPricing());
@@ -80,13 +81,14 @@ test("combines Fast and long-context API surcharges", () => {
 
 test("does not invent an API Fast rate for models without a documented one", () => {
   const result = apiCostOfCalls([{
-    model: "gpt-5.5",
+    timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.5",
     serviceTier: "priority",
     usage: usage(1_000_000, 0, 0),
   }], mergeApiPricing());
 
-  assert.equal(result.cost, 10);
-  assert.equal(result.longContextCalls, 1);
+  assert.equal(result.cost, 0);
+  assert.equal(result.unratedCalls, 1);
+  assert.equal(result.longContextCalls, 0);
   assert.equal(result.fastCalls, 0);
   assert.equal(result.unsupportedFastCalls, 1);
 });
@@ -99,7 +101,7 @@ test("uses exact API rates for every model in the Codex credit rate card", () =>
 
 test("does not apply the long-context surcharge to GPT-5.4 mini", () => {
   const result = apiCostOfCalls([{
-    model: "gpt-5.4-mini",
+    timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.4-mini",
     usage: usage(300_000, 0, 10_000),
   }], mergeApiPricing());
 
@@ -109,15 +111,15 @@ test("does not apply the long-context surcharge to GPT-5.4 mini", () => {
 
 test("merges stored overrides while adding newly supported models", () => {
   const pricing = mergeApiPricing({ models: { "custom-model": { input: 1, cached: 0.1, output: 2 } } });
-  assert.equal(pricing.models["gpt-5.6-sol"].input, 5);
+  assert.equal(pricing.models["gpt-5.6-sol"].input, 4);
   assert.equal(pricing.models["custom-model"].output, 2);
 });
 
-test("reports reference-rate coverage for unknown models", () => {
+test("reports unrated coverage for unknown models", () => {
   const result = apiCostOfCalls([
-    { model: "unknown-model", usage: usage(1_000_000, 0, 0) },
-    { model: "gpt-5.6-sol", usage: usage(1_000_000, 0, 0) },
+    { timestamp: "2026-08-14T12:00:00Z", model: "unknown-model", usage: usage(1_000_000, 0, 0) },
+    { timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.6-sol", usage: { ...usage(1_000_000, 0, 0), cacheWriteInputTokens: 0 } },
   ], mergeApiPricing());
-  assert.equal(result.estimatedCalls, 1);
+  assert.equal(result.unratedCalls, 1);
   assert.equal(result.officialCoverage, 0.5);
 });

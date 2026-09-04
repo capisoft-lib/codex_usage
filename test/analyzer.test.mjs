@@ -120,7 +120,7 @@ test("reuses persisted per-file analysis when a session has not changed", async 
 
   const first = await analyzeCodexUsage({ codexHome });
   const second = await analyzeCodexUsage({ codexHome, previousData: first });
-  assert.equal(first.analyzerVersion, 7);
+  assert.equal(first.analyzerVersion, 9);
   assert.equal(second.sessions[0], first.sessions[0]);
   assert.equal(second.sessions[0].fileSize > 0, true);
   assert.equal(Number.isFinite(second.sessions[0].fileModifiedAtMs), true);
@@ -155,7 +155,7 @@ test("supports least-privilege scoped sources without a Codex home mount", async
   const result = await analyzeCodexUsage(options);
   assert.equal(result.sessions[0].title, "Scoped source");
   assert.equal(result.source.mode, "scoped");
-  assert.match(await usageFingerprint(options), /^7:1:/);
+  assert.match(await usageFingerprint(options), /^9:1:/);
 });
 
 test("fingerprints include the analyzer version so persisted snapshots migrate after upgrades", async () => {
@@ -166,7 +166,7 @@ test("fingerprints include the analyzer version so persisted snapshots migrate a
   await mkdir(archivedSessionsPath);
   await writeFile(path.join(sessionsPath, "session.jsonl"), `${JSON.stringify({ type: "session_meta", payload: { id: "versioned" } })}\n`);
   const fingerprint = await usageFingerprint({ sessionsPath, archivedSessionsPath, sessionIndexPath: path.join(root, "missing-index.jsonl") });
-  assert.match(fingerprint, /^7:/);
+  assert.match(fingerprint, /^9:/);
 });
 
 test("rejects a source with no readable session directory", async () => {
