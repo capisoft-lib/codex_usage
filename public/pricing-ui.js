@@ -338,17 +338,47 @@ for (const [language, values] of Object.entries(CACHE_WRITE_I18N)) {
 }
 
 const FORECAST_HISTORY_I18N = {
-  "en": "Detailed consumption history is incomplete. The forecast uses complete periods, recent priced activity and the observed quota.",
-  "fr": "Historique détaillé incomplet. La prévision utilise les périodes complètes, l’activité récente tarifée et le quota observé.",
-  "de": "Der detaillierte Verbrauchsverlauf ist unvollständig. Die Prognose nutzt vollständige Zeiträume, aktuelle bewertbare Aktivität und die beobachtete Quote.",
-  "es": "El historial detallado está incompleto. La previsión usa periodos completos, actividad reciente con tarifa y la cuota observada.",
-  "it": "Lo storico dettagliato è incompleto. La previsione usa periodi completi, attività recente con tariffa e la quota osservata.",
-  "pt": "O histórico detalhado está incompleto. A previsão usa períodos completos, atividade recente com tarifa e a quota observada.",
-  "ja": "詳細な消費履歴は不完全です。予測には完全な期間、料金が判明している最近の利用、観測された割り当てを使用します。",
-  "ru": "Подробная история расхода неполна. Прогноз использует полные периоды, недавнюю активность с известными тарифами и наблюдаемую квоту.",
-  "zh": "详细消耗历史不完整。预测使用完整周期、近期价格已知的活动和观测到的额度。"
+  "en": [
+    "Estimated past consumption",
+    "Past consumption is estimated from priced calls and scaled to the observed quota. Unpriced calls make its shape approximate; forecasts use complete periods and recent priced activity."
+  ],
+  "fr": [
+    "Consommation passée estimée",
+    "La consommation passée est estimée à partir des appels tarifés et recalée sur le quota observé. Les appels sans tarif rendent sa forme approximative ; la prévision utilise les périodes complètes et l’activité récente tarifée."
+  ],
+  "de": [
+    "Geschätzter bisheriger Verbrauch",
+    "Der bisherige Verbrauch wird aus bewertbaren Aufrufen geschätzt und an die beobachtete Quote angepasst. Aufrufe ohne Tarif machen den Verlauf ungenau; die Prognose nutzt vollständige Zeiträume und aktuelle bewertbare Aktivität."
+  ],
+  "es": [
+    "Consumo pasado estimado",
+    "El consumo pasado se estima con las llamadas con tarifa y se ajusta a la cuota observada. Las llamadas sin tarifa hacen aproximada la curva; la previsión usa periodos completos y actividad reciente con tarifa."
+  ],
+  "it": [
+    "Consumo passato stimato",
+    "Il consumo passato è stimato dalle chiamate con tariffa e adeguato alla quota osservata. Le chiamate senza tariffa rendono la curva approssimativa; la previsione usa periodi completi e attività recente con tariffa."
+  ],
+  "pt": [
+    "Consumo passado estimado",
+    "O consumo passado é estimado a partir das chamadas com tarifa e ajustado à quota observada. As chamadas sem tarifa tornam a curva aproximada; a previsão usa períodos completos e atividade recente com tarifa."
+  ],
+  "ja": [
+    "過去の推定消費量",
+    "過去の消費は料金が判明した呼び出しから推定し、観測された割り当てに合わせています。料金不明の呼び出しがあるため曲線は概算です。予測には完全な期間と最近の料金既知の利用を使用します。"
+  ],
+  "ru": [
+    "Оценка прошлого расхода",
+    "Прошлый расход оценивается по вызовам с известной ценой и приводится к наблюдаемой квоте. Неизвестные тарифы делают форму кривой приблизительной; прогноз использует полные периоды и недавнюю активность с известной ценой."
+  ],
+  "zh": [
+    "估算的历史消耗",
+    "历史消耗根据价格已知的调用估算，并按观测额度调整。价格未知的调用使曲线形状近似；预测使用完整周期及近期价格已知的活动。"
+  ]
 };
-for (const [language, message] of Object.entries(FORECAST_HISTORY_I18N)) PRICING_I18N[language]["dated.forecastPartial"] = message;
+for (const [language, [label, description]] of Object.entries(FORECAST_HISTORY_I18N)) {
+  PRICING_I18N[language]["dated.forecastPartial"] = description;
+  PRICING_I18N[language]["dated.estimatedHistory"] = label;
+}
 
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 

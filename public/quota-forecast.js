@@ -62,13 +62,14 @@ export function weeklyForecastTicks(rangeStart, rangeEnd) {
   return ticks;
 }
 
-export function interpolateForecastPercent(points, timestamp) {
+export function interpolateForecastPercent(points, timestamp, { clamp = true } = {}) {
   const targetTime = validTime(timestamp);
   const values = (points || [])
     .map((point) => ({ time: validTime(point?.timestamp), percent: Number(point?.percent) }))
     .filter((point) => point.time !== null && Number.isFinite(point.percent))
     .sort((left, right) => left.time - right.time);
   if (targetTime === null || !values.length) return null;
+  if (!clamp && (targetTime < values[0].time || targetTime > values.at(-1).time)) return null;
   if (targetTime <= values[0].time) return values[0].percent;
   if (targetTime >= values.at(-1).time) return values.at(-1).percent;
 
@@ -176,11 +177,12 @@ export function buildQuotaForecast({
   const anchorTime = Math.min(endTime, Math.max(observedAnchorTime, asOfTime));
   if (observedAnchorTime <= startTime || !hasUsedPercent || !Number.isFinite(parsedUsedPercent) || parsedUsedPercent < 0) return { status: "insufficient" };
 
+  const shouldProject = project !== false && anchorTime < endTime;
   const partialHistory = hasUnratedSamples(samples, startTime, anchorTime);
   const observedSamples = normalizedSamples(samples, startTime, observedAnchorTime);
   const currentCredits = observedSamples.reduce((sum, sample) => sum + sample.value, 0);
   const historicalCapacityCredits = finiteNonNegative(capacityCredits);
-  const currentCapacityCredits = !partialHistory && safeUsedPercent > 0 && currentCredits > 0 ? currentCredits * 100 / safeUsedPercent : 0;
+  const currentCapacityCredits = (!partialHistory || !shouldProject) && safeUsedPercent > 0 && currentCredits > 0 ? currentCredits * 100 / safeUsedPercent : 0;
   const calibratedCapacityCredits = historicalCapacityCredits || currentCapacityCredits;
   if (calibratedCapacityCredits <= 0) return { status: "insufficient", ...(partialHistory ? { reason: "unrated-usage" } : {}) };
 
@@ -193,19 +195,16 @@ export function buildQuotaForecast({
     return sample?.rated === false && time !== null && time >= historyStart && time <= anchorTime ? Math.max(latest, time) : latest;
   }, -Infinity);
   const availableHours = Number.isFinite(latestGap) ? Math.min(requestedHours, Math.floor((anchorTime - latestGap) / FORECAST_HOUR_MS)) : requestedHours;
-  if (availableHours < 1) return { status: "insufficient", reason: "unrated-usage" };
+  if (shouldProject && availableHours < 1) return { status: "insufficient", reason: "unrated-usage" };
   const historySamples = Number.isFinite(latestGap) ? samples.filter((sample) => validTime(sample?.timestamp) > latestGap) : samples;
-  const hourlyValues = rollingHourlyValues(historySamples, anchorTime, availableHours);
-  if (!hourlyValues.length) return { status: "insufficient" };
+  const hourlyValues = shouldProject ? rollingHourlyValues(historySamples, anchorTime, availableHours) : [];
+  if (shouldProject && !hourlyValues.length) return { status: "insufficient" };
   const creditsPerHour = exponentialWeightedAverage(hourlyValues, halfLifeHours);
   const quotaPercentPerCredit = 100 / calibratedCapacityCredits;
   const percentPerHour = creditsPerHour * quotaPercentPerCredit;
   const remainingHours = Math.max(0, (endTime - anchorTime) / FORECAST_HOUR_MS);
-  const shouldProject = project !== false && anchorTime < endTime;
   const expectedFinalPercent = shouldProject ? safeUsedPercent + remainingHours * percentPerHour : safeUsedPercent;
-  const actual = partialHistory
-    ? [{ timestamp: new Date(observedAnchorTime).toISOString(), percent: safeUsedPercent }]
-    : cumulativePoints(observedSamples, startTime, observedAnchorTime, safeUsedPercent, currentCredits);
+  const actual = cumulativePoints(observedSamples, startTime, observedAnchorTime, safeUsedPercent, currentCredits);
   if (anchorTime > observedAnchorTime) {
     actual.push({ timestamp: new Date(anchorTime).toISOString(), percent: safeUsedPercent });
   }

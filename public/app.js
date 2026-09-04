@@ -968,8 +968,14 @@ function bindQuotaForecastHover(chart, forecast) {
     activeTime = Math.min(endTime, Math.max(startTime, timestamp));
     const projected = forecast.projected.length > 0 && activeTime > actualEndTime;
     const series = projected ? forecast.projected : forecast.actual;
-    const percent = interpolateForecastPercent(series, activeTime);
-    if (!Number.isFinite(percent)) return;
+    const percent = interpolateForecastPercent(series, activeTime, { clamp: !forecast.partialHistory });
+    if (!Number.isFinite(percent)) {
+      layer.classList.remove("is-visible");
+      layer.setAttribute("aria-hidden", "true");
+      target.setAttribute("aria-valuenow", Math.round((activeTime - startTime) / (endTime - startTime) * 100));
+      target.setAttribute("aria-valuetext", `${forecastDateTimeLabel(activeTime)} · ${t("dated.unknown")}`);
+      return;
+    }
 
     const ratio = (activeTime - startTime) / (endTime - startTime);
     const x = plot.left + ratio * (plotRight - plot.left);
@@ -977,7 +983,7 @@ function bindQuotaForecastHover(chart, forecast) {
     const safeY = Math.min(plotBottom, Math.max(plot.top, y));
     const isOver = percent > 100;
     const kind = projected ? "projected" : "actual";
-    const label = t(projected ? "quota.projected" : "quota.actual");
+    const label = t(projected ? "quota.projected" : forecast.partialHistory && activeTime < Date.parse(forecast.observedAt) ? "dated.estimatedHistory" : "quota.actual");
     const dateText = forecastDateTimeLabel(activeTime);
     const valueText = `${label} · ${forecastPercent(percent)} %`;
     let tooltipX = x + 12;
@@ -1077,8 +1083,10 @@ function renderQuotaForecast() {
     chart.innerHTML = `<p class="quota-forecast-empty">${t(forecast.status === "unavailable" ? "quota.unavailable" : "quota.insufficient")}</p>`;
     return;
   }
+  const actualLegend = $(".forecast-key.actual")?.nextElementSibling;
+  if (actualLegend) actualLegend.textContent = t(forecast.partialHistory ? "dated.estimatedHistory" : "quota.actual");
   if (!current) {
-    summary.innerHTML = "";
+    summary.innerHTML = forecast.partialHistory ? `<p class="quota-forecast-history-note">${escapeHtml(t("dated.forecastPartial"))}</p>` : "";
     chart.innerHTML = quotaForecastSvg(forecast);
     bindQuotaForecastHover(chart, forecast);
     return;
