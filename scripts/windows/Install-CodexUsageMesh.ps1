@@ -68,6 +68,8 @@ function Resolve-Configuration {
         LegacyStatePath = $legacyStatePath
         NodePath = $resolvedNode
         LauncherPath = Join-Path $resolvedRepo ".cache\windows-agent\$TaskName.Supervisor.ps1"
+        HeadlessHostPath = Join-Path $resolvedRepo ".cache\windows-agent\$TaskName.Host.exe"
+        HostLogPath = Join-Path $resolvedRepo ".cache\windows-agent\$TaskName.Host.log"
         LogPath = Join-Path $resolvedRepo ".cache\windows-agent\$TaskName.Supervisor.log"
         AgentPath = Join-Path $resolvedRepo 'agent.mjs'
         GeneratorPath = Resolve-FullPath (Join-Path $PSScriptRoot '..\generate-windows-agent-files.mjs')
@@ -117,7 +119,7 @@ function Get-MatchingProcesses {
     try {
         $processes = @(Get-CimInstance Win32_Process -ErrorAction Stop)
     } catch {
-        return [pscustomobject]@{ Supervisors = @(); Agents = @(); InspectionError = $_.Exception.Message }
+        return [pscustomobject]@{ Hosts = @(); Supervisors = @(); Agents = @(); All = @(); InspectionError = $_.Exception.Message }
     }
 
     $supervisors = @($processes | Where-Object {
@@ -130,7 +132,66 @@ function Get-MatchingProcesses {
         ($_.CommandLine.IndexOf($Configuration.StatePath, [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
          $_.CommandLine.IndexOf($Configuration.RepoRoot, [System.StringComparison]::OrdinalIgnoreCase) -ge 0)
     })
-    return [pscustomobject]@{ Supervisors = $supervisors; Agents = $agents; InspectionError = $null }
+    $hosts = @($processes | Where-Object {
+        $_.ExecutablePath -and $_.ExecutablePath -ieq $Configuration.HeadlessHostPath -and
+        $_.CommandLine -and $_.CommandLine.IndexOf($Configuration.LauncherPath, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+    })
+    return [pscustomobject]@{ Hosts = $hosts; Supervisors = $supervisors; Agents = $agents; All = $processes; InspectionError = $null }
+}
+
+function Wait-MatchingProcessesToExit {
+    param([Parameter(Mandatory = $true)]$Configuration, [int]$TimeoutSeconds = 5)
+    $deadline = [DateTimeOffset]::Now.AddSeconds($TimeoutSeconds)
+    do {
+        $processes = Get-MatchingProcesses $Configuration
+        if ($processes.InspectionError -or
+            ($processes.Agents.Count -eq 0 -and $processes.Supervisors.Count -eq 0 -and $processes.Hosts.Count -eq 0)) { return $processes }
+        Start-Sleep -Milliseconds 250
+    } while ([DateTimeOffset]::Now -lt $deadline)
+    return $processes
+}
+
+function Build-HeadlessHost {
+    param([Parameter(Mandatory = $true)][string]$DestinationPath)
+    $framework = if ([Environment]::Is64BitOperatingSystem) { 'Framework64' } else { 'Framework' }
+    $compiler = Join-Path $env:SystemRoot "Microsoft.NET\$framework\v4.0.30319\csc.exe"
+    if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) { throw 'Le compilateur .NET Framework Windows est requis pour le lanceur sans console.' }
+    $directory = Split-Path -Parent $DestinationPath
+    [System.IO.Directory]::CreateDirectory($directory) | Out-Null
+    $output = & $compiler /nologo /target:winexe /optimize+ "/out:$DestinationPath" `
+        (Join-Path $PSScriptRoot 'HeadlessHost.cs') (Join-Path $PSScriptRoot 'WindowProbe.cs') 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "Compilation du lanceur sans console impossible : $output" }
+}
+
+function Get-WindowInspection {
+    param([Parameter(Mandatory = $true)]$Processes)
+    try {
+        if ($Processes.InspectionError) { throw $Processes.InspectionError }
+        $ids = New-Object 'System.Collections.Generic.HashSet[uint32]'
+        foreach ($process in @($Processes.Hosts) + @($Processes.Supervisors) + @($Processes.Agents)) {
+            [void]$ids.Add([uint32]$process.ProcessId)
+        }
+        do {
+            $added = $false
+            foreach ($process in $Processes.All) {
+                if ($ids.Contains([uint32]$process.ParentProcessId) -and $ids.Add([uint32]$process.ProcessId)) { $added = $true }
+            }
+        } while ($added)
+        $currentSession = (Get-Process -Id $PID).SessionId
+        foreach ($process in $Processes.All) {
+            if ($ids.Contains([uint32]$process.ProcessId) -and $process.SessionId -ne $currentSession) {
+                throw 'Exécutez Diagnose dans la session interactive de la machine supervisée pour vérifier ses fenêtres.'
+            }
+        }
+        if (-not ('CodexUsageMesh.WindowProbe' -as [type])) {
+            if (-not (Test-Path -LiteralPath $Configuration.HeadlessHostPath -PathType Leaf)) { throw 'Lanceur sans console introuvable.' }
+            [void][System.Reflection.Assembly]::LoadFrom($Configuration.HeadlessHostPath)
+        }
+        $windows = [CodexUsageMesh.WindowProbe]::VisibleWindows([uint32[]]@($ids), [CodexUsageMesh.WindowProbe]::Snapshot())
+        return [pscustomobject]@{ VisibleWindowCount = $windows.Length; InspectionError = $null }
+    } catch {
+        return [pscustomobject]@{ VisibleWindowCount = $null; InspectionError = $_.Exception.Message }
+    }
 }
 
 function Invoke-FileGeneration {
@@ -143,6 +204,7 @@ function Invoke-FileGeneration {
         '--state-source', $Configuration.LegacyStatePath,
         '--node-path', $Configuration.NodePath,
         '--log-path', $Configuration.LogPath,
+        '--headless-host-path', $Configuration.HeadlessHostPath,
         '--task-name', $TaskName,
         '--restart-delay-seconds', [string]$RestartDelaySeconds,
         '--project-mode', $ProjectMode
@@ -181,9 +243,8 @@ function New-TaskXml {
     $userSid = Escape-XmlText $identity.User.Value
     $author = Escape-XmlText $identity.Name
     $uri = Escape-XmlText ("\" + $TaskName)
-    $powershellPath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    $command = Escape-XmlText $powershellPath
-    $actionArguments = Escape-XmlText ("-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$($Configuration.LauncherPath)`"")
+    $command = Escape-XmlText $Configuration.HeadlessHostPath
+    $actionArguments = Escape-XmlText ("`"$($Configuration.LauncherPath)`" `"$($Configuration.HostLogPath)`"")
     $recoveryStart = [DateTimeOffset]::Now.AddMinutes(1).ToString('yyyy-MM-ddTHH:mm:sszzz')
     $eventSubscription = Escape-XmlText '<QueryList><Query Id="0" Path="System"><Select Path="System">*[System[Provider[@Name="Microsoft-Windows-Power-Troubleshooter"] and EventID=1]]</Select></Query></QueryList>'
 
@@ -260,15 +321,22 @@ function Install-Supervision {
         if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) { throw "Fichier requis introuvable : $requiredPath" }
     }
 
+    # Compile before interrupting a working installation; never replace a running executable.
+    $preparedHost = $Configuration.HeadlessHostPath + '.' + [Guid]::NewGuid().ToString('N') + '.exe'
+    try {
+    Build-HeadlessHost $preparedHost
     Stop-ExistingTask $TaskName
-    $processes = Get-MatchingProcesses $Configuration
+    # Task Scheduler can report Ready just before its former process tree exits.
+    # Give that exact tree time to settle, while retaining the fail-closed guard.
+    $processes = Wait-MatchingProcessesToExit $Configuration
     if ($processes.InspectionError) {
         throw "Impossible de vérifier les processus existants : $($processes.InspectionError)"
     }
-    if ($processes.Agents.Count -gt 0 -or $processes.Supervisors.Count -gt 0) {
-        $ids = @($processes.Agents.ProcessId) + @($processes.Supervisors.ProcessId)
+    if ($processes.Agents.Count -gt 0 -or $processes.Supervisors.Count -gt 0 -or $processes.Hosts.Count -gt 0) {
+        $ids = @($processes.Agents | ForEach-Object ProcessId) + @($processes.Supervisors | ForEach-Object ProcessId) + @($processes.Hosts | ForEach-Object ProcessId)
         throw "Une instance utilisant ce dépôt ou cet état est encore active (PID $($ids -join ', ')). Arrêtez-la avant l'installation."
     }
+    Move-Item -LiteralPath $preparedHost -Destination $Configuration.HeadlessHostPath -Force
 
     $generationResult = Invoke-FileGeneration $Configuration
     $state = Read-AgentState $Configuration.StatePath
@@ -295,6 +363,9 @@ function Install-Supervision {
     Write-Output "État Mesh conservé : $($Configuration.StatePath)"
     Write-Output "Logs UTF-8 : $($Configuration.LogPath)"
     Write-Output "Génération : $generationResult"
+    } finally {
+        if (Test-Path -LiteralPath $preparedHost -PathType Leaf) { Remove-Item -LiteralPath $preparedHost -Force }
+    }
 }
 
 function Invoke-Diagnostic {
@@ -303,6 +374,11 @@ function Invoke-Diagnostic {
     $taskInfo = if ($task) { Get-ScheduledTaskInfo -TaskName $TaskName -TaskPath $ManagedTaskPath } else { $null }
     $taskXml = if ($task) { Export-ScheduledTask -TaskName $TaskName -TaskPath $ManagedTaskPath } else { '' }
     $processes = Get-MatchingProcesses $Configuration
+    $windowInspection = Get-WindowInspection $processes
+    $expectedArguments = "`"$($Configuration.LauncherPath)`" `"$($Configuration.HostLogPath)`""
+    $headlessConfigured = [bool]($task -and ($task.Actions | Where-Object {
+        $_.Execute -ieq $Configuration.HeadlessHostPath -and $_.Arguments -eq $expectedArguments
+    }))
     $state = Read-AgentState $Configuration.StatePath
     $lastSyncValue = if ($state) { $state.lastSyncAt } else { $null }
     $lastSyncAt = if ($lastSyncValue -is [DateTime] -or $lastSyncValue -is [DateTimeOffset]) {
@@ -355,7 +431,13 @@ function Invoke-Diagnostic {
         LogonTrigger = [bool]($taskXml -match '<LogonTrigger>')
         ResumeTrigger = [bool]($taskXml -match 'Microsoft-Windows-Power-Troubleshooter')
         RecoveryTrigger = [bool]($taskXml -match '(?s)<TimeTrigger>.*?<Interval>PT1M</Interval>.*?</TimeTrigger>')
-        HiddenWindow = [bool]($task -and ($task.Actions | Where-Object { $_.Arguments -match '(?i)-WindowStyle\s+Hidden\b' }))
+        HeadlessLaunchConfigured = $headlessConfigured
+        HiddenWindow = [bool]($headlessConfigured -and $processes.Hosts.Count -eq 1 -and
+            $processes.Supervisors.Count -eq 1 -and $processes.Agents.Count -eq 1 -and
+            -not $windowInspection.InspectionError -and $windowInspection.VisibleWindowCount -eq 0)
+        VisibleWindowCount = $windowInspection.VisibleWindowCount
+        WindowInspectionError = $windowInspection.InspectionError
+        HostProcessCount = $processes.Hosts.Count
         SupervisorProcessCount = $processes.Supervisors.Count
         AgentProcessCount = $processes.Agents.Count
         ProcessInspectionError = $processes.InspectionError
@@ -370,6 +452,7 @@ function Invoke-Diagnostic {
         HubStatusCode = $hubStatusCode
         HubError = $hubError
         LogPath = $Configuration.LogPath
+        HostLogPath = $Configuration.HostLogPath
     }
     $healthy = $result.TaskInstalled -and $result.TaskState -eq 'Running' -and
         $result.LogonTrigger -and $result.ResumeTrigger -and $result.RecoveryTrigger -and $result.HiddenWindow -and
@@ -381,11 +464,19 @@ function Invoke-Diagnostic {
 function Uninstall-Supervision {
     param([Parameter(Mandatory = $true)]$Configuration)
     Stop-ExistingTask $TaskName
+    $processes = Wait-MatchingProcessesToExit $Configuration
+    if ($processes.InspectionError) { throw "Impossible de vérifier l'arrêt des processus : $($processes.InspectionError)" }
+    if ($processes.Hosts.Count -or $processes.Supervisors.Count -or $processes.Agents.Count) {
+        throw "Les processus supervisés ne se sont pas arrêtés; la tâche et les fichiers ont été conservés."
+    }
     if (Get-ScheduledTask -TaskName $TaskName -TaskPath $ManagedTaskPath -ErrorAction SilentlyContinue) {
         Unregister-ScheduledTask -TaskName $TaskName -TaskPath $ManagedTaskPath -Confirm:$false
     }
     if (Test-Path -LiteralPath $Configuration.LauncherPath -PathType Leaf) {
         Remove-Item -LiteralPath $Configuration.LauncherPath -Force
+    }
+    if (Test-Path -LiteralPath $Configuration.HeadlessHostPath -PathType Leaf) {
+        Remove-Item -LiteralPath $Configuration.HeadlessHostPath -Force
     }
     Write-Output "Tâche locale supprimée : $TaskName"
     Write-Output "État Mesh et logs conservés : $($Configuration.InstallDirectory)"

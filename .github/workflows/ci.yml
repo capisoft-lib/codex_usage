@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: 22
       - name: Validate Windows diagnostics and supervision
-        run: node --test --test-concurrency=1 test/windows-agent-diagnostic.test.mjs test/windows-agent-supervision.test.mjs
+        run: node --test --test-concurrency=1 test/windows-agent-diagnostic.test.mjs test/windows-agent-supervision.test.mjs test/windows-window-probe.test.mjs
 
   test:
     runs-on: ubuntu-latest

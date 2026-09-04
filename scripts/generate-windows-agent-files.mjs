@@ -7,6 +7,7 @@ import {
 const { values } = parseArgs({
   options: {
     "launcher-path": { type: "string" },
+    "headless-host-path": { type: "string" },
     "repo-root": { type: "string" },
     "state-path": { type: "string" },
     "state-source": { type: "string" },
@@ -33,6 +34,7 @@ await writeWindowsSupervisor(values["launcher-path"], {
   statePath: values["state-path"],
   nodePath: values["node-path"],
   logPath: values["log-path"],
+  headlessHostPath: values["headless-host-path"],
   taskName: values["task-name"],
   restartDelaySeconds: Number(values["restart-delay-seconds"]),
   projectMode: values["project-mode"],

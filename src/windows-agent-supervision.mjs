@@ -31,6 +31,7 @@ export function generateWindowsSupervisor({
   statePath,
   nodePath,
   logPath,
+  headlessHostPath,
   taskName = "CodexUsageMesh",
   restartDelaySeconds = 30,
   projectMode = "hash",
@@ -51,6 +52,7 @@ export function generateWindowsSupervisor({
     statePath: powerShellLiteral(normalizedStatePath),
     nodePath: powerShellLiteral(normalizedNodePath),
     logPath: powerShellLiteral(normalizedLogPath),
+    headlessHostPath: powerShellLiteral(path.resolve(headlessHostPath || path.join(normalizedRepoRoot, ".cache", "windows-agent", `${taskName}.Host.exe`))),
     mutexName: powerShellLiteral(supervisorMutexName(taskName)),
     projectMode: powerShellLiteral(normalizedProjectMode),
     includeTitles: includeTitles ? "'true'" : "'false'",
@@ -67,6 +69,7 @@ $RepoRoot = ${values.repoRoot}
 $StatePath = ${values.statePath}
 $NodePath = ${values.nodePath}
 $LogPath = ${values.logPath}
+$HeadlessHostPath = ${values.headlessHostPath}
 $AgentPath = Join-Path $RepoRoot 'agent.mjs'
 $MutexName = ${values.mutexName}
 $RestartDelaySeconds = ${values.delay}
@@ -84,12 +87,7 @@ function Write-SupervisorLog {
 }
 
 function Invoke-AgentProcess {
-    # Windows PowerShell wraps native stderr in error records. Log them without
-    # aborting a running collector; its exit code determines whether to restart.
-    $ErrorActionPreference = 'Continue'
-    & $NodePath $AgentPath '--state-path' $StatePath 2>&1 |
-        ForEach-Object { Write-SupervisorLog ("agent: " + $_.ToString()) }
-    return [int]$LASTEXITCODE
+    return [CodexUsageMesh.HeadlessProcess]::Run($NodePath, [string[]]@($AgentPath, '--state-path', $StatePath), $RepoRoot, $LogPath, 'agent')
 }
 
 $mutex = $null
@@ -109,6 +107,8 @@ try {
     if (-not (Test-Path -LiteralPath $NodePath -PathType Leaf)) { throw "Node.js introuvable : $NodePath" }
     if (-not (Test-Path -LiteralPath $AgentPath -PathType Leaf)) { throw "Agent introuvable : $AgentPath" }
     if (-not (Test-Path -LiteralPath $StatePath -PathType Leaf)) { throw "État Mesh introuvable : $StatePath" }
+    if (-not (Test-Path -LiteralPath $HeadlessHostPath -PathType Leaf)) { throw 'Lanceur sans console introuvable. Exécutez Install ou Update.' }
+    [void][System.Reflection.Assembly]::LoadFrom($HeadlessHostPath)
 
     $state = Get-Content -LiteralPath $StatePath -Raw -Encoding UTF8 | ConvertFrom-Json
     if (-not $state.nodeId -or -not $state.hubUrl -or -not $state.privateKey) {

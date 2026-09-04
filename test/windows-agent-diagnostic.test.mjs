@@ -19,25 +19,28 @@ const shells = [
   ["PowerShell 7", path.join(process.env.ProgramFiles || "", "PowerShell", "7", "pwsh.exe")],
 ];
 
-async function diagnose(shell, hubUrl, { enrolled = true, recent = true, agentCount = 1 } = {}) {
+async function diagnose(shell, hubUrl, { enrolled = true, recent = true, agentCount = 1, visible = 0, windowError = false, legacy = false } = {}) {
   // Only the local task/process/state inputs are synthetic. Execute the actual
   // diagnostic and Invoke-WebRequest against an ephemeral loopback HTTP server.
   const command = `
 . ${literal(installerPath)} -Action Diagnose -TaskName CodexUsageMesh-DiagnosticTest
 function Get-ScheduledTask {
-  [pscustomobject]@{ State = 'Running'; Actions = @([pscustomobject]@{ Arguments = '-WindowStyle Hidden' }) }
+  [pscustomobject]@{ State = 'Running'; Actions = @([pscustomobject]@{ Execute = '${legacy ? "powershell.exe" : "host.exe"}'; Arguments = '${legacy ? "-WindowStyle Hidden" : '"supervisor.ps1" "host.log"'}' }) }
 }
 function Get-ScheduledTaskInfo { [pscustomobject]@{ LastTaskResult = 0 } }
 function Export-ScheduledTask {
   '<LogonTrigger></LogonTrigger><EventTrigger>Microsoft-Windows-Power-Troubleshooter</EventTrigger><TimeTrigger><Repetition><Interval>PT1M</Interval></Repetition></TimeTrigger>'
 }
 function Get-MatchingProcesses {
-  [pscustomobject]@{ Supervisors = @(1); Agents = @(${agentCount === 1 ? "1" : ""}); InspectionError = $null }
+  [pscustomobject]@{ Hosts = @(1); Supervisors = @(1); Agents = @(${agentCount === 1 ? "1" : ""}); InspectionError = $null }
+}
+function Get-WindowInspection {
+  [pscustomobject]@{ VisibleWindowCount = ${windowError ? "$null" : visible}; InspectionError = ${windowError ? "'Inspection unavailable'" : "$null"} }
 }
 function Read-AgentState {
   ${enrolled ? `[pscustomobject]@{ nodeId = 'test-node'; hubUrl = ${literal(hubUrl)}; lastSyncAt = [DateTimeOffset]::Now.AddMinutes(${recent ? "0" : "-10"}).ToString('o') }` : "return $null"}
 }
-$configuration = [pscustomobject]@{ StatePath = 'synthetic-state.json'; LogPath = 'synthetic-supervisor.log' }
+$configuration = [pscustomobject]@{ StatePath = 'synthetic-state.json'; LogPath = 'synthetic-supervisor.log'; HeadlessHostPath = 'host.exe'; LauncherPath = 'supervisor.ps1'; HostLogPath = 'host.log' }
 Invoke-Diagnostic $configuration | ConvertTo-Json -Depth 5 -Compress
 `;
   const { stdout } = await execFileAsync(shell, [
@@ -135,6 +138,9 @@ for (const [name, shell] of shells) {
         assert.equal(result.HubStatusCode, expectedStatus);
         assert.equal(result.HubReachable, reachable);
         assert.equal(diagnostic.Healthy, reachable);
+        assert.equal(result.HeadlessLaunchConfigured, true);
+        assert.equal(result.VisibleWindowCount, 0);
+        assert.equal(result.HiddenWindow, true);
         if (reachable) assert.equal(result.HubError, null, "Successful fallback must clear the original 404 error");
         else assert.ok(result.HubError, "Failed probes must preserve a useful error");
         const requestPaths = hub.requests.map((request) => request.url);
@@ -145,6 +151,16 @@ for (const [name, shell] of shells) {
           assert.equal(request.method, "GET");
           assert.equal(request.authorization, undefined, "Health probes must not send credentials");
         }
+      });
+    }
+
+    for (const options of [{ visible: 1 }, { windowError: true }, { legacy: true }]) {
+      await t.test(`headless diagnostics reject ${JSON.stringify(options)}`, async (t) => {
+        const hub = await startHub(t, { '/healthz': { status: 200 } });
+        const diagnostic = await diagnose(shell, hub.url, options);
+        assert.equal(diagnostic.Result.HiddenWindow, false);
+        assert.equal(diagnostic.Healthy, false);
+        assert.equal(diagnostic.Result.HeadlessLaunchConfigured, !options.legacy);
       });
     }
 

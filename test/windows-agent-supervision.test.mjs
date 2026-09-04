@@ -12,6 +12,13 @@ import {
   writeWindowsSupervisor,
 } from "../src/windows-agent-supervision.mjs";
 
+const projectRoot = fileURLToPath(new URL("..", import.meta.url));
+const csc = path.join(process.env.SystemRoot || "", "Microsoft.NET", process.arch === "x64" ? "Framework64" : "Framework", "v4.0.30319", "csc.exe");
+function buildHeadlessHost(output) {
+  const result = spawnSync(csc, ["/nologo", "/target:winexe", "/optimize+", `/out:${output}`, path.join(projectRoot, "scripts", "windows", "HeadlessHost.cs"), path.join(projectRoot, "scripts", "windows", "WindowProbe.cs")], { encoding: "utf8", windowsHide: true });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+}
+
 test("Windows supervisor generation embeds safe paths and restart guarantees without enrollment secrets", () => {
   const script = generateWindowsSupervisor({
     repoRoot: "C:\\Users\\O'Brien\\codex_usage",
@@ -78,6 +85,9 @@ test("Windows installer migrates the previous supervised state without publishin
 test("Windows supervisor logs a non-zero exit and restarts the agent once", { skip: process.platform !== "win32" }, async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "codex-windows-restart-"));
   const launcherPath = path.join(directory, "supervisor.ps1");
+  const headlessHostPath = path.join(directory, "host.exe");
+  const hostLogPath = path.join(directory, "host.log");
+  buildHeadlessHost(headlessHostPath);
   const statePath = path.join(directory, "state", "mesh-agent.json");
   const logPath = path.join(directory, "logs", "supervisor.log");
   const counterPath = path.join(directory, "launch-count.txt");
@@ -105,10 +115,10 @@ process.exit(count === 1 ? 1 : 0);
     logPath,
     taskName: `CodexUsageMesh-Test-${process.pid}`,
     restartDelaySeconds: 1,
+    headlessHostPath,
   });
 
-  const powershell = path.join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
-  const result = spawnSync(powershell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", launcherPath], {
+  const result = spawnSync(headlessHostPath, [launcherPath, hostLogPath], {
     encoding: "utf8",
     timeout: 10_000,
     windowsHide: true,
@@ -135,6 +145,7 @@ test("Windows task hides its console and recovers indefinitely without overlappi
 $configuration = Resolve-Configuration
 [xml]$task = New-TaskXml $configuration
 [pscustomobject]@{
+  Command = [string]$task.Task.Actions.Exec.Command
   Arguments = [string]$task.Task.Actions.Exec.Arguments
   LogonUser = [string]$task.Task.Triggers.LogonTrigger.UserId
   ResumeEvent = [string]$task.Task.Triggers.EventTrigger.Subscription
@@ -147,6 +158,8 @@ $configuration = Resolve-Configuration
   ExecutionTimeLimit = [string]$task.Task.Settings.ExecutionTimeLimit
   LogPath = $configuration.LogPath
   StatePath = $configuration.StatePath
+  HeadlessHostPath = $configuration.HeadlessHostPath
+  HostLogPath = $configuration.HostLogPath
 } | ConvertTo-Json -Compress
 `, "utf8");
   const powershell = path.join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
@@ -157,7 +170,9 @@ $configuration = Resolve-Configuration
   assert.equal(result.error, undefined);
   assert.equal(result.status, 0, result.stderr);
   const task = JSON.parse(result.stdout);
-  assert.match(task.Arguments, /-WindowStyle Hidden\b/);
+  assert.equal(task.Command, task.HeadlessHostPath);
+  assert.equal(task.Arguments, `"${path.join(directory, ".cache", "windows-agent", "CodexUsageMesh.Supervisor.ps1")}" "${task.HostLogPath}"`);
+  assert.doesNotMatch(task.Arguments, /powershell|-WindowStyle/i);
   assert.match(task.LogonUser, /^S-1-/);
   assert.match(task.ResumeEvent, /Microsoft-Windows-Power-Troubleshooter/);
   assert.equal(task.RecoveryInterval, "PT1M");
@@ -177,6 +192,9 @@ test("Windows recovery waits for a surviving child and does not treat stderr as 
   const statePath = path.join(directory, "mesh-agent.json");
   const logPath = path.join(directory, "supervisor.log");
   const launcherPath = path.join(directory, "supervisor.ps1");
+  const headlessHostPath = path.join(directory, "host.exe");
+  const hostLogPath = path.join(directory, "host.log");
+  buildHeadlessHost(headlessHostPath);
   const agentPath = path.join(directory, "agent.mjs");
   const launchesPath = path.join(directory, "launches.jsonl");
   await writeFile(statePath, JSON.stringify({ nodeId: "test", privateKey: "test", hubUrl: "https://mesh.example", alias: "Test" }));
@@ -189,7 +207,7 @@ if (count === 1) setInterval(() => {}, 1000);
 else { console.error("expected stderr from agent"); process.exit(0); }
 `);
   await writeWindowsSupervisor(launcherPath, { repoRoot: directory, statePath, nodePath: process.execPath, logPath,
-    taskName: `CodexUsageMesh-Orphan-${process.pid}`, restartDelaySeconds: 1 });
+    headlessHostPath, taskName: `CodexUsageMesh-Orphan-${process.pid}`, restartDelaySeconds: 1 });
   async function waitFor(check) {
     const deadline = Date.now() + 8000;
     while (Date.now() < deadline) {
@@ -204,8 +222,7 @@ else { console.error("expected stderr from agent"); process.exit(0); }
   let supervisor;
   try {
     await waitFor(async () => (await readLaunches()).length === 1);
-    const powershell = path.join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
-    supervisor = spawn(powershell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", launcherPath], { stdio: "ignore", windowsHide: true });
+    supervisor = spawn(headlessHostPath, [launcherPath, hostLogPath], { stdio: "ignore", windowsHide: true });
     await waitFor(async () => (await readLog()).includes("existing agent still running; launch deferred"));
     assert.equal((await readLaunches()).length, 1, "Recovery must not start a competing state writer");
     survivor.kill();

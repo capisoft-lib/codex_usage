@@ -28,7 +28,7 @@ The command:
 2. refuses to continue if another matching supervisor or Node agent is still running;
 3. copies an earlier `%LOCALAPPDATA%\CodexUsageMesh\state\mesh-agent.json` state, or the legacy repository `.cache\mesh-agent.json`, once to `%LOCALAPPDATA%\CodexUsageMesh\mesh-agent.windows.json` when the installed state does not exist;
 4. never overwrites an installed state during later runs;
-5. generates `.cache\windows-agent\CodexUsageMesh.Supervisor.ps1` in the repository without an association code or infrastructure credential, avoiding Windows policies that block scheduled scripts from `AppData`;
+5. compiles a small Windows GUI host and generates `.cache\windows-agent\CodexUsageMesh.Supervisor.ps1` without an association code or infrastructure credential;
 6. registers and starts the current user's task.
 
 The original state file is retained. After supervision is installed, do not start a second `npm run start:agent` process from the repository. The scheduled task is the owner of the reporting process.
@@ -58,7 +58,7 @@ Use `-Alias "Nom lisible"` only on the first association. Otherwise the Windows 
 
 The task uses `MultipleInstancesPolicy=IgnoreNew`, unlimited execution time, `StartWhenAvailable`, and Task Scheduler restart-on-failure. The generated supervisor adds a named mutex as a second singleton boundary. Before each launch it also checks for an existing Node agent using the same script and state, since stopping a scheduled supervisor can leave its child alive. It waits for that child to exit instead of starting a second writer. A resume trigger cannot create a parallel supervisor when the logon instance is still alive.
 
-The task starts PowerShell with `-WindowStyle Hidden`; no terminal needs to stay open. The supervisor launches the repository's current `agent.mjs`. When Node exits with a non-zero code, it logs the code and restart number, waits 30 seconds, and launches it again. A zero exit ends the supervisor; the next periodic trigger restores the task. A deliberate pause therefore requires disabling the task before stopping it:
+The task starts the GUI host directly, so no console exists to redirect to Windows Terminal. That host starts PowerShell and Node with `UseShellExecute=false`, `CreateNoWindow=true`, redirected streams, and a Windows job object for child cleanup. When Node exits with a non-zero code, the supervisor logs the code and restart number, waits 30 seconds, and launches it again. A zero exit ends the supervisor; the next periodic trigger restores the task. A deliberate pause therefore requires disabling the task before stopping it:
 
 ```powershell
 Disable-ScheduledTask -TaskName CodexUsageMesh -TaskPath '\'
@@ -85,7 +85,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\Instal
 
 The diagnostic verifies and reports:
 
-- task presence, current state, last result, logon/resume/recovery triggers, and hidden console configuration;
+- task presence, current state, last result, logon/resume/recovery triggers, the exact GUI-host action, and actual visible-window inspection (including Windows Terminal owners of pseudoconsole windows);
 - exactly one supervisor and one matching Node agent process;
 - enrolled state path and persisted hub URL;
 - `lastSyncAt`, its age, and whether it is newer than five minutes;
@@ -119,7 +119,7 @@ If the checkout moved, run `Update` from the new checkout. The task and launcher
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\Install-CodexUsageMesh.ps1 -Action Uninstall
 ```
 
-This stops and unregisters only `CodexUsageMesh` and removes only the generated supervisor file. It deliberately keeps the state under `%LOCALAPPDATA%\CodexUsageMesh` and the logs in the repository cache, and it does not revoke or delete any hub node. Reinstalling later therefore uses the same association.
+This stops and unregisters only `CodexUsageMesh` and removes only the generated supervisor and GUI host. It deliberately keeps the state under `%LOCALAPPDATA%\CodexUsageMesh` and the logs in the repository cache, and it does not revoke or delete any hub node. Reinstalling later therefore uses the same association.
 
 For permanent removal, first revoke this exact machine from `/admin`. Only after checking the exact local target should its retained state be deleted. Revocation and state deletion are intentionally separate from the normal uninstall command.
 

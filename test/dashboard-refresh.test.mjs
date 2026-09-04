@@ -68,18 +68,18 @@ test("centralized polling keeps rendering new snapshots beyond the former thrott
   assert.equal(ui.requests.length, 3);
   assert.equal(ui.renders.length, 3);
   await ui.advance(65_000);
-  assert.equal(ui.requests.length, 16);
-  assert.equal(ui.renders.length, 16);
+  assert.equal(ui.requests.length, 7);
+  assert.equal(ui.renders.length, 7);
 });
 
-test("visible dashboards check for new data every five seconds in both modes", async () => {
+test("visible dashboards check for new data every fifteen seconds in both modes", async () => {
   for (const mode of ["local", "centralized"]) {
     const ui = dashboard({ mode });
-    await ui.advance(4_999);
+    await ui.advance(14_999);
     assert.equal(ui.requests.length, 0);
     await ui.advance(1);
     assert.equal(ui.renders.length, 1, mode);
-    await ui.advance(10_000);
+    await ui.advance(30_000);
     assert.equal(ui.renders.length, 3, mode);
     assert.equal(ui.requests.filter((url) => url.startsWith("/api/usage?")).length, 3);
   }
@@ -93,7 +93,7 @@ test("a failed initial load retries automatically without an existing snapshot",
     } });
     await ui.load();
     assert.equal(ui.state.data, null);
-    await ui.advance(5_000);
+    await ui.advance(15_000);
     assert.equal(ui.state.data?.generatedAt, "recovered", mode);
     assert.deepEqual(ui.renders, ["recovered"]);
   }
@@ -101,16 +101,16 @@ test("a failed initial load retries automatically without an existing snapshot",
 
 test("hidden tabs pause polling and immediately refresh when visible again", async () => {
   const ui = dashboard();
-  await ui.advance(5_000);
+  await ui.advance(15_000);
   await ui.visible(false);
-  await ui.advance(20_000);
+  await ui.advance(60_000);
   assert.equal(ui.requests.length, 1);
   await ui.visible(true);
   assert.equal(ui.requests.length, 2);
   // A second return within the old centralized throttle must not latch the request lock.
   await ui.visible(false);
   await ui.visible(true);
-  await ui.advance(5_000);
+  await ui.advance(15_000);
   assert.equal(ui.requests.length, 4);
 });
 
@@ -135,7 +135,7 @@ test("slow requests are shared by automatic and manual loads", async () => {
   const pending = new Promise((resolve) => { respond = resolve; });
   const ui = dashboard({ fetch: () => pending });
   const first = ui.poll();
-  await ui.advance(15_000);
+  await ui.advance(45_000);
   const manual = ui.load(true);
   assert.equal(ui.requests.length, 1);
   respond({ ok: true, json: async () => ({ generatedAt: "updated" }) });
@@ -143,7 +143,7 @@ test("slow requests are shared by automatic and manual loads", async () => {
   assert.deepEqual(ui.renders, ["updated"]);
   await ui.load(true);
   assert.equal(ui.requests.at(-1), "/api/usage?source=centralized&refresh=1");
-  await ui.advance(5_000);
+  await ui.advance(15_000);
   assert.equal(ui.requests.length, 3);
 });
 
@@ -159,7 +159,7 @@ test("HTTP, network and invalid JSON failures retain the snapshot and release th
       await ui.poll();
       assert.equal(ui.state.data.generatedAt, "initial");
       assert.equal(ui.renders.length, 0);
-      await ui.advance(5_000);
+      await ui.advance(15_000);
       assert.equal(ui.state.data.generatedAt, "recovered", mode);
     }
   }
