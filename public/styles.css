@@ -360,6 +360,10 @@ body[data-page="settings"] .periods { display: none; }
 .settings-layout { display: grid; gap: var(--gutter); max-width: 760px; }
 .settings-body { display: grid; gap: 14px; padding: 18px 20px 22px; }
 .settings-body .data-mode-switch { justify-self: start; }
+.mini-quota-options { display: grid; gap: 10px; }
+.mini-quota-options label { display: flex; align-items: center; gap: 9px; width: fit-content; color: var(--text); cursor: pointer; }
+.mini-quota-options input { width: 17px; height: 17px; margin: 0; accent-color: var(--accent); }
+#miniQuotaOptionStatus:empty { display: none; }
 .settings-link { width: fit-content; text-decoration: none; }
 .pwa-install-button { justify-self: start; }
 .pwa-install-status { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }

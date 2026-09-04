@@ -75,7 +75,7 @@ Local mode is always the default. Nothing is sent to a hub unless `MESH_HUB_URL`
 - a local Codex installation with session files under the Codex home directory;
 - Node.js 22.13 or newer only when developing or testing `sites-hub/` locally.
 
-The root application has no npm runtime dependencies. Windows, macOS, and Linux are supported anywhere Node.js or Docker can access the user's Codex data directory.
+The root application uses Electron for its desktop launcher. A browser-only mode remains available. Windows, macOS, and Linux are supported anywhere Node.js or Docker can access the user's Codex data directory.
 
 ## Quick start: local GUI only
 
@@ -84,28 +84,22 @@ Clone the repository:
 ```bash
 git clone https://github.com/capisoft-lib/codex_usage.git
 cd codex_usage
+npm install
 ```
 
-On Windows, double-click `start-dashboard.cmd`, or run:
-
-```powershell
-.\start-dashboard.cmd
-```
-
-On macOS or Linux:
-
-```bash
-chmod +x start-dashboard.sh
-./start-dashboard.sh
-```
-
-The equivalent direct command on every OS is:
+Start the desktop dashboard on every OS with:
 
 ```bash
 npm start
 ```
 
+This starts the normal browser dashboard server and keeps a small Electron helper in the background. Open the localhost URL below, then use **Open mini quota window** in Settings when you want the native always-on-top view. No Electron window opens until that button is used. To run without the helper, use `npm run start:browser` instead.
+
+The existing `start-dashboard.cmd` and `start-dashboard.sh` launchers also remain available for browser-only use.
+
 Open [http://127.0.0.1:4317](http://127.0.0.1:4317). With no `MESH_HUB_URL`, the GUI stays local and does not start outbound reporting.
+
+For a compact quota-only view, open [http://127.0.0.1:4317/mini.html](http://127.0.0.1:4317/mini.html) after starting the dashboard. It shows the five-hour and weekly remaining percentages, reset dates, and live countdowns.
 
 Direct mode reads only these paths under the current user's Codex directory:
 

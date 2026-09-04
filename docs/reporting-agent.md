@@ -8,7 +8,7 @@ This is not an autonomous Codex AI agent. It cannot run tasks, receive instructi
 
 | Mode | Command or image | Local interface | Reports to the hub |
 | --- | --- | --- | --- |
-| GUI plus agent | `npm start` or the dashboard container | Yes, on port 4317 | Yes |
+| GUI plus agent | `npm start`, `npm run start:browser`, or the dashboard container | Yes, on port 4317 | Yes |
 | Headless agent | `npm run start:agent` or Docker target `agent` | No | Yes |
 
 Both modes use the same collector, privacy filter, signing identity, enrollment, and synchronization protocol.
@@ -55,7 +55,7 @@ npm run start:agent -- --hub-url "https://your-mesh-ingress.example" --associate
 
 For a private OpenAI Site, `MESH_HUB_URL` must be the dedicated public Mesh ingress URL, not the private Site URL. The ingress holds its upstream credential server-side and exposes no browser, dashboard, or administration route.
 
-Use `npm start` instead of `npm run start:agent` when the machine should also expose its local dashboard at [http://127.0.0.1:4317](http://127.0.0.1:4317).
+Use `npm start` for the browser dashboard with its background mini-window helper, or `npm run start:browser` without that helper, instead of `npm run start:agent` when the machine should also expose its local dashboard at [http://127.0.0.1:4317](http://127.0.0.1:4317).
 
 ## 3. Verify enrollment
 

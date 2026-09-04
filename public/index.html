@@ -280,6 +280,20 @@
           </article>
           <article class="panel settings-card">
             <div class="panel-heading">
+              <div><p class="eyebrow">QUOTA</p><h2 data-i18n="settings.miniQuotaTitle">Mini quota window</h2></div>
+            </div>
+            <div class="settings-body">
+              <p class="dialog-copy" data-i18n="settings.miniQuotaCopy">Choose which usage limits appear, then open the compact movable window.</p>
+              <div class="mini-quota-options" role="group" aria-label="Visible quota limits" data-i18n-aria="settings.miniQuotaOptions">
+                <label><input id="miniQuotaFiveHour" type="checkbox" checked><span data-i18n="settings.showFiveHour">Show 5-hour usage</span></label>
+                <label><input id="miniQuotaWeekly" type="checkbox" checked><span data-i18n="settings.showWeekly">Show weekly usage</span></label>
+              </div>
+              <p id="miniQuotaOptionStatus" class="kpi-meta" role="status" aria-live="polite"></p>
+              <button id="miniQuotaButton" type="button" class="primary-button" data-i18n="settings.openMiniQuota">Open mini quota window</button>
+            </div>
+          </article>
+          <article class="panel settings-card">
+            <div class="panel-heading">
               <div><p class="eyebrow" data-i18n="table.node">MACHINE</p><h2 data-i18n="settings.machines">Machines observées</h2></div>
             </div>
             <div class="settings-body" id="settingsNodes"></div>

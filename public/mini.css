@@ -1,0 +1,14 @@
+:root { color-scheme: dark; --bg: #101311; --card: #171c18; --line: #303a31; --text: #e5e9e4; --muted: #9aa49a; --accent: #c9f46d; }
+* { box-sizing: border-box; }
+html, body { width: 100%; min-width: 205px; height: 100%; margin: 0; }
+body { display: grid; place-items: start center; color: var(--text); background: var(--bg); font: 12px/1.3 ui-monospace, "SF Mono", Consolas, monospace; }
+.mini-card { width: 100%; min-height: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 175px)); justify-content: center; align-content: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+[data-quota-count="1"] .mini-card { grid-template-columns: minmax(0, 175px); }
+.quota[hidden] { display: none; }
+.quota { min-width: 0; display: grid; gap: 3px; }
+.quota-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-right: 14px; }
+.quota-label { color: var(--muted); font-size: 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.quota strong { color: var(--accent); font-size: 21px; }
+.quota-reset, .quota-countdown { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+.quota-countdown { color: var(--text); }
+@media (max-width: 380px) { .mini-card { grid-template-columns: 1fr; } }

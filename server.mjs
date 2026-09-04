@@ -103,11 +103,24 @@ function healthStatus() {
 }
 
 async function routeApi(request, response, url) {
+  if (url.pathname === "/api/desktop/mini" && request.method === "POST") {
+    const remoteAddress = request.socket.remoteAddress || "";
+    const localRequest = remoteAddress === "127.0.0.1" || remoteAddress === "::1" || remoteAddress === "::ffff:127.0.0.1";
+    if (!localRequest || typeof process.send !== "function") {
+      sendJson(response, 404, { error: "Desktop helper unavailable.", code: "desktop_helper_unavailable" });
+      return true;
+    }
+    const fiveHour = url.searchParams.get("fiveHour") !== "0";
+    const weekly = url.searchParams.get("weekly") !== "0";
+    process.send({ type: "open-mini-quota", preferences: { fiveHour: fiveHour || !weekly, weekly } });
+    sendJson(response, 202, { ok: true });
+    return true;
+  }
   if (url.pathname === "/api/capabilities" && request.method === "GET") {
     const capabilities = dashboardMode === "hub"
       ? createDashboardCapabilities({ runtime: "hub", sources: ["centralized"], defaultSource: "centralized", canRefresh: false })
       : usageCollector.capabilities();
-    sendJson(response, 200, capabilities);
+    sendJson(response, 200, { ...capabilities, desktopHelper: typeof process.send === "function" });
     return true;
   }
   if (url.pathname === "/api/usage" && request.method === "GET") {
