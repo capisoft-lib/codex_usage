@@ -322,20 +322,28 @@ function Invoke-Diagnostic {
     }
 
     $hubUrl = if ($state) { [string]$state.hubUrl } else { $null }
-    $healthUrl = if ($hubUrl) { $hubUrl.TrimEnd('/') + '/healthz' } else { $null }
+    $healthUrl = $null
     $hubReachable = $false
     $hubStatusCode = $null
     $hubError = $null
-    if ($healthUrl) {
-        try {
-            $response = Invoke-WebRequest -Uri $healthUrl -Method Get -UseBasicParsing -TimeoutSec 10 -MaximumRedirection 0
-            $hubStatusCode = [int]$response.StatusCode
-            $hubReachable = $hubStatusCode -ge 200 -and $hubStatusCode -lt 300
-        } catch {
-            $hubError = $_.Exception.Message
-            if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
-                $hubStatusCode = [int]$_.Exception.Response.StatusCode
+    if ($hubUrl) {
+        foreach ($healthPath in @('/healthz', '/api/health')) {
+            $healthUrl = $hubUrl.TrimEnd('/') + $healthPath
+            $hubStatusCode = $null
+            $hubError = $null
+            try {
+                $response = Invoke-WebRequest -Uri $healthUrl -Method Get -UseBasicParsing -TimeoutSec 10 -MaximumRedirection 0
+                $hubStatusCode = [int]$response.StatusCode
+                $hubReachable = $hubStatusCode -ge 200 -and $hubStatusCode -lt 300
+            } catch {
+                $hubError = $_.Exception.Message
+                if ($_.Exception.PSObject.Properties['Response'] -and $_.Exception.Response -and $_.Exception.Response.StatusCode) {
+                    $hubStatusCode = [int]$_.Exception.Response.StatusCode
+                }
             }
+            # The public ingress uses /healthz; the self-hosted hub uses /api/health.
+            # Only a missing route permits fallback, not auth, server or transport failures.
+            if ($hubStatusCode -ne 404) { break }
         }
     }
 

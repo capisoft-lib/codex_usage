@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -125,7 +125,8 @@ process.exit(count === 1 ? 1 : 0);
 });
 
 test("Windows task hides its console and recovers indefinitely without overlapping agents", { skip: process.platform !== "win32" }, async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-windows-task-"));
+  // Windows CI can expose TEMP through an 8.3 alias that .NET expands to its long path.
+  const directory = await realpath(await mkdtemp(path.join(os.tmpdir(), "codex-windows-task-")));
   const probePath = path.join(directory, "inspect-task.ps1");
   const installerPath = new URL("../scripts/windows/Install-CodexUsageMesh.ps1", import.meta.url);
   const literal = (value) => `'${value.replaceAll("'", "''")}'`;
