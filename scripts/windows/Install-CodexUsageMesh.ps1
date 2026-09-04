@@ -139,6 +139,18 @@ function Get-MatchingProcesses {
     return [pscustomobject]@{ Hosts = $hosts; Supervisors = $supervisors; Agents = $agents; All = $processes; InspectionError = $null }
 }
 
+function Wait-MatchingProcessesToExit {
+    param([Parameter(Mandatory = $true)]$Configuration, [int]$TimeoutSeconds = 5)
+    $deadline = [DateTimeOffset]::Now.AddSeconds($TimeoutSeconds)
+    do {
+        $processes = Get-MatchingProcesses $Configuration
+        if ($processes.InspectionError -or
+            ($processes.Agents.Count -eq 0 -and $processes.Supervisors.Count -eq 0 -and $processes.Hosts.Count -eq 0)) { return $processes }
+        Start-Sleep -Milliseconds 250
+    } while ([DateTimeOffset]::Now -lt $deadline)
+    return $processes
+}
+
 function Build-HeadlessHost {
     param([Parameter(Mandatory = $true)][string]$DestinationPath)
     $framework = if ([Environment]::Is64BitOperatingSystem) { 'Framework64' } else { 'Framework' }
@@ -316,13 +328,7 @@ function Install-Supervision {
     Stop-ExistingTask $TaskName
     # Task Scheduler can report Ready just before its former process tree exits.
     # Give that exact tree time to settle, while retaining the fail-closed guard.
-    $deadline = [DateTimeOffset]::Now.AddSeconds(5)
-    do {
-        $processes = Get-MatchingProcesses $Configuration
-        if ($processes.InspectionError -or
-            ($processes.Agents.Count -eq 0 -and $processes.Supervisors.Count -eq 0 -and $processes.Hosts.Count -eq 0)) { break }
-        Start-Sleep -Milliseconds 250
-    } while ([DateTimeOffset]::Now -lt $deadline)
+    $processes = Wait-MatchingProcessesToExit $Configuration
     if ($processes.InspectionError) {
         throw "Impossible de vérifier les processus existants : $($processes.InspectionError)"
     }
@@ -458,6 +464,11 @@ function Invoke-Diagnostic {
 function Uninstall-Supervision {
     param([Parameter(Mandatory = $true)]$Configuration)
     Stop-ExistingTask $TaskName
+    $processes = Wait-MatchingProcessesToExit $Configuration
+    if ($processes.InspectionError) { throw "Impossible de vérifier l'arrêt des processus : $($processes.InspectionError)" }
+    if ($processes.Hosts.Count -or $processes.Supervisors.Count -or $processes.Agents.Count) {
+        throw "Les processus supervisés ne se sont pas arrêtés; la tâche et les fichiers ont été conservés."
+    }
     if (Get-ScheduledTask -TaskName $TaskName -TaskPath $ManagedTaskPath -ErrorAction SilentlyContinue) {
         Unregister-ScheduledTask -TaskName $TaskName -TaskPath $ManagedTaskPath -Confirm:$false
     }
