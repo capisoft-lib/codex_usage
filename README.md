@@ -403,6 +403,8 @@ Additional guarantees:
 
 The browser maintains separate Local and Centralized caches. The local view is not replaced by enrolling a machine.
 
+While the dashboard tab is visible, it checks for updated data every 5 seconds in both modes and refreshes immediately when you return to the tab. Failed requests retry automatically, including after a failed first load. This reads the latest available snapshot; source collection and Mesh synchronization still follow the agent's configured interval (`REFRESH_INTERVAL_MS`, 60 seconds by default).
+
 ## Configuration
 
 | Variable | Default | Description |
