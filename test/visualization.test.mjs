@@ -116,7 +116,7 @@ test("forecast chart hover exposes the date and interpolated series value", () =
   assert.match(app, /class="quota-hover-target"[\s\S]*role="slider"/);
   assert.match(app, /target\.addEventListener\("pointermove", positionFromPointer\)/);
   assert.match(app, /forecastDateTimeLabel\(activeTime\)/);
-  assert.match(app, /interpolateForecastPercent\(series, activeTime, \{ clamp: !forecast.partialHistory \}\)/);
+  assert.match(app, /interpolateForecastPercent\(series, activeTime, \{ clamp: false \}\)/);
   assert.match(app, /event\.key === "ArrowLeft"[\s\S]*event\.key === "ArrowRight"/);
   assert.match(styles, /\.quota-hover-tooltip rect\s*\{[^}]*fill:\s*var\(--surface\);/);
 });

@@ -382,6 +382,21 @@ for (const [language, [label, description]] of Object.entries(FORECAST_HISTORY_I
 
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 
+const MEASURED_HISTORY_I18N = {
+  fr: ["Quota observé", "La courbe relie les pourcentages enregistrés par Codex, avec interpolation entre les mesures. Les tarifs ne modifient pas cet historique.", "Historique estimé à partir des appels tarifés, ajusté au quota observé. Sa forme reste approximative."],
+  en: ["Observed quota", "The curve connects quota percentages recorded by Codex, interpolating between observations. Prices do not change this history.", "History is estimated from priced calls and scaled to the observed quota. Its shape remains approximate."],
+  de: ["Beobachtetes Kontingent", "Die Kurve verbindet die von Codex erfassten Prozentwerte und interpoliert zwischen Messungen. Preise ändern diesen Verlauf nicht.", "Der Verlauf wird aus bepreisten Aufrufen geschätzt und an das beobachtete Kontingent angepasst. Seine Form bleibt ungefähr."],
+  es: ["Cuota observada", "La curva une los porcentajes registrados por Codex, interpolando entre mediciones. Los precios no modifican este historial.", "El historial se estima a partir de llamadas con tarifa y se ajusta a la cuota observada. Su forma es aproximada."],
+  it: ["Quota osservata", "La curva collega le percentuali registrate da Codex, interpolando tra le misurazioni. I prezzi non modificano questa cronologia.", "La cronologia è stimata dalle chiamate con tariffa e adeguata alla quota osservata. La forma resta approssimativa."],
+  pt: ["Quota observada", "A curva liga as percentagens registadas pelo Codex, interpolando entre medições. Os preços não alteram este histórico.", "O histórico é estimado a partir das chamadas com tarifa e ajustado à quota observada. A forma é aproximada."],
+  ja: ["観測された割り当て", "Codex が記録した使用率を結び、観測間を補間します。料金の変更はこの履歴に影響しません。", "料金既知の呼び出しから推定し、観測された割り当てに合わせた履歴です。曲線の形状は概算です。"],
+  ru: ["Наблюдаемая квота", "Кривая соединяет проценты, записанные Codex, с интерполяцией между измерениями. Цены не меняют эту историю.", "История оценивается по вызовам с известной ценой и приводится к наблюдаемой квоте. Форма кривой приблизительна."],
+  zh: ["观测额度", "曲线连接 Codex 记录的额度百分比，并在观测之间插值。价格变化不会改变此历史。", "历史根据价格已知的调用估算，并按观测额度调整。曲线形状为近似值。"],
+};
+for (const [language, [label, measured, estimated]] of Object.entries(MEASURED_HISTORY_I18N)) {
+  Object.assign(PRICING_I18N[language], { "dated.measuredHistory": label, "dated.measuredHistoryNote": measured, "dated.estimatedHistoryNote": estimated });
+}
+
 export function pricingHistoryMarkup(t, model = "all") {
   const rows = PRICING_CATALOG.filter((rate) => model === "all" || rate.model === model)
     .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || a.model.localeCompare(b.model) || a.billing.localeCompare(b.billing));

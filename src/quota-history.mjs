@@ -6,8 +6,23 @@ function time(value) {
 }
 
 function boundedPercent(value) {
+  if (value === null || value === undefined || value === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.min(100, Math.max(0, parsed)) : null;
+}
+
+// Keep both ends of plateaus: removing all repeated percentages would turn
+// idle time into a misleading slope. Changes (including decreases) stay exact.
+export function compactQuotaObservations(values = []) {
+  const byTime = new Map();
+  for (const value of values) {
+    const observed = time(value?.observedAt);
+    const usedPercent = boundedPercent(value?.usedPercent);
+    if (observed !== null && usedPercent !== null) byTime.set(observed, { observedAt: new Date(observed).toISOString(), usedPercent });
+  }
+  const points = [...byTime.entries()].sort((a, b) => a[0] - b[0]).map(([, point]) => point);
+  return points.filter((point, index) => index === 0 || index === points.length - 1
+    || point.usedPercent !== points[index - 1].usedPercent || point.usedPercent !== points[index + 1].usedPercent);
 }
 
 function plan(value) {
@@ -48,8 +63,8 @@ export function mergeWeeklyQuotaObservations(values = []) {
     const chronological = [...cluster.items].sort((left, right) => time(left.observedAt) - time(right.observedAt));
     const latest = chronological.at(-1);
     const peak = chronological.reduce((best, item) => {
-      const candidate = boundedPercent(item.usedPercent);
-      const current = boundedPercent(best?.usedPercent);
+      const candidate = boundedPercent(item.peakUsedPercent ?? item.usedPercent);
+      const current = boundedPercent(best?.peakUsedPercent ?? best?.usedPercent);
       if (best === null || candidate > current || (candidate === current && time(item.observedAt) > time(best.observedAt))) return item;
       return best;
     }, null);
@@ -59,8 +74,9 @@ export function mergeWeeklyQuotaObservations(values = []) {
       if (value && planTypes.at(-1) !== value) planTypes.push(value);
     }
     const usedPercent = boundedPercent(latest.usedPercent);
-    const peakUsedPercent = boundedPercent(peak?.usedPercent);
+    const peakUsedPercent = boundedPercent(peak?.peakUsedPercent ?? peak?.usedPercent);
     const resetTime = time(latest.resetsAt);
+    const measured = compactQuotaObservations(chronological.flatMap((item) => item.observations || [item]));
     return {
       startsAt: new Date(resetTime - cluster.windowMinutes * 60_000).toISOString(),
       resetsAt: new Date(resetTime).toISOString(),
@@ -68,12 +84,13 @@ export function mergeWeeklyQuotaObservations(values = []) {
       usedPercent,
       remainingPercent: usedPercent === null ? null : 100 - usedPercent,
       peakUsedPercent,
-      peakObservedAt: peak?.observedAt || latest.observedAt,
+      peakObservedAt: peak?.peakObservedAt || peak?.observedAt || latest.observedAt,
       resetsAvailable: Number.isFinite(Number(latest.resetsAvailable)) ? Math.max(0, Number(latest.resetsAvailable)) : null,
       observedAt: latest.observedAt,
-      firstObservedAt: chronological[0].observedAt,
+      firstObservedAt: chronological.map((item) => item.firstObservedAt || item.observedAt).sort()[0],
       planType: plan(latest.planType) || planTypes.at(-1) || null,
       planTypes,
+      observations: measured,
     };
   }).filter((period) => period.peakUsedPercent > 0 || clusterContainsLatest(period, latestObservation))
     .sort((left, right) => time(right.observedAt) - time(left.observedAt));
@@ -86,7 +103,8 @@ export function mergeWeeklyQuotaObservations(values = []) {
       .filter((candidate) => candidate !== null && candidate > startTime)
       .sort((left, right) => left - right)[0];
     const effectiveEnd = nextStart && nextStart < resetTime ? nextStart : resetTime;
-    return { ...period, endsAt: new Date(effectiveEnd).toISOString() };
+    return { ...period, endsAt: new Date(effectiveEnd).toISOString(),
+      observations: period.observations.filter((point) => time(point.observedAt) >= startTime && time(point.observedAt) <= effectiveEnd) };
   });
 }
 

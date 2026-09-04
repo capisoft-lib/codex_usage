@@ -907,13 +907,13 @@ function quotaForecastSvg(forecast) {
   const dangerClass = projectedPoint && forecast.expectedFinalPercent > 100 ? " is-over" : "";
   const grid = yTicks.map((tick) => `<g class="quota-axis-grid"><line x1="${plot.left}" y1="${y(tick)}" x2="${width - plot.right}" y2="${y(tick)}"></line><text x="${plot.left - 10}" y="${y(tick) + 4}" text-anchor="end">${escapeHtml(forecastPercent(tick))} %</text></g>`).join("");
   const timeTicks = xTicks.map((tick, index) => `<g class="quota-axis-time${index > 0 && index < xTicks.length - 1 ? " is-minor" : ""}"><line x1="${x(new Date(tick).toISOString())}" y1="${plot.top}" x2="${x(new Date(tick).toISOString())}" y2="${height - plot.bottom}"></line><text x="${x(new Date(tick).toISOString())}" y="${height - 14}" text-anchor="middle">${escapeHtml(forecastDateLabel(tick))}</text></g>`).join("");
-  const description = forecast.completed
+  const description = !forecast.projected.length
     ? `${t("quota.actual")} · ${forecastPercent(actualPoint.percent)} %`
     : t(forecast.marginPercent >= 0 ? "quota.margin" : "quota.overrun", { n: forecastPercent(Math.abs(forecast.marginPercent)) });
   const observedMarker = forecast.completed ? "" : `<line class="quota-observed-line" x1="${observedX}" y1="${plot.top}" x2="${observedX}" y2="${height - plot.bottom}"></line>
     <text class="quota-observed-label" x="${Math.min(width - plot.right - 4, observedX + 7)}" y="${plot.top + 13}">${escapeHtml(t("quota.observed"))}</text>`;
   const projectedLine = projectedPoint ? `<polyline class="quota-projected-line${dangerClass}" points="${polyline(forecast.projected)}"></polyline>` : "";
-  return `<svg class="quota-forecast-svg" viewBox="0 0 ${width} ${height}" role="group" aria-labelledby="quotaForecastSvgTitle quotaForecastSvgDescription">
+  return `<svg class="quota-forecast-svg" data-history-source="${forecast.historySource}" viewBox="0 0 ${width} ${height}" role="group" aria-labelledby="quotaForecastSvgTitle quotaForecastSvgDescription">
     <title id="quotaForecastSvgTitle">${escapeHtml(t("quota.forecastAria"))}</title>
     <desc id="quotaForecastSvgDescription">${escapeHtml(description)}</desc>
     ${grid}${timeTicks}
@@ -968,7 +968,7 @@ function bindQuotaForecastHover(chart, forecast) {
     activeTime = Math.min(endTime, Math.max(startTime, timestamp));
     const projected = forecast.projected.length > 0 && activeTime > actualEndTime;
     const series = projected ? forecast.projected : forecast.actual;
-    const percent = interpolateForecastPercent(series, activeTime, { clamp: !forecast.partialHistory });
+    const percent = interpolateForecastPercent(series, activeTime, { clamp: false });
     if (!Number.isFinite(percent)) {
       layer.classList.remove("is-visible");
       layer.setAttribute("aria-hidden", "true");
@@ -983,7 +983,7 @@ function bindQuotaForecastHover(chart, forecast) {
     const safeY = Math.min(plotBottom, Math.max(plot.top, y));
     const isOver = percent > 100;
     const kind = projected ? "projected" : "actual";
-    const label = t(projected ? "quota.projected" : forecast.partialHistory && activeTime < Date.parse(forecast.observedAt) ? "dated.estimatedHistory" : "quota.actual");
+    const label = t(projected ? "quota.projected" : forecast.historySource === "estimated" ? "dated.estimatedHistory" : "dated.measuredHistory");
     const dateText = forecastDateTimeLabel(activeTime);
     const valueText = `${label} · ${forecastPercent(percent)} %`;
     let tooltipX = x + 12;
@@ -1070,9 +1070,10 @@ function renderQuotaForecast() {
   const samples = quotaForecastSamples(quota);
   const forecast = buildQuotaForecast({
     samples,
+    observations: quota.observations,
     rangeStart: range.start,
     rangeEnd: range.resetsAt,
-    observedAt: current ? (quota.observedAt || new Date()) : range.resetsAt,
+    observedAt: current || quota.observations?.length ? (quota.observedAt || new Date()) : range.resetsAt,
     asOf: current ? new Date() : range.resetsAt,
     usedPercent,
     project: current,
@@ -1084,9 +1085,14 @@ function renderQuotaForecast() {
     return;
   }
   const actualLegend = $(".forecast-key.actual")?.nextElementSibling;
-  if (actualLegend) actualLegend.textContent = t(forecast.partialHistory ? "dated.estimatedHistory" : "quota.actual");
-  if (!current) {
-    summary.innerHTML = forecast.partialHistory ? `<p class="quota-forecast-history-note">${escapeHtml(t("dated.forecastPartial"))}</p>` : "";
+  if (actualLegend) actualLegend.textContent = t(forecast.historySource === "estimated" ? "dated.estimatedHistory" : "dated.measuredHistory");
+  if (projectedLegend) {
+    projectedLegend.hidden = !forecast.projected.length;
+    if (projectedLegend.nextElementSibling) projectedLegend.nextElementSibling.hidden = !forecast.projected.length;
+  }
+  const historyNote = `<p class="quota-forecast-history-note">${escapeHtml(t(forecast.historySource === "observed" ? "dated.measuredHistoryNote" : "dated.estimatedHistoryNote"))}</p>`;
+  if (!current || forecast.projectionUnavailable) {
+    summary.innerHTML = historyNote + (forecast.projectionUnavailable ? `<p class="quota-forecast-history-note">${escapeHtml(t("quota.insufficient"))}</p>` : "");
     chart.innerHTML = quotaForecastSvg(forecast);
     bindQuotaForecastHover(chart, forecast);
     return;
@@ -1097,7 +1103,7 @@ function renderQuotaForecast() {
     <article class="forecast-stat forecast-outcome${over ? " is-over" : " is-safe"}"><span>${t("quota.forecastAtReset")}</span><strong>${forecastPercent(forecast.expectedFinalPercent)} %</strong><small>${escapeHtml(outcome)}</small></article>
     <article class="forecast-stat"><span>${t("quota.emaHour")}</span><strong>${formatCredits(forecast.creditsPerHour)}</strong><small>${t("quota.forecastHint")}</small></article>
     <article class="forecast-stat"><span>${t("quota.emaDay")}</span><strong>${formatCredits(forecast.creditsPerDay)}</strong><small>${t("quota.forecastHint")}</small></article>`;
-  if (forecast.partialHistory) summary.innerHTML += `<p class="quota-forecast-history-note">${escapeHtml(t("dated.forecastPartial"))}</p>`;
+  summary.innerHTML += historyNote;
   chart.innerHTML = quotaForecastSvg(forecast);
   bindQuotaForecastHover(chart, forecast);
 }

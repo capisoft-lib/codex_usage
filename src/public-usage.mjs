@@ -94,6 +94,9 @@ function publicQuota(quota) {
     nodeId: quota.nodeId || null,
     nodeAlias: quota.nodeAlias || null,
     receivedAt: quota.receivedAt || null,
+    ...(Array.isArray(quota.observations) ? { observations: quota.observations.map((point) => ({
+      observedAt: point.observedAt, usedPercent: point.usedPercent,
+    })) } : {}),
   };
 }
 

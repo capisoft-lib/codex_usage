@@ -104,7 +104,15 @@ const SESSION_KEYS = new Set(["id", "sourceSessionId", "nodeId", "nodeAlias", "t
 const TURN_KEYS = new Set(["id", "startedAt", "completedAt", "durationMs", "model", "effort", "serviceTier", "calls", "usage"]);
 const CALL_KEYS = new Set(["timestamp", "turnId", "model", "effort", "serviceTier", "usage"]);
 const USAGE_KEYS = new Set(["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens", "cacheWriteInputTokens"]);
-const QUOTA_KEYS = new Set(["usedPercent", "remainingPercent", "peakUsedPercent", "windowMinutes", "startsAt", "endsAt", "resetsAt", "resetsAvailable", "observedAt", "firstObservedAt", "peakObservedAt", "planType", "planTypes", "nodeId", "nodeAlias", "receivedAt"]);
+const QUOTA_KEYS = new Set(["usedPercent", "remainingPercent", "peakUsedPercent", "windowMinutes", "startsAt", "endsAt", "resetsAt", "resetsAvailable", "observedAt", "firstObservedAt", "peakObservedAt", "planType", "planTypes", "nodeId", "nodeAlias", "receivedAt", "observations"]);
+
+function validQuota(quota) {
+  return hasOnlyKeys(quota, QUOTA_KEYS) && (quota.observations === undefined || Array.isArray(quota.observations)
+    && quota.observations.length <= 10000 && quota.observations.every((point) =>
+      hasOnlyKeys(point, new Set(["observedAt", "usedPercent"]))
+      && typeof point.observedAt === "string" && Number.isFinite(Date.parse(point.observedAt))
+      && Number.isFinite(point.usedPercent) && point.usedPercent >= 0 && point.usedPercent <= 100));
+}
 
 function hasOnlyKeys(value, allowed) {
   return value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).every((key) => allowed.has(key));
@@ -140,9 +148,9 @@ export function validateSyncPayload(payload) {
     throw new Error("Liste de suppressions Mesh invalide.");
   }
   if (payload.upserts.length + payload.removals.length > 100) throw new Error("Lot de mutations Mesh trop volumineux.");
-  if (payload.quota !== null && payload.quota !== undefined && !hasOnlyKeys(payload.quota, QUOTA_KEYS)) throw new Error("Quota Mesh invalide.");
-  if (payload.shortQuota !== null && payload.shortQuota !== undefined && !hasOnlyKeys(payload.shortQuota, QUOTA_KEYS)) throw new Error("Quota court Mesh invalide.");
-  if (payload.quotaHistory !== undefined && (!Array.isArray(payload.quotaHistory) || payload.quotaHistory.length > 500 || !payload.quotaHistory.every((quota) => hasOnlyKeys(quota, QUOTA_KEYS)))) throw new Error("Historique de quota Mesh invalide.");
+  if (payload.quota != null && !validQuota(payload.quota)) throw new Error("Quota Mesh invalide.");
+  if (payload.shortQuota != null && !validQuota(payload.shortQuota)) throw new Error("Quota court Mesh invalide.");
+  if (payload.quotaHistory !== undefined && (!Array.isArray(payload.quotaHistory) || payload.quotaHistory.length > 500 || !payload.quotaHistory.every(validQuota))) throw new Error("Historique de quota Mesh invalide.");
   if (!hasOnlyKeys(payload.privacy, new Set(["projectMode", "includeTitles"])) || !["hash", "basename", "full"].includes(payload.privacy.projectMode) || typeof payload.privacy.includeTitles !== "boolean") {
     throw new Error("Profil de confidentialité Mesh invalide.");
   }

@@ -5,6 +5,15 @@ import { MeshRequestError, readJsonBody, validatePayload, validateReadPayload, v
 import { publicMeshIngressUrl } from "../lib/mesh-config.ts";
 import { sanitizeUsageForMesh } from "../../src/mesh-privacy.mjs";
 
+test("Sites preserves measured quota history while rejecting private or invalid point fields", () => {
+  const quota = { usedPercent: 25, observations: [{ observedAt: "2026-09-01T01:00:00Z", usedPercent: 10 }] };
+  const payload = { kind: "sync", snapshotVersion: 1, generatedAt: "2026-09-01T02:00:00Z", privacy: { projectMode: "hash", includeTitles: false }, upserts: [], removals: [], quota, quotaHistory: [quota] };
+  assert.doesNotThrow(() => validatePayload(payload));
+  for (const point of [{ observedAt: "bad", usedPercent: 10 }, { observedAt: "2026-09-01T01:00:00Z", usedPercent: null }, { ...quota.observations[0], prompt: "private" }]) {
+    assert.throws(() => validatePayload({ ...payload, quota: { ...quota, observations: [point] } }), /Quota/);
+  }
+});
+
 test("Sites exposes only a canonical HTTPS ingress origin in association commands", () => {
   assert.equal(publicMeshIngressUrl("https://mesh.example/"), "https://mesh.example");
   assert.throws(() => publicMeshIngressUrl("http://mesh.example"), /HTTPS origin/);

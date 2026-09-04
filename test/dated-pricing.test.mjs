@@ -204,7 +204,7 @@ test("version 7 persisted sessions are reparsed to recover cache-write counters"
     const legacy = structuredClone(first); legacy.analyzerVersion = 7;
     delete legacy.sessions[0].calls[0].usage.cacheWriteInputTokens;
     const migrated = await analyzeCodexUsage({ ...options, previousData: legacy });
-    assert.equal(migrated.analyzerVersion, 8);
+    assert.equal(migrated.analyzerVersion, 9);
     assert.equal(migrated.sessions[0].calls[0].usage.cacheWriteInputTokens, 40);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
