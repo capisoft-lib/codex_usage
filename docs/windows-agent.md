@@ -89,10 +89,12 @@ The diagnostic verifies and reports:
 - exactly one supervisor and one matching Node agent process;
 - enrolled state path and persisted hub URL;
 - `lastSyncAt`, its age, and whether it is newer than five minutes;
-- public ingress `/healthz` reachability and HTTP status;
+- hub health reachability and HTTP status: `/healthz` for the public ingress, with a fallback to `/api/health` for self-hosted hubs when `/healthz` returns HTTP 404;
 - supervisor log path.
 
 It exits with code `0` only when all checks are healthy, otherwise with code `1`. Use `-MaxSyncAgeMinutes N` to change only the freshness threshold for a slow or intermittently connected machine.
+
+`HubHealthUrl`, `HubStatusCode`, and `HubError` describe the final endpoint attempted. A successful fallback clears the initial 404 error. Authentication failures, server errors, and connection failures do not trigger fallback, and redirects are not followed. Each request has a ten-second timeout. The diagnostic does not modify the task or the enrolled state.
 
 After a sleep/resume test, wait for the next collector interval and rerun the diagnostic. `LastSyncAt` must advance while the task remains `Running`. A non-zero exit can be confirmed in the log by an `agent exited; exitCode=...` line followed by `agent restart scheduled; restartAttempt=...` and a new launch.
 
@@ -126,6 +128,6 @@ For permanent removal, first revoke this exact machine from `/admin`. Only after
 - **The task is `Ready` instead of `Running`:** inspect the final supervisor log lines. A missing repository, Node executable, or state makes the supervisor exit non-zero and Task Scheduler retries it.
 - **The last result is `0xC000013A`:** the console was interrupted. Run `Update` to install the hidden action and one-minute recovery trigger; do not rely solely on restart-on-failure for this exit.
 - **The task is running but `AgentProcessCount` is zero:** the supervisor may be inside its 30-second backoff. The log contains the exit code and next attempt.
-- **The hub is unreachable:** verify the public ingress URL ending in `/healthz`; never configure the private Site URL or a Sites authorization token on a reporting machine.
+- **The hub is unreachable:** verify the reported `HubHealthUrl`: `/healthz` for a public ingress, or `/api/health` for a self-hosted hub. Keep the configured hub URL as the base URL, without the health endpoint. Never configure the private Site URL or a Sites authorization token on a reporting machine.
 - **The state is reported incomplete:** the installer leaves it untouched. Restore the correct existing file or revoke only that machine and perform a deliberate new association.
 - **An instance is still active during update:** stop the manually launched Node/PowerShell process. The installer refuses to kill a process it cannot prove belongs to the task.
