@@ -109,13 +109,13 @@ export function validatePayload(value: unknown): asserts value is Record<string,
   const sessionKeys = new Set(["id", "sourceSessionId", "nodeId", "nodeAlias", "title", "startedAt", "updatedAt", "cwd", "projectName", "projectGitHubUrl", "source", "cliVersion", "modelProvider", "models", "exchanges", "completedExchanges", "userMessages", "assistantMessages", "modelCalls", "durationMs", "usage", "turns", "calls", "parseErrors"]);
   const turnKeys = new Set(["id", "startedAt", "completedAt", "durationMs", "model", "effort", "serviceTier", "calls", "usage"]);
   const callKeys = new Set(["timestamp", "turnId", "model", "effort", "serviceTier", "usage"]);
-  const usageKeys = new Set(["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens"]);
+  const usageKeys = new Set(["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens", "cacheWriteInputTokens"]);
   const quotaKeys = new Set(["usedPercent", "remainingPercent", "peakUsedPercent", "windowMinutes", "startsAt", "endsAt", "resetsAt", "resetsAvailable", "observedAt", "firstObservedAt", "peakObservedAt", "planType", "planTypes", "nodeId", "nodeAlias", "receivedAt"]);
   const hasOnly = (item: unknown, keys: Set<string>) => Boolean(item && typeof item === "object" && !Array.isArray(item) && Object.keys(item).every((key) => keys.has(key)));
   const validUsage = (item: unknown) => {
     if (!hasOnly(item, usageKeys)) return false;
     const usage = item as Record<string, unknown>;
-    return [...usageKeys].every((key) => Number.isFinite(usage[key]) && Number(usage[key]) >= 0);
+    return [...usageKeys].every((key) => key === "cacheWriteInputTokens" && !Object.hasOwn(usage, key) || Number.isFinite(usage[key]) && Number(usage[key]) >= 0);
   };
   const validSession = (item: unknown) => {
     if (!hasOnly(item, sessionKeys)) return false;

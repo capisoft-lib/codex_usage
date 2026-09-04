@@ -331,8 +331,15 @@
   <dialog id="pricingDialog">
     <form method="dialog" class="pricing-form">
       <div class="dialog-heading"><div><p class="eyebrow" data-i18n="pricing.simulation">SIMULATION</p><h2 data-i18n="pricing.title">Tarifs théoriques</h2></div><button value="cancel" class="drawer-close" aria-label="Fermer" data-i18n-aria="action.close">×</button></div>
-      <p class="dialog-copy" data-i18n="pricing.copy">Prix API Standard en dollars par million de tokens. Le tarif Fast observé et les majorations long contexte sont ensuite appliqués selon la grille officielle.</p>
+      <label class="pricing-mode-label" for="pricingMode" data-i18n="dated.basis">Base du calcul API</label>
+      <select id="pricingMode"><option value="historical" data-i18n="dated.historical">Tarifs à la date des appels</option><option value="current" data-i18n="dated.current">Simulation aux tarifs actuels</option><option value="custom" data-i18n="dated.custom">Simulation personnalisée</option></select>
+      <p class="dialog-copy" data-i18n="dated.copy">Tarifs API en USD par million de tokens.</p>
+      <p id="pricingCatalog" class="dialog-copy"></p>
+      <p id="pricingLegacy" class="dialog-copy" data-i18n="dated.legacy" hidden></p>
+      <p class="dialog-copy" data-i18n="dated.creditNote"></p>
       <div id="pricingRows" class="pricing-rows"></div>
+      <details class="pricing-history"><summary data-i18n="dated.history">Historique des tarifs</summary><p class="dialog-copy" data-i18n="dated.dateNote"></p><label for="pricingHistoryModel" data-i18n="pricing.model">Modèle</label><select id="pricingHistoryModel"></select><div id="pricingHistory"></div></details>
+      <button id="exportPricing" type="button" class="secondary-button" data-i18n="dated.export">Exporter le calcul</button>
       <div class="dialog-actions"><button id="resetPricing" type="button" class="secondary-button" data-i18n="pricing.reset">Valeurs par défaut</button><button id="savePricing" value="default" class="primary-button" data-i18n="pricing.save">Enregistrer</button></div>
     </form>
   </dialog>

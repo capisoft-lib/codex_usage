@@ -20,6 +20,10 @@ function normalizedSamples(samples, from, to) {
     .sort((left, right) => left.time - right.time);
 }
 
+function hasUnratedSamples(samples, from, to) {
+  return samples.some((sample) => sample?.rated === false && (validTime(sample.timestamp) === null || (validTime(sample.timestamp) >= from && validTime(sample.timestamp) <= to)));
+}
+
 function comparableQuota(period, planType, nodeId) {
   const expectedPlan = String(planType || "").trim().toLowerCase();
   const periodPlan = String(period?.planType || "").trim().toLowerCase();
@@ -88,6 +92,7 @@ export function estimateQuotaCapacityCredits({
     const observedTime = validTime(period?.peakObservedAt || period?.observedAt);
     const usedPercent = Number(period?.peakUsedPercent ?? period?.usedPercent);
     if (startTime === null || observedTime === null || observedTime <= startTime || !Number.isFinite(usedPercent) || usedPercent <= 0) return null;
+    if (hasUnratedSamples(samples, startTime, observedTime)) return null;
     const consumedCredits = normalizedSamples(samples, startTime, observedTime).reduce((sum, sample) => sum + sample.value, 0);
     if (consumedCredits <= 0) return null;
     return { observedTime, capacityCredits: consumedCredits * 100 / usedPercent };
@@ -171,6 +176,7 @@ export function buildQuotaForecast({
   const anchorTime = Math.min(endTime, Math.max(observedAnchorTime, asOfTime));
   if (observedAnchorTime <= startTime || !hasUsedPercent || !Number.isFinite(parsedUsedPercent) || parsedUsedPercent < 0) return { status: "insufficient" };
 
+  if (hasUnratedSamples(samples, Math.min(startTime, anchorTime - lookbackHours * FORECAST_HOUR_MS), anchorTime)) return { status: "insufficient", reason: "unrated-usage" };
   const observedSamples = normalizedSamples(samples, startTime, observedAnchorTime);
   const currentCredits = observedSamples.reduce((sum, sample) => sum + sample.value, 0);
   const historicalCapacityCredits = finiteNonNegative(capacityCredits);

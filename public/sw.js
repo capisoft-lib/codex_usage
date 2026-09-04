@@ -1,4 +1,4 @@
-const CACHE_NAME = "codex-usage-shell-v1";
+const CACHE_NAME = "codex-usage-shell-v2";
 const SHELL_ASSETS = [
   "./api-pricing.js",
   "./app.js",
@@ -11,6 +11,8 @@ const SHELL_ASSETS = [
   "./index.html",
   "./manifest.webmanifest",
   "./project-identity.js",
+  "./pricing-catalog.js",
+  "./pricing-ui.js",
   "./quota-forecast.js",
   "./styles.css",
   "./translations.js",

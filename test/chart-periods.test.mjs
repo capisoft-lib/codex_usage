@@ -154,14 +154,16 @@ test("runtime renders every historical month and preserves the selected period t
       $: () => host,
       bucketsFor: runtimeBuckets(now),
       locale: () => "en-US",
-      costOfCalls: (items) => ({ cost: items.length, freshInputCost: items.length, cachedInputCost: 0, outputCost: 0 }),
+      costOfCalls: (items) => ({ cost: items.length, freshInputCost: 0, cachedInputCost: 0, cacheWriteCost: items.length, outputCost: 0 }),
       formatCost: String,
+      formatApiSummary: (summary) => String(summary.cost),
       escapeHtml: String,
       t: (key, params) => `${key} ${params?.label ?? ""}`,
       render: () => renderCostChart(calls.filter((call) => timestampInRange(call.timestamp, state.transientRange || resolveDateRange(state.period, null, now)))),
     });
     renderCostChart(calls);
     assert.equal(columns.length, 32);
+    assert.match(host.innerHTML, /chart-segment writes/);
     assert.equal(classes.get("is-monthly"), true);
     assert.equal((host.innerHTML.match(/<rect /g) || []).length, 2);
     const labels = [...host.innerHTML.matchAll(/<label>([^<]+)<\/label>/g)];

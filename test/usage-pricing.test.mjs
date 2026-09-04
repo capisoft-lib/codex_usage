@@ -5,7 +5,7 @@ import { codexCreditsOfCalls, creditRateFor, fastMultiplierFor, isFastServiceTie
 const usage = { inputTokens: 1_000, cachedInputTokens: 800, outputTokens: 100 };
 
 test("applies the GPT-5.6 Sol Fast credit multiplier to priority calls", () => {
-  const result = codexCreditsOfCalls([{ model: "gpt-5.6-sol", serviceTier: "priority", usage }]);
+  const result = codexCreditsOfCalls([{ timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.6-sol", serviceTier: "priority", usage }]);
   assert.equal(result.standardCredits, 0.11);
   assert.equal(result.credits, 0.275);
   assert.ok(Math.abs(result.fastPremiumCredits - 0.165) < 1e-12);
@@ -14,7 +14,7 @@ test("applies the GPT-5.6 Sol Fast credit multiplier to priority calls", () => {
 });
 
 test("keeps standard calls at the base Codex credit rate", () => {
-  const result = codexCreditsOfCalls([{ model: "gpt-5.6-sol", serviceTier: "default", usage }]);
+  const result = codexCreditsOfCalls([{ timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.6-sol", serviceTier: "default", usage }]);
   assert.equal(result.credits, 0.11);
   assert.equal(result.fastCalls, 0);
   assert.equal(result.fastPremiumCredits, 0);
@@ -32,9 +32,9 @@ test("supports documented tiers and does not invent rates for unknown models", (
 
 test("aggregates model, effort and Fast multiplier into distinct usage profiles", () => {
   const profiles = usageProfilesOfCalls([
-    { model: "gpt-5.6-sol", effort: "high", serviceTier: "default" },
-    { model: "gpt-5.6-sol", effort: "xhigh", serviceTier: "priority" },
-    { model: "gpt-5.6-sol", effort: "xhigh", serviceTier: "priority" },
+    { timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.6-sol", effort: "high", serviceTier: "default" },
+    { timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.6-sol", effort: "xhigh", serviceTier: "priority" },
+    { timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.6-sol", effort: "xhigh", serviceTier: "priority" },
   ]);
 
   assert.deepEqual(profiles, [

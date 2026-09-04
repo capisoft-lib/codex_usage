@@ -1,5 +1,7 @@
 import { codexCreditsOfCalls, fastMultiplierFor, usageProfilesOfCalls } from "./usage-pricing.js";
-import { DEFAULT_API_PRICING, apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
+import { apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
+import { PRICING_CATALOG } from "./pricing-catalog.js";
+import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryMarkup } from "./pricing-ui.js";
 import { ADDITIONAL_I18N, LOCALE_TAGS, resolveLanguage } from "./translations.js";
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp, normalizeCustomRange, quotaCountdownParts, resolveDateRange, resolveWeeklyRange, theoreticalWeeklyQuotaPeriod, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
@@ -230,6 +232,7 @@ const PWA_I18N = {
 for (const [language, messages] of Object.entries(PWA_I18N)) Object.assign(I18N[language], messages);
 
 const PAGES = ["overview", "projects", "quota", "conversations", "settings"];
+for (const [language, messages] of Object.entries(PRICING_I18N)) Object.assign(I18N[language], messages);
 const PAGE_TITLE_KEYS = {
   overview: "hero.title",
   projects: "projects.title",
@@ -389,7 +392,12 @@ function initializePwa() {
 }
 
 function loadPricing() {
-  try { return mergeApiPricing(JSON.parse(localStorage.getItem("codex-usage-pricing")) || {}); }
+  try {
+    const saved = JSON.parse(localStorage.getItem("codex-usage-pricing")) || {};
+    const pricing = mergeApiPricing(saved);
+    pricing.asOf = new Date().toISOString();
+    return pricing;
+  }
   catch { return mergeApiPricing(); }
 }
 
@@ -449,15 +457,7 @@ function inRange(timestamp, range = dateRange()) {
 function zeroUsage() { return { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningOutputTokens: 0, totalTokens: 0 }; }
 function sumUsage(items) { return items.reduce((sum, item) => { for (const key of Object.keys(sum)) sum[key] += item.usage?.[key] || 0; return sum; }, zeroUsage()); }
 
-function modelPriceFor(model) {
-  return apiPriceFor(state.pricing, model);
-}
-
 function effortPriceKey(model, effort) { return `${model}::${effort}`; }
-
-function priceFor(model, effort = null) {
-  return apiPriceFor(state.pricing, model, effort);
-}
 
 function costOfCalls(calls) {
   return apiCostOfCalls(calls, state.pricing);
@@ -472,20 +472,31 @@ function formatCredits(value) {
   return `${new Intl.NumberFormat(locale(), { minimumFractionDigits: value < 1 ? 3 : 2, maximumFractionDigits: value < 1 ? 3 : 2 }).format(value)} cr`;
 }
 
+function formatApiSummary(summary) {
+  return summary.totalCalls && !summary.ratedCalls ? "—" : formatCost(summary.cost) + (summary.unratedCalls ? " *" : "");
+}
+
+function formatCreditSummary(summary) {
+  return summary.totalCalls && !summary.ratedCalls ? "—" : formatCredits(summary.credits) + (summary.unratedCalls ? " *" : "");
+}
+
 function creditSummaryMeta(summary) {
   const parts = [];
   if (summary.fastCalls) parts.push(t("kpi.fastUsage", { n: formatInt(summary.fastCalls), premium: formatCredits(summary.fastPremiumCredits) }));
   else parts.push(t("kpi.standardUsage"));
   if (summary.unratedCalls) parts.push(t("kpi.unrated", { n: formatInt(summary.unratedCalls) }));
+  if (summary.estimatedCalls) parts.push(t("dated.estimated", { n: formatInt(summary.estimatedCalls) }));
   return parts.join(" · ");
 }
 
 function apiCostSummaryMeta(summary, { includeContext = false, includeCoverage = false } = {}) {
-  const parts = [];
+  const parts = [t(`dated.${summary.mode || "historical"}`)];
   if (summary.fastCalls) parts.push(t("cost.fastUsage", { n: formatInt(summary.fastCalls), premium: formatCost(summary.fastPremiumCost) }));
   else parts.push(t("cost.standardTier"));
   if (summary.unsupportedFastCalls) parts.push(t("cost.fastUnavailable", { n: formatInt(summary.unsupportedFastCalls) }));
-  if (includeCoverage && summary.estimatedCalls) parts.push(t("cost.referenceCoverage", { n: formatInt(summary.estimatedCalls) }));
+  if (summary.unratedCalls) parts.push(t("dated.unrated", { n: formatInt(summary.unratedCalls) }));
+  if (summary.unobservedCacheWriteCalls) parts.push(t("dated.unobservedWrites", { n: formatInt(summary.unobservedCacheWriteCalls) }));
+  if ((includeCoverage || summary.estimatedCalls) && summary.estimatedCalls) parts.push(t("dated.estimated", { n: formatInt(summary.estimatedCalls) }));
   if (includeContext) {
     parts.push(summary.longContextCalls
       ? t("cost.longContext", { n: formatInt(summary.longContextCalls) })
@@ -513,7 +524,7 @@ function effortLabel(effort) {
 
 function usageProfileMarkup(profile, { showCalls = true } = {}) {
   const modeBadge = profile.fast
-    ? fastMultiplierBadge(profile.multiplier)
+    ? profile.multiplier ? fastMultiplierBadge(profile.multiplier) : `<span class="fast-badge" title="${escapeHtml(t("dated.unknown"))}">Fast · ?</span>`
     : `<span class="standard-badge">${t("mode.standard")}</span>`;
   const calls = profile.calls === 1 ? t("calls.one") : t("calls.count", { n: formatInt(profile.calls) });
   return `<div class="usage-profile${profile.fast ? " is-fast" : ""}"><span class="model-pill">${escapeHtml(profile.model)}</span><span class="effort-badge">${escapeHtml(effortLabel(profile.effort))}</span>${modeBadge}${showCalls ? `<span class="profile-calls">${calls}</span>` : ""}</div>`;
@@ -637,24 +648,27 @@ function render() {
 function renderCostSummary(calls) {
   const cost = costOfCalls(calls);
   const coverage = Math.round(cost.officialCoverage * 100);
-  const coverageText = cost.estimatedCalls
-    ? t("cost.referenceCoverage", { n: formatInt(cost.estimatedCalls) })
+  const coverageText = cost.unratedCalls
+    ? t("dated.unrated", { n: formatInt(cost.unratedCalls) })
+    : cost.estimatedCalls ? t("dated.estimated", { n: formatInt(cost.estimatedCalls) })
     : t("cost.officialCoverage", { n: coverage });
   const parts = [
     { key: "fresh", label: t("cost.fresh"), value: cost.freshInputCost },
     { key: "cached", label: t("cost.cached"), value: cost.cachedInputCost },
+    { key: "writes", label: t("dated.cacheWrites"), value: cost.cacheWriteCost },
     { key: "output", label: t("cost.output"), value: cost.outputCost },
   ];
   $("#costSummary").innerHTML = `
-    <div class="cost-topline"><p class="eyebrow">${t("cost.estimate")}</p><span class="cost-coverage">${escapeHtml(coverageText)}</span></div>
-    <strong class="cost-value">${formatCost(cost.cost)}</strong>
+    <div class="cost-topline"><p class="eyebrow">${t(state.pricing.mode === "historical" ? "dated.historicalTitle" : `dated.${state.pricing.mode}`)}</p><span class="cost-coverage">${escapeHtml(coverageText)}</span></div>
+    <strong class="cost-value">${formatApiSummary(cost)}</strong>
     <p class="cost-caption">${escapeHtml(apiCostSummaryMeta(cost, { includeContext: true }))}</p>
     <div class="cost-breakdown">${parts.map((part) => {
       const share = percentageOf(part.value, cost.cost);
       const shareLabel = `${new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(share)} %`;
       return `<div class="cost-part"><span>${escapeHtml(part.label)}</span><strong>${formatCost(part.value)}</strong><progress class="cost-share ${part.key}" max="100" value="${share}" aria-label="${escapeHtml(`${part.label} · ${shareLabel}`)}"></progress></div>`;
     }).join("")}</div>
-    <div class="cost-footnote"><span>${t("cost.disclaimer")}</span><button class="cost-config" type="button">${t("cost.config")}</button></div>`;
+    <p class="cost-caption">${escapeHtml(pricingCatalogLabel(t))}</p>
+    <div class="cost-footnote"><span>${t("dated.disclaimer")}</span><button class="cost-config" type="button">${t("cost.config")}</button></div>`;
   $("#costSummary .cost-config").addEventListener("click", openPricing);
 }
 
@@ -664,7 +678,7 @@ function renderKpis(sessions, calls, usage) {
   const projects = projectGroups(sessions);
   const cards = [
     [t("kpi.projects"), formatInt(projects.length), t("kpi.conversations", { n: sessions.length }), "P"],
-    [t("kpi.credits"), formatCredits(credits.credits), creditSummaryMeta(credits), "◇"],
+    [t("kpi.credits"), formatCreditSummary(credits), creditSummaryMeta(credits), "◇"],
     [t("kpi.tokens"), formatCompact(usage.totalTokens), `${formatInt(usage.totalTokens)} · ${t("kpi.cacheRate", { n: Math.round(cacheRate * 100) })}`, "T"],
     [t("kpi.calls"), formatInt(calls.length), calls.length ? t("kpi.tokensPerCall", { n: formatCompact(usage.totalTokens / calls.length) }) : t("kpi.noCall"), "↗"],
   ];
@@ -831,8 +845,8 @@ function renderQuotaPage() {
         capacityPartial ? t("kpi.unrated", { n: formatInt(calibrationCredits.unratedCalls) }) : null,
       ].filter(Boolean).join(" · ");
   const cards = [
-    [t("quota.weekCost"), formatCost(cost.cost), apiCostSummaryMeta(cost, { includeCoverage: true }), "$"],
-    [t("quota.weekCredits"), formatCredits(credits.credits), creditSummaryMeta(credits), "◇"],
+    [t("quota.weekCost"), formatApiSummary(cost), apiCostSummaryMeta(cost, { includeCoverage: true }), "$"],
+    [t("quota.weekCredits"), formatCreditSummary(credits), creditSummaryMeta(credits), "◇"],
     [t("quota.weekTokens"), formatCompact(usage.totalTokens), `${formatInt(usage.totalTokens)} · ${t("kpi.cacheRate", { n: usage.inputTokens ? Math.round(usage.cachedInputTokens / usage.inputTokens * 100) : 0 })}`, "T"],
     [t("quota.estimatedCapacity"), capacityValue, capacityMeta, "≈"],
   ];
@@ -855,10 +869,10 @@ function forecastDateTimeLabel(value) {
 
 function quotaForecastSamples(quota) {
   const sessions = (state.data?.sessions || []).filter((session) => !quota?.nodeId || session.nodeId === quota.nodeId);
-  return sessions.flatMap((session) => session.calls.map((call) => ({
-    timestamp: call.timestamp,
-    value: codexCreditsOfCalls([call]).credits,
-  })));
+  return sessions.flatMap((session) => session.calls.map((call) => {
+    const priced = codexCreditsOfCalls([call]);
+    return { timestamp: call.timestamp, value: priced.credits, rated: priced.unratedCalls === 0 };
+  }));
 }
 
 function quotaForecastCapacity(samples, quota) {
@@ -1100,7 +1114,7 @@ function renderProjectRows(selector, groups, { navigate = false } = {}) {
     const active = isSelectedProject(group);
     const share = total ? group.cost.cost / total * 100 : 0;
     const tokens = sumUsage(group.calls).totalTokens;
-    return `<button class="project-row${active ? " active" : ""}" type="button" data-project-index="${index}" aria-pressed="${active}" aria-label="${escapeHtml(t("projects.filter", { name: group.name }))}"><span class="project-name">${escapeHtml(group.name)}</span><span class="project-value">${formatCost(group.cost.cost)}</span><span class="project-meta">${formatInt(group.sessions.length)} · ${new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(share)} % · ${formatCompact(tokens)}</span><progress class="project-bar" max="${max}" value="${group.cost.cost}" aria-label="${escapeHtml(group.name)}"></progress></button>`;
+    return `<button class="project-row${active ? " active" : ""}" type="button" data-project-index="${index}" aria-pressed="${active}" aria-label="${escapeHtml(t("projects.filter", { name: group.name }))}"><span class="project-name">${escapeHtml(group.name)}</span><span class="project-value">${formatApiSummary(group.cost)}</span><span class="project-meta">${formatInt(group.sessions.length)} · ${new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(share)} % · ${formatCompact(tokens)}</span><progress class="project-bar" max="${max}" value="${group.cost.cost}" aria-label="${escapeHtml(group.name)}"></progress></button>`;
   }).join("");
   $$(`${selector} .project-row`).forEach((row) => row.addEventListener("click", () => {
     selectProject(groups[Number(row.dataset.projectIndex)]);
@@ -1128,12 +1142,12 @@ function renderProjectDetail(group) {
   const models = modelGroups(group.calls);
   const maxCost = Math.max(0.0001, ...models.map((item) => item.cost.cost));
   const recent = [...group.sessions].sort((left, right) => Date.parse(latestTimestamp(right.calls)) - Date.parse(latestTimestamp(left.calls))).slice(0, 6);
-  const modelMarkup = models.map((item) => `<div class="model-row"><div class="model-row-head"><strong>${escapeHtml(item.model)}</strong><span>${formatCost(item.cost.cost)} · ${formatCompact(item.tokens)}</span></div><progress class="project-bar" max="${maxCost}" value="${item.cost.cost}" aria-label="${escapeHtml(item.model)}"></progress></div>`).join("") || `<p class="kpi-meta">${t("projects.none")}</p>`;
+  const modelMarkup = models.map((item) => `<div class="model-row"><div class="model-row-head"><strong>${escapeHtml(item.model)}</strong><span>${formatApiSummary(item.cost)} · ${formatCompact(item.tokens)}</span></div><progress class="project-bar" max="${maxCost}" value="${item.cost.cost}" aria-label="${escapeHtml(item.model)}"></progress></div>`).join("") || `<p class="kpi-meta">${t("projects.none")}</p>`;
   target.innerHTML = `
     <div><p class="eyebrow">${t("projects.label")}</p><h2>${escapeHtml(group.name)}</h2></div>
     <div class="project-detail-kpis">
-      <div class="detail-kpi"><span>${t("table.cost")}</span><strong class="cost">${formatCost(group.cost.cost)}</strong></div>
-      <div class="detail-kpi"><span>${t("kpi.credits")}</span><strong class="credits">${formatCredits(credits.credits)}</strong></div>
+      <div class="detail-kpi"><span>${t("table.cost")}</span><strong class="cost">${formatApiSummary(group.cost)}</strong></div>
+      <div class="detail-kpi"><span>${t("kpi.credits")}</span><strong class="credits">${formatCreditSummary(credits)}</strong></div>
       <div class="detail-kpi"><span>${t("table.tokens")}</span><strong>${formatCompact(usage.totalTokens)}</strong></div>
     </div>
     <section><h3 class="eyebrow">${t("projects.models")}</h3><div class="model-breakdown">${modelMarkup}</div></section>
@@ -1154,7 +1168,7 @@ function recentConversationMarkup(sessions) {
   return sessions.map((session) => {
     const lastCall = latestTimestamp(session.calls);
     const cost = costOfCalls(session.calls);
-    return `<button class="recent-item" type="button" data-session-id="${escapeHtml(session.id)}"><div class="recent-item-top"><span class="recent-title">${escapeHtml(sessionTitle(session))}</span><span class="cost">${formatCost(cost.cost)}</span></div><div class="recent-meta">${escapeHtml(session.nodeAlias || t("node.local"))} · ${formatDate(new Date(lastCall))} · ${formatCompact(session.usage.totalTokens)}</div></button>`;
+    return `<button class="recent-item" type="button" data-session-id="${escapeHtml(session.id)}"><div class="recent-item-top"><span class="recent-title">${escapeHtml(sessionTitle(session))}</span><span class="cost">${formatApiSummary(cost)}</span></div><div class="recent-meta">${escapeHtml(session.nodeAlias || t("node.local"))} · ${formatDate(new Date(lastCall))} · ${formatCompact(session.usage.totalTokens)}</div></button>`;
   }).join("");
 }
 
@@ -1273,10 +1287,11 @@ function renderCostChart(calls, target = "#costChart", period = state.period) {
     const segments = stackedChartSegments([
       { key: "fresh", value: bucket.cost.freshInputCost },
       { key: "cached", value: bucket.cost.cachedInputCost },
+      { key: "writes", value: bucket.cost.cacheWriteCost },
       { key: "output", value: bucket.cost.outputCost },
     ], max);
     const showLabel = monthly ? monthlyLabels.has(index) : buckets.length <= 12 || index % Math.ceil(buckets.length / labelTarget) === 0;
-    const detail = `${bucket.label} · ${formatCost(bucket.cost.cost)}`;
+    const detail = `${bucket.label} · ${formatApiSummary(bucket.cost)}`;
     const drillable = Boolean(nextChartGranularity(bucket.granularity));
     const drillLabel = t("chart.zoomInto", { label: bucket.label });
     const rectangles = segments
@@ -1362,7 +1377,7 @@ function renderTable(sessions) {
   const startIndex = (state.page - 1) * state.pageSize;
   const visible = filtered.slice(startIndex, startIndex + state.pageSize);
   $("#conversationRows").innerHTML = visible.length ? visible.map((session) =>
-    `<tr data-session-id="${escapeHtml(session.id)}" tabindex="0"><td><div class="conversation-name">${escapeHtml(sessionTitle(session))}</div><div class="conversation-date">${formatInt(session.exchanges)} ${session.exchanges === 1 ? t("table.exchange") : t("table.exchanges").toLocaleLowerCase(locale())} · ${formatDuration(session.durationMs)}</div></td><td><span class="node-pill">${escapeHtml(session.tableNode)}</span></td><td><span class="project-pill" title="${escapeHtml(session.cwd || session.tableProject)}">${escapeHtml(session.tableProject)}</span></td><td>${usageProfilesMarkup(session.calls, { limit: 2, compact: true })}</td><td class="last-call"><time datetime="${escapeHtml(session.tableLastCall)}">${formatDate(new Date(session.tableLastCall))}</time></td><td>${formatInt(session.modelCalls)}</td><td title="${formatInt(session.usage.totalTokens)} ${t("units.tokens")}">${formatCompact(session.usage.totalTokens)}</td><td><div class="cost-stack"><strong>${formatCost(session.tableCost.cost)}${session.tableCost.estimatedCalls ? " ≈" : ""}</strong><span>${formatCredits(session.tableCredits.credits)} Codex</span></div></td></tr>`
+    `<tr data-session-id="${escapeHtml(session.id)}" tabindex="0"><td><div class="conversation-name">${escapeHtml(sessionTitle(session))}</div><div class="conversation-date">${formatInt(session.exchanges)} ${session.exchanges === 1 ? t("table.exchange") : t("table.exchanges").toLocaleLowerCase(locale())} · ${formatDuration(session.durationMs)}</div></td><td><span class="node-pill">${escapeHtml(session.tableNode)}</span></td><td><span class="project-pill" title="${escapeHtml(session.cwd || session.tableProject)}">${escapeHtml(session.tableProject)}</span></td><td>${usageProfilesMarkup(session.calls, { limit: 2, compact: true })}</td><td class="last-call"><time datetime="${escapeHtml(session.tableLastCall)}">${formatDate(new Date(session.tableLastCall))}</time></td><td>${formatInt(session.modelCalls)}</td><td title="${formatInt(session.usage.totalTokens)} ${t("units.tokens")}">${formatCompact(session.usage.totalTokens)}</td><td><div class="cost-stack"><strong>${formatApiSummary(session.tableCost)}${session.tableCost.estimatedCalls ? " ≈" : ""}</strong><span>${formatCreditSummary(session.tableCredits)} Codex</span></div></td></tr>`
   ).join("") : `<tr><td colspan="8" class="empty">${t("conversation.none")}</td></tr>`;
   const rangeStart = filtered.length ? startIndex + 1 : 0;
   const rangeEnd = Math.min(startIndex + visible.length, filtered.length);
@@ -1425,8 +1440,8 @@ function openDrawer(id) {
       ${usageProfilesMarkup(session.calls)}
     </section>
     <div class="detail-kpis">
-      <div class="detail-kpi"><span>${t("detail.cost")}</span><strong class="cost">${formatCost(cost.cost)}</strong><small>${apiCostSummaryMeta(cost, { includeCoverage: true })}</small></div>
-      <div class="detail-kpi"><span>${t("detail.credits")}</span><strong class="credits">${formatCredits(credits.credits)}</strong><small>${creditSummaryMeta(credits)}</small></div>
+      <div class="detail-kpi"><span>${t("detail.cost")}</span><strong class="cost">${formatApiSummary(cost)}</strong><small>${apiCostSummaryMeta(cost, { includeCoverage: true })}</small></div>
+      <div class="detail-kpi"><span>${t("detail.credits")}</span><strong class="credits">${formatCreditSummary(credits)}</strong><small>${creditSummaryMeta(credits)}</small></div>
       <div class="detail-kpi"><span>${t("table.tokens")}</span><strong>${formatCompact(usage.totalTokens)}</strong><small>${formatInt(usage.totalTokens)}</small></div>
       <div class="detail-kpi"><span>${t("detail.calls")}</span><strong>${session.modelCalls}</strong></div>
       <div class="detail-kpi"><span>${t("detail.exchanges")}</span><strong>${session.exchanges}</strong></div>
@@ -1504,26 +1519,38 @@ function openPricing() {
   const effortCalls = [...new Map(state.data.sessions.flatMap((session) => session.calls)
     .filter((call) => call.effort)
     .map((call) => [effortPriceKey(call.model, call.effort), call])).values()];
+  const custom = { ...state.pricing, mode: "custom" };
   const rows = [
     { type: "reference", key: "reference", label: t("pricing.reference"), values: state.pricing.reference },
-    ...models.map((model) => ({ type: "model", key: model, label: `${model} (${t("pricing.modelType")})`, values: modelPriceFor(model) })),
-    ...effortCalls.map((call) => ({ type: "effort", key: effortPriceKey(call.model, call.effort), label: `${call.model} (${t("pricing.effortType", { effort: effortLabel(call.effort) })})`, values: priceFor(call.model, call.effort) })),
+    ...models.map((model) => ({ type: "model", key: model, label: `${model} (${t("pricing.modelType")})`, values: apiPriceFor(custom, model) })),
+    ...effortCalls.map((call) => ({ type: "effort", key: effortPriceKey(call.model, call.effort), label: `${call.model} (${t("pricing.effortType", { effort: effortLabel(call.effort) })})`, values: apiPriceFor(custom, call.model, call.effort) })),
   ];
-  $("#pricingRows").innerHTML = `<div class="pricing-row pricing-labels"><span>${t("pricing.model")}</span><span>${t("pricing.input")}</span><span>${t("token.cache")}</span><span>${t("token.output")}</span></div>${rows.map((row) => `<div class="pricing-row" data-price-type="${row.type}" data-price-key="${escapeHtml(row.key)}"><label title="${escapeHtml(row.label)}">${escapeHtml(row.label)}${row.type === "effort" && !state.pricing.effortOverrides?.[row.key] ? " ≈" : ""}</label><input type="number" min="0" step="0.001" value="${row.values.input}"><input type="number" min="0" step="0.001" value="${row.values.cached}"><input type="number" min="0" step="0.001" value="${row.values.output}"></div>`).join("")}`;
+  $("#pricingRows").innerHTML = `<div class="pricing-row pricing-labels"><span>${t("pricing.model")}</span><span>${t("pricing.input")}</span><span>${t("token.cache")}</span><span>${t("token.output")}</span></div>${rows.map((row) => `<div class="pricing-row" data-price-type="${row.type}" data-price-key="${escapeHtml(row.key)}"><label title="${escapeHtml(row.label)}">${escapeHtml(row.label)}${row.type === "effort" && !state.pricing.effortOverrides?.[row.key] ? " ≈" : ""}</label><input type="number" min="0" step="0.001" value="${row.values.input ?? ""}" aria-label="${escapeHtml(row.label + " · " + t("pricing.input"))}"><input type="number" min="0" step="0.001" value="${row.values.cached ?? ""}" aria-label="${escapeHtml(row.label + " · " + t("token.cache"))}"><input type="number" min="0" step="0.001" value="${row.values.output ?? ""}" aria-label="${escapeHtml(row.label + " · " + t("token.output"))}"></div>`).join("")}`;
+  $("#pricingMode").value = state.pricing.mode;
+  $("#pricingRows").hidden = state.pricing.mode !== "custom";
+  $("#pricingCatalog").textContent = pricingCatalogLabel(t);
+  $("#pricingLegacy").hidden = !state.pricing.legacyCustom;
+  $("#pricingHistoryModel").innerHTML = `<option value="all">${t("dated.allModels")}</option>${[...new Set(PRICING_CATALOG.map((rate) => rate.model))].sort().map((model) => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`).join("")}`;
+  $("#pricingHistory").innerHTML = pricingHistoryMarkup(t);
   $("#pricingDialog").showModal();
 }
 
 function savePricing() {
   const pricing = structuredClone(state.pricing);
   pricing.effortOverrides ||= {};
+  pricing.mode = $("#pricingMode").value;
+  pricing.asOf = new Date().toISOString();
+  if (pricing.mode === "custom") {
   $$(".pricing-row[data-price-key]").forEach((row) => {
-    const [input, cached, output] = [...row.querySelectorAll("input")].map((field) => Math.max(0, Number(field.value) || 0));
+    const [input, cached, output] = [...row.querySelectorAll("input")].map((field) => field.value === "" ? null : Math.max(0, Number(field.value) || 0));
     if (row.dataset.priceType === "reference") pricing.reference = { ...pricing.reference, input, cached, output };
     else if (row.dataset.priceType === "effort") pricing.effortOverrides[row.dataset.priceKey] = { input, cached, output };
     else pricing.models[row.dataset.priceKey] = { input, cached, output };
   });
+  }
   state.pricing = pricing;
-  localStorage.setItem("codex-usage-pricing", JSON.stringify(pricing));
+  try { localStorage.setItem("codex-usage-pricing", JSON.stringify(pricing)); }
+  catch { /* Prices remain active in this tab when storage is unavailable. */ }
   render();
   toast(t("pricing.saved"));
 }
@@ -1727,7 +1754,20 @@ $("#refreshButton").addEventListener("click", async () => {
 });
 $("#pricingButton").addEventListener("click", openPricing);
 $("#savePricing").addEventListener("click", savePricing);
-$("#resetPricing").addEventListener("click", () => { state.pricing = mergeApiPricing(DEFAULT_API_PRICING); localStorage.setItem("codex-usage-pricing", JSON.stringify(state.pricing)); $("#pricingDialog").close(); openPricing(); render(); });
+$("#resetPricing").addEventListener("click", () => {
+  state.pricing = mergeApiPricing();
+  try { localStorage.setItem("codex-usage-pricing", JSON.stringify(state.pricing)); } catch { /* Tab-local settings remain usable. */ }
+  $("#pricingDialog").close(); openPricing(); render();
+});
+$("#pricingMode").addEventListener("change", () => { $("#pricingRows").hidden = $("#pricingMode").value !== "custom"; });
+$("#pricingHistoryModel").addEventListener("change", () => { $("#pricingHistory").innerHTML = pricingHistoryMarkup(t, $("#pricingHistoryModel").value); });
+$("#exportPricing").addEventListener("click", () => {
+  const range = dateRange();
+  const report = createPricingReport(allScopedCalls(scopedSessions()), state.pricing, { start: range.start?.toISOString() || null, end: range.end?.toISOString() || null });
+  const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: "application/json" }));
+  const link = document.createElement("a"); link.href = url; link.download = `codex-pricing-${report.catalogVersion}.json`;
+  link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); toast(t("dated.exported"));
+});
 $$('[data-close-drawer]').forEach((element) => element.addEventListener("click", () => { $("#detailDrawer").setAttribute("aria-hidden", "true"); document.body.classList.remove("drawer-open"); }));
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") { $("#detailDrawer").setAttribute("aria-hidden", "true"); document.body.classList.remove("drawer-open"); } });
 $("#projectSearch").addEventListener("input", (event) => { state.projectQuery = event.target.value; if (state.data) renderProjectsPage(overviewSessions()); });

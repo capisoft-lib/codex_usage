@@ -7,6 +7,7 @@ function usageCounters(usage = {}) {
     outputTokens: usage.outputTokens || 0,
     reasoningOutputTokens: usage.reasoningOutputTokens || 0,
     totalTokens: usage.totalTokens || 0,
+    ...(Object.hasOwn(usage, "cacheWriteInputTokens") ? { cacheWriteInputTokens: usage.cacheWriteInputTokens } : {}),
   };
 }
 

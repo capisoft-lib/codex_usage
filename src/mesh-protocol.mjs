@@ -94,7 +94,8 @@ export function verifySignedEnvelope(envelope, publicKey, options = {}) {
 
 function finiteUsage(usage) {
   const fields = ["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens"];
-  return usage && fields.every((field) => Number.isFinite(usage[field]) && usage[field] >= 0);
+  return usage && fields.every((field) => Number.isFinite(usage[field]) && usage[field] >= 0)
+    && (!Object.hasOwn(usage, "cacheWriteInputTokens") || Number.isFinite(usage.cacheWriteInputTokens) && usage.cacheWriteInputTokens >= 0);
 }
 
 const PAYLOAD_KEYS = new Set(["kind", "snapshotVersion", "analyzerVersion", "generatedAt", "privacy", "shortQuota", "quota", "quotaHistory", "upserts", "removals"]);
@@ -102,7 +103,7 @@ const READ_PAYLOAD_KEYS = new Set(["kind", "requestVersion"]);
 const SESSION_KEYS = new Set(["id", "sourceSessionId", "nodeId", "nodeAlias", "title", "startedAt", "updatedAt", "cwd", "projectName", "projectGitHubUrl", "source", "cliVersion", "modelProvider", "models", "exchanges", "completedExchanges", "userMessages", "assistantMessages", "modelCalls", "durationMs", "usage", "turns", "calls", "parseErrors"]);
 const TURN_KEYS = new Set(["id", "startedAt", "completedAt", "durationMs", "model", "effort", "serviceTier", "calls", "usage"]);
 const CALL_KEYS = new Set(["timestamp", "turnId", "model", "effort", "serviceTier", "usage"]);
-const USAGE_KEYS = new Set(["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens"]);
+const USAGE_KEYS = new Set(["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens", "cacheWriteInputTokens"]);
 const QUOTA_KEYS = new Set(["usedPercent", "remainingPercent", "peakUsedPercent", "windowMinutes", "startsAt", "endsAt", "resetsAt", "resetsAvailable", "observedAt", "firstObservedAt", "peakObservedAt", "planType", "planTypes", "nodeId", "nodeAlias", "receivedAt"]);
 
 function hasOnlyKeys(value, allowed) {
