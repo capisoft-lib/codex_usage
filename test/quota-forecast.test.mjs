@@ -181,3 +181,35 @@ test("forecast fails closed when quota calibration data is unavailable", () => {
   assert.equal(buildQuotaForecast({ ...common, usedPercent: 20, samples: [] }).status, "insufficient");
   assert.equal(buildQuotaForecast({ ...common, usedPercent: 20, observedAt: "broken" }).status, "unavailable");
 });
+
+
+test("old unrated calls trim forecast history without hiding a fully priced current week", () => {
+  const options = { rangeStart: "2026-08-31T10:15:00Z", rangeEnd: "2026-09-07T10:15:00Z", observedAt: "2026-09-04T22:15:00Z", usedPercent: 40 };
+  const recent = Array.from({ length: 108 }, (_, index) => ({ timestamp: new Date(Date.parse(options.observedAt) - index * FORECAST_HOUR_MS).toISOString(), value: 10, rated: true }));
+  const old = [{ timestamp: "2026-08-10T10:00:00Z", value: 0, rated: false }, { timestamp: "2026-08-09T10:00:00Z", value: 10000000, rated: true }];
+  const clean = buildQuotaForecast({ ...options, samples: recent });
+  const result = buildQuotaForecast({ ...options, samples: [...old, ...recent] });
+  assert.equal(result.status, "ready");
+  assert.equal(result.creditsPerHour, clean.creditsPerHour);
+  assert.equal(result.expectedFinalPercent, clean.expectedFinalPercent);
+  assert.equal(result.actual.at(-1).percent, 40);
+  assert.ok(result.projected.length > 0);
+  const incompleteWeek = buildQuotaForecast({ ...options, samples: [...recent, { timestamp: "2026-09-02T10:00:00Z", value: 0, rated: false }] });
+  assert.equal(incompleteWeek.reason, "unrated-usage");
+});
+
+
+test("a week with unrated calls can project from independent complete-period capacity", () => {
+  const options = { rangeStart: "2026-08-31T08:15:00Z", rangeEnd: "2026-09-07T08:15:00Z", observedAt: "2026-09-04T23:00:00Z", usedPercent: 61, capacityCredits: 35000 };
+  const samples = Array.from({ length: 90 }, (_, index) => ({ timestamp: new Date(Date.parse(options.observedAt) - index * FORECAST_HOUR_MS).toISOString(), value: 30, rated: true }));
+  samples.push({ timestamp: "2026-08-31T18:57:00Z", value: 0, rated: false });
+  const result = buildQuotaForecast({ ...options, samples });
+  assert.equal(result.status, "ready");
+  assert.equal(result.partialHistory, true);
+  assert.equal(result.calibrationSource, "history");
+  assert.deepEqual(result.actual, [{ timestamp: "2026-09-04T23:00:00.000Z", percent: 61 }]);
+  assert.ok(result.projected.length > 1);
+  assert.ok(result.expectedFinalPercent > 61);
+  assert.ok(Math.abs(result.creditsPerHour - 30) < 1e-9);
+  assert.equal(buildQuotaForecast({ ...options, capacityCredits: null, samples }).reason, "unrated-usage");
+});

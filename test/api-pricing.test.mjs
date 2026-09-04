@@ -29,8 +29,9 @@ test("separates fresh, cached, and output cost", () => {
   assert.equal(result.cachedInputCost, 0.08);
   assert.equal(result.outputCost, 0.6);
   assert.equal(result.cost, 0.88);
-  assert.equal(result.estimatedCalls, 0);
-  assert.equal(result.officialCoverage, 1);
+  assert.equal(result.unobservedCacheWriteCalls, 1);
+  assert.equal(result.estimatedCalls, 1);
+  assert.equal(result.officialCoverage, 0);
 });
 
 test("applies GPT-5.6 long-context input and output multipliers", () => {
@@ -117,7 +118,7 @@ test("merges stored overrides while adding newly supported models", () => {
 test("reports unrated coverage for unknown models", () => {
   const result = apiCostOfCalls([
     { timestamp: "2026-08-14T12:00:00Z", model: "unknown-model", usage: usage(1_000_000, 0, 0) },
-    { timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.6-sol", usage: usage(1_000_000, 0, 0) },
+    { timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.6-sol", usage: { ...usage(1_000_000, 0, 0), cacheWriteInputTokens: 0 } },
   ], mergeApiPricing());
   assert.equal(result.unratedCalls, 1);
   assert.equal(result.officialCoverage, 0.5);

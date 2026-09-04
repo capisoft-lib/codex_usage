@@ -100,13 +100,14 @@ export function apiCostOfCalls(calls = [], pricing = mergeApiPricing()) {
     result.ratedCalls += 1;
     if (fast) result.fastCalls += 1;
     if (longContext) result.longContextCalls += 1;
-    if (rate?.cacheWriteMultiplier && !Object.hasOwn(usage, "cacheWriteInputTokens")) result.unobservedCacheWriteCalls += 1;
+    const unobservedWrites = Boolean(rate?.cacheWriteMultiplier && input > cached && !Object.hasOwn(usage, "cacheWriteInputTokens"));
+    if (unobservedWrites) result.unobservedCacheWriteCalls += 1;
     const boundary = pricing.mode === "historical" && (resolved.boundaryDay || (fast && [rate.fastFrom, rate.fastLongContextFrom].includes(resolved.day)));
     if (boundary) result.boundaryCalls += 1;
-    if (pricing.mode === "custom" || rate?.evidence === "reconstructed" || boundary) result.estimatedCalls += 1;
+    if (pricing.mode === "custom" || rate?.evidence === "reconstructed" || boundary || unobservedWrites) result.estimatedCalls += 1;
     const id = pricing.mode === "custom" ? `custom:${price.key}` : rate.id;
     result.ratesUsed[id] = (result.ratesUsed[id] || 0) + 1;
-    const bucketKey = `${id}:${fast ? "fast" : "standard"}:${longContext ? "long" : "short"}`;
+    const bucketKey = JSON.stringify([id, fast, longContext, price.input, price.cached, price.output, rate?.cacheWriteMultiplier || 1, multiplier]);
     const bucket = result.usageByRate[bucketKey] ||= {
       rateId: id, calls: 0, freshInputTokens: 0, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 0,
       appliedRates: { input: (price.input || 0) * (longContext ? 2 : 1) * multiplier, cached: (price.cached || 0) * (longContext ? 2 : 1) * multiplier, cacheWrite: (price.input || 0) * (rate?.cacheWriteMultiplier || 1) * (longContext ? 2 : 1) * multiplier, output: (price.output || 0) * (longContext ? 1.5 : 1) * multiplier },

@@ -42,3 +42,25 @@ test("pricing dialog preserves legacy custom values and switches saved modes wit
   assert.equal($("#pricingRows").hidden, false);
   assert.equal(renders, 2);
 });
+
+test("editing a model price keeps untouched effort rows inherited and preserves explicit overrides", () => {
+  const state = { pricing: mergeApiPricing(), data: { sessions: [] } };
+  const modelFields = ['4', '0.4', '12'];
+  const effortFields = ['10', '1', '50'];
+  const rows = [
+    { dataset: { priceType: 'model', priceKey: 'gpt-6-astra' }, querySelectorAll: () => modelFields.map(value => ({ value })) },
+    { dataset: { priceType: 'effort', priceKey: 'gpt-6-astra::high', originalPrice: '[10,1,50]' }, querySelectorAll: () => effortFields.map(value => ({ value })) },
+  ];
+  const context = vm.createContext({ state, $: () => ({ value: 'custom' }), $$: () => rows, structuredClone, render() {}, toast() {}, t: String, localStorage: { setItem() {} } });
+  vm.runInContext(source, context);
+  context.savePricing();
+  assert.equal(Object.hasOwn(state.pricing.effortOverrides, 'gpt-6-astra::high'), false);
+  assert.equal(apiPriceFor(state.pricing, 'gpt-6-astra', 'high').output, 12);
+  effortFields[2] = '19';
+  context.savePricing();
+  assert.equal(apiPriceFor(state.pricing, 'gpt-6-astra', 'high').output, 19);
+  rows[1].dataset.originalPrice = '[10,1,19]';
+  modelFields[2] = '24';
+  context.savePricing();
+  assert.equal(apiPriceFor(state.pricing, 'gpt-6-astra', 'high').output, 19);
+});

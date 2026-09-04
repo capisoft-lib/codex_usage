@@ -337,6 +337,19 @@ for (const [language, values] of Object.entries(CACHE_WRITE_I18N)) {
   });
 }
 
+const FORECAST_HISTORY_I18N = {
+  "en": "Detailed consumption history is incomplete. The forecast uses complete periods, recent priced activity and the observed quota.",
+  "fr": "Historique détaillé incomplet. La prévision utilise les périodes complètes, l’activité récente tarifée et le quota observé.",
+  "de": "Der detaillierte Verbrauchsverlauf ist unvollständig. Die Prognose nutzt vollständige Zeiträume, aktuelle bewertbare Aktivität und die beobachtete Quote.",
+  "es": "El historial detallado está incompleto. La previsión usa periodos completos, actividad reciente con tarifa y la cuota observada.",
+  "it": "Lo storico dettagliato è incompleto. La previsione usa periodi completi, attività recente con tariffa e la quota osservata.",
+  "pt": "O histórico detalhado está incompleto. A previsão usa períodos completos, atividade recente com tarifa e a quota observada.",
+  "ja": "詳細な消費履歴は不完全です。予測には完全な期間、料金が判明している最近の利用、観測された割り当てを使用します。",
+  "ru": "Подробная история расхода неполна. Прогноз использует полные периоды, недавнюю активность с известными тарифами и наблюдаемую квоту.",
+  "zh": "详细消耗历史不完整。预测使用完整周期、近期价格已知的活动和观测到的额度。"
+};
+for (const [language, message] of Object.entries(FORECAST_HISTORY_I18N)) PRICING_I18N[language]["dated.forecastPartial"] = message;
+
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 
 export function pricingHistoryMarkup(t, model = "all") {

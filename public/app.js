@@ -1089,6 +1089,7 @@ function renderQuotaForecast() {
     <article class="forecast-stat forecast-outcome${over ? " is-over" : " is-safe"}"><span>${t("quota.forecastAtReset")}</span><strong>${forecastPercent(forecast.expectedFinalPercent)} %</strong><small>${escapeHtml(outcome)}</small></article>
     <article class="forecast-stat"><span>${t("quota.emaHour")}</span><strong>${formatCredits(forecast.creditsPerHour)}</strong><small>${t("quota.forecastHint")}</small></article>
     <article class="forecast-stat"><span>${t("quota.emaDay")}</span><strong>${formatCredits(forecast.creditsPerDay)}</strong><small>${t("quota.forecastHint")}</small></article>`;
+  if (forecast.partialHistory) summary.innerHTML += `<p class="quota-forecast-history-note">${escapeHtml(t("dated.forecastPartial"))}</p>`;
   chart.innerHTML = quotaForecastSvg(forecast);
   bindQuotaForecastHover(chart, forecast);
 }
@@ -1525,7 +1526,7 @@ function openPricing() {
     ...models.map((model) => ({ type: "model", key: model, label: `${model} (${t("pricing.modelType")})`, values: apiPriceFor(custom, model) })),
     ...effortCalls.map((call) => ({ type: "effort", key: effortPriceKey(call.model, call.effort), label: `${call.model} (${t("pricing.effortType", { effort: effortLabel(call.effort) })})`, values: apiPriceFor(custom, call.model, call.effort) })),
   ];
-  $("#pricingRows").innerHTML = `<div class="pricing-row pricing-labels"><span>${t("pricing.model")}</span><span>${t("pricing.input")}</span><span>${t("token.cache")}</span><span>${t("token.output")}</span></div>${rows.map((row) => `<div class="pricing-row" data-price-type="${row.type}" data-price-key="${escapeHtml(row.key)}"><label title="${escapeHtml(row.label)}">${escapeHtml(row.label)}${row.type === "effort" && !state.pricing.effortOverrides?.[row.key] ? " ≈" : ""}</label><input type="number" min="0" step="0.001" value="${row.values.input ?? ""}" aria-label="${escapeHtml(row.label + " · " + t("pricing.input"))}"><input type="number" min="0" step="0.001" value="${row.values.cached ?? ""}" aria-label="${escapeHtml(row.label + " · " + t("token.cache"))}"><input type="number" min="0" step="0.001" value="${row.values.output ?? ""}" aria-label="${escapeHtml(row.label + " · " + t("token.output"))}"></div>`).join("")}`;
+  $("#pricingRows").innerHTML = `<div class="pricing-row pricing-labels"><span>${t("pricing.model")}</span><span>${t("pricing.input")}</span><span>${t("token.cache")}</span><span>${t("token.output")}</span></div>${rows.map((row) => `<div class="pricing-row" data-price-type="${row.type}" data-price-key="${escapeHtml(row.key)}" data-original-price="${escapeHtml(JSON.stringify([row.values.input ?? null, row.values.cached ?? null, row.values.output ?? null]))}"><label title="${escapeHtml(row.label)}">${escapeHtml(row.label)}${row.type === "effort" && !state.pricing.effortOverrides?.[row.key] ? " ≈" : ""}</label><input type="number" min="0" step="0.001" value="${row.values.input ?? ""}" aria-label="${escapeHtml(row.label + " · " + t("pricing.input"))}"><input type="number" min="0" step="0.001" value="${row.values.cached ?? ""}" aria-label="${escapeHtml(row.label + " · " + t("token.cache"))}"><input type="number" min="0" step="0.001" value="${row.values.output ?? ""}" aria-label="${escapeHtml(row.label + " · " + t("token.output"))}"></div>`).join("")}`;
   $("#pricingMode").value = state.pricing.mode;
   $("#pricingRows").hidden = state.pricing.mode !== "custom";
   $("#pricingCatalog").textContent = pricingCatalogLabel(t);
@@ -1544,7 +1545,12 @@ function savePricing() {
   $$(".pricing-row[data-price-key]").forEach((row) => {
     const [input, cached, output] = [...row.querySelectorAll("input")].map((field) => field.value === "" ? null : Math.max(0, Number(field.value) || 0));
     if (row.dataset.priceType === "reference") pricing.reference = { ...pricing.reference, input, cached, output };
-    else if (row.dataset.priceType === "effort") pricing.effortOverrides[row.dataset.priceKey] = { input, cached, output };
+    else if (row.dataset.priceType === "effort") {
+      // Untouched inherited rows must continue following their model price.
+      if (Object.hasOwn(pricing.effortOverrides, row.dataset.priceKey) || JSON.stringify([input, cached, output]) !== row.dataset.originalPrice) {
+        pricing.effortOverrides[row.dataset.priceKey] = { input, cached, output };
+      }
+    }
     else pricing.models[row.dataset.priceKey] = { input, cached, output };
   });
   }

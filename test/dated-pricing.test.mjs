@@ -217,3 +217,32 @@ test("quota forecasts exclude incompletely priced historical periods", () => {
   assert.equal(buildQuotaForecast(options).reason, "unrated-usage");
   assert.equal(buildQuotaForecast({ ...options, samples: samples.slice(0, 1) }).status, "ready");
 });
+
+
+test("custom aliases with different prices keep independently reproducible export buckets", () => {
+  const pricing = mergeApiPricing({ schemaVersion: 2, mode: "custom", models: {
+    "gpt-5.6": { input: 1, cached: 0.1, output: 3 },
+    "gpt-5.6-sol": { input: 2, cached: 0.2, output: 6 },
+  } });
+  const calls = [call("gpt-5.6", "2026-09-04"), call("gpt-5.6-sol", "2026-09-04")];
+  for (const ordered of [calls, [...calls].reverse()]) {
+    const result = createPricingReport(ordered, pricing).api;
+    near(result.cost, 9);
+    assert.equal(Object.keys(result.usageByRate).length, 2);
+    near(Object.values(result.usageByRate).reduce((sum, bucket) => sum + bucket.outputTokens * bucket.appliedRates.output / 1e6, 0), result.cost);
+  }
+});
+
+test("missing cache-write measurements remain estimated while measured zero is covered", () => {
+  const usage = { inputTokens: 100000, cachedInputTokens: 50000, outputTokens: 1000 };
+  const missing = apiCostOfCalls([call("gpt-6-astra", "2026-09-04", usage)]);
+  const measured = apiCostOfCalls([call("gpt-6-astra", "2026-09-04", { ...usage, cacheWriteInputTokens: 0 })]);
+  assert.equal(missing.estimatedCalls, 1);
+  assert.equal(missing.officialCoverage, 0);
+  assert.equal(measured.estimatedCalls, 0);
+  assert.equal(measured.officialCoverage, 1);
+  assert.equal(missing.cost, measured.cost);
+  const fullyCached = apiCostOfCalls([call("gpt-6-astra", "2026-09-04", { ...usage, cachedInputTokens: usage.inputTokens })]);
+  assert.equal(fullyCached.unobservedCacheWriteCalls, 0);
+  assert.equal(fullyCached.officialCoverage, 1);
+});
