@@ -11,8 +11,7 @@ import { OVERVIEW_PROJECT_LIMIT, projectIdentity } from "./project-identity.js";
 const USAGE_CACHE_KEY = "codex-usage-data";
 const CENTRALIZED_USAGE_CACHE_KEY = "codex-usage-data-centralized";
 const USAGE_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1_000;
-const POLL_INTERVAL_MS = 15_000;
-const CENTRALIZED_POLL_INTERVAL_MS = 60_000;
+const POLL_INTERVAL_MS = 5_000;
 const CUSTOM_RANGE_KEY = "codex-usage-custom-range";
 const DATA_MODE_KEY = "codex-usage-data-mode";
 const HOSTED_RUNTIME_HINT = new URLSearchParams(location.search).get("hosted") === "1";
@@ -1850,15 +1849,12 @@ document.addEventListener("visibilitychange", () => {
 });
 
 let pollRequest = null;
-let lastCentralizedPollAt = 0;
 
 async function pollForNewData() {
-  if (!state.data || pollRequest) return;
+  if (pollRequest) return pollRequest;
   pollRequest = (async () => {
     try {
-      if (state.dataMode === "centralized") {
-        if (Date.now() - lastCentralizedPollAt < CENTRALIZED_POLL_INTERVAL_MS) return;
-        lastCentralizedPollAt = Date.now();
+      if (!state.data || state.dataMode === "centralized") {
         await loadData(false, true);
         return;
       }
@@ -1869,7 +1865,6 @@ async function pollForNewData() {
         await loadData(false, true);
       }
     } catch { /* Keep displaying the last snapshot during a transient failure. */ }
-    finally { pollRequest = null; }
-  })();
+  })().finally(() => { pollRequest = null; });
   return pollRequest;
 }
