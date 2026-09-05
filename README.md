@@ -25,6 +25,8 @@ Setup guides: [deploy the central dashboard with OpenAI Sites](docs/sites-deploy
 
 The interface is available in French, English, German, Spanish, Italian, Portuguese, Japanese, Russian, and Simplified Chinese. The browser language is used on first visit when supported. Explicit language choices, date preferences, and custom pricing remain in browser storage.
 
+Choose **Settings → Appearance** for the original green theme or the blue, violet and amber palettes. The choice applies immediately to the dashboard and its charts, persists in this browser and synchronizes across tabs on the same origin. Local and hosted dashboards share the same themes. See [UI themes](docs/ui-themes.md) to add a palette.
+
 The server indexes sessions incrementally and persists a derived snapshot. An open page checks for newer data every 15 seconds, while **Refresh** forces an immediate source check.
 
 ## Deployment models

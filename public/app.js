@@ -2,7 +2,7 @@ import { codexCreditsOfCalls, fastMultiplierFor, usageProfilesOfCalls } from "./
 import { apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 import { PRICING_CATALOG } from "./pricing-catalog.js";
 import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryMarkup } from "./pricing-ui.js";
-import { ADDITIONAL_I18N, LOCALE_TAGS, resolveLanguage } from "./translations.js";
+import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, resolveLanguage } from "./translations.js";
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp, normalizeCustomRange, quotaCountdownParts, resolveDateRange, resolveWeeklyRange, theoreticalWeeklyQuotaPeriod, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { buildQuotaForecast, estimateQuotaCapacityCredits, interpolateForecastPercent, weeklyForecastTicks } from "./quota-forecast.js";
@@ -230,6 +230,8 @@ const PWA_I18N = {
   de: { "pwa.eyebrow": "ANWENDUNG", "pwa.title": "Auf diesem Telefon installieren", "pwa.copy": "Fügen Sie Codex Usage zum Startbildschirm hinzu und öffnen Sie es wie eine App.", "pwa.install": "App installieren", "pwa.ready": "Die App kann jetzt installiert werden.", "pwa.instructions": "Öffnen Sie unter Android das Browsermenü und wählen Sie App installieren oder Zum Startbildschirm hinzufügen, falls die Schaltfläche nicht erscheint.", "pwa.installed": "Codex Usage ist auf diesem Gerät installiert.", "pwa.dismissed": "Die Installation wurde abgebrochen. Sie können es über das Browsermenü erneut versuchen.", "pwa.toastTitle": "Codex Usage installieren", "pwa.toastCopy": "Fügen Sie das Dashboard zum Startbildschirm hinzu und öffnen Sie es wie eine App.", "pwa.howTo": "Anleitung", "pwa.toastClose": "Installationshinweis ausblenden" },
 };
 for (const [language, messages] of Object.entries(PWA_I18N)) Object.assign(I18N[language], messages);
+
+for (const [language, messages] of Object.entries(THEME_I18N)) Object.assign(I18N[language], messages);
 
 const PAGES = ["overview", "projects", "quota", "conversations", "settings"];
 for (const [language, messages] of Object.entries(PRICING_I18N)) Object.assign(I18N[language], messages);
@@ -1633,6 +1635,7 @@ function applyTranslations() {
     $('[data-i18n="license.independent"]').dataset.i18n = "license.independentHosted";
   }
   $("#languageSelect").value = state.language;
+  initThemePicker();
   $$('[data-i18n]').forEach((element) => { element.textContent = t(element.dataset.i18n); });
   $$('[data-i18n-placeholder]').forEach((element) => { element.placeholder = t(element.dataset.i18nPlaceholder); });
   $$('[data-i18n-aria]').forEach((element) => { element.setAttribute("aria-label", t(element.dataset.i18nAria)); });
@@ -1649,6 +1652,26 @@ function applyTranslations() {
   if (!state.data && state.dataMode === "centralized") $("#freshness").textContent = t("load.loadingCentralized");
   syncPageChrome();
   renderQuota();
+}
+
+function initThemePicker() {
+  const target = $("#themeOptions");
+  const manager = globalThis.CodexUsageThemes;
+  if (!target || !manager || target.childElementCount) return;
+  target.innerHTML = manager.themes.map(({ id }) => `
+    <label class="theme-option">
+      <input type="radio" name="dashboard-theme" value="${id}">
+      <span class="theme-preview" data-theme="${id}" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span data-i18n="theme.${id}">${t(`theme.${id}`)}</span>
+    </label>`).join("");
+  const sync = () => target.querySelectorAll("input").forEach((input) => {
+    input.checked = input.value === manager.getTheme();
+  });
+  target.addEventListener("change", (event) => {
+    if (event.target.matches('input[name="dashboard-theme"]')) manager.setTheme(event.target.value);
+  });
+  document.addEventListener("dashboardthemechange", sync);
+  sync();
 }
 
 function syncDataModeControls() {
