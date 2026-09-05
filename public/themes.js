@@ -4,7 +4,7 @@
   const storageKey = "codex-usage-theme";
   const themes = Object.freeze([
     Object.freeze({ id: "green", color: "#0e110f" }),
-    Object.freeze({ id: "blue", color: "#0d1119" }),
+    Object.freeze({ id: "blue", color: "#0a0b0d" }),
     Object.freeze({ id: "violet", color: "#121019" }),
     Object.freeze({ id: "amber", color: "#15110c" }),
   ]);

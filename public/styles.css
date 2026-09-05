@@ -21,22 +21,22 @@
 }
 
 [data-theme="blue"] {
-  --bg: #0d1119;
-  --surface: #111722;
-  --surface-raised: #182131;
-  --surface-soft: #1c2738;
-  --surface-high: #27344a;
-  --line: #34435a;
-  --line-strong: #465873;
-  --axis: #526680;
-  --text: #e2e9f3;
-  --muted: #becce0;
-  --subtle: #93a6bf;
-  --accent: #8bc5ff;
-  --accent-dim: #64a9ee;
-  --accent-active: #a5d3ff;
-  --on-accent: #081c30;
-  --cached: #61adbb;
+  --bg: #0a0b0d;
+  --surface: #101216;
+  --surface-raised: #15181e;
+  --surface-soft: #191d24;
+  --surface-high: #212630;
+  --line: #2c323c;
+  --line-strong: #3a424f;
+  --axis: #495464;
+  --text: #e7e9ed;
+  --muted: #b6bdc7;
+  --subtle: #7f8996;
+  --accent: #6ea8fe;
+  --accent-dim: #4f8ee8;
+  --accent-active: #6ea8fe;
+  --on-accent: #0d1117;
+  --cached: #8b7cf6;
   --output: #f0a05e;
   --writes: #c9acef;
   --danger: #ffb4ab;
@@ -97,6 +97,26 @@
   background: var(--bg);
   font-family: Inter, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
+}
+
+/* User-supplied blue treatment, scoped to this palette. Shared active/focus
+   rules already derive their colors and glows from the palette tokens. */
+:root[data-theme="blue"] {
+  --accent-soft: rgba(110, 168, 254, .10);
+  --glass: rgba(16, 18, 22, .82);
+}
+:root[data-theme="blue"] body {
+  background:
+    radial-gradient(circle at 18% -8%, rgba(110, 168, 254, .06), transparent 28rem),
+    linear-gradient(135deg, #090a0c 0%, #0d0f13 100%);
+}
+:root[data-theme="blue"] .sidenav { background: rgba(16, 18, 22, .94); }
+:root[data-theme="blue"] .topbar { background: rgba(14, 16, 20, .92); }
+:root[data-theme="blue"] .cost-card { box-shadow: 0 0 18px rgba(110, 168, 254, .08); }
+:root[data-theme="blue"] .panel-link:hover { color: #8db9ff; }
+:root[data-theme="blue"] .cost-coverage {
+  color: var(--accent);
+  border-color: rgba(110, 168, 254, .22);
 }
 
 * { box-sizing: border-box; }
