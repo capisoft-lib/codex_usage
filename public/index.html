@@ -9,6 +9,7 @@
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icon-180.png">
   <link rel="manifest" href="./manifest.webmanifest">
+  <script src="./themes.js"></script>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body data-page="overview">
@@ -238,6 +239,18 @@
 
       <section class="page" data-page="settings" hidden>
         <div class="settings-layout">
+          <article class="panel settings-card">
+            <div class="panel-heading">
+              <h2 data-i18n="theme.appearance">Apparence</h2>
+            </div>
+            <div class="settings-body">
+              <p class="dialog-copy" data-i18n="theme.copy">Le thème est conservé dans ce navigateur.</p>
+              <fieldset class="theme-picker">
+                <legend data-i18n="theme.label">Thème de l’interface</legend>
+                <div id="themeOptions" class="theme-options"></div>
+              </fieldset>
+            </div>
+          </article>
           <article class="panel settings-card" data-local-only>
             <div class="panel-heading">
               <div><p class="eyebrow" data-i18n="data.source">SOURCE</p><h2 data-i18n="settings.source">Source des données</h2></div>

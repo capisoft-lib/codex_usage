@@ -246,3 +246,19 @@ export function resolveLanguage(preferences, fallback = "fr") {
   }
   return supported.has(fallback) ? fallback : "fr";
 }
+
+const THEME_LABELS = {
+  fr: ["Apparence", "Thème de l’interface", "Le thème est conservé dans ce navigateur.", "Vert", "Bleu", "Violet", "Ambre"],
+  en: ["Appearance", "Interface theme", "The theme is saved in this browser.", "Green", "Blue", "Violet", "Amber"],
+  de: ["Darstellung", "Oberflächendesign", "Das Design wird in diesem Browser gespeichert.", "Grün", "Blau", "Violett", "Bernstein"],
+  es: ["Apariencia", "Tema de la interfaz", "El tema se guarda en este navegador.", "Verde", "Azul", "Violeta", "Ámbar"],
+  it: ["Aspetto", "Tema dell’interfaccia", "Il tema viene salvato in questo browser.", "Verde", "Blu", "Viola", "Ambra"],
+  pt: ["Aparência", "Tema da interface", "O tema é guardado neste navegador.", "Verde", "Azul", "Violeta", "Âmbar"],
+  ja: ["外観", "インターフェースのテーマ", "テーマはこのブラウザに保存されます。", "グリーン", "ブルー", "バイオレット", "アンバー"],
+  ru: ["Оформление", "Тема интерфейса", "Тема сохраняется в этом браузере.", "Зелёная", "Синяя", "Фиолетовая", "Янтарная"],
+  zh: ["外观", "界面主题", "主题保存在此浏览器中。", "绿色", "蓝色", "紫色", "琥珀色"],
+};
+export const THEME_I18N = Object.fromEntries(Object.entries(THEME_LABELS).map(([language, labels]) => [
+  language,
+  Object.fromEntries(["appearance", "label", "copy", "green", "blue", "violet", "amber"].map((key, index) => [`theme.${key}`, labels[index]])),
+]));

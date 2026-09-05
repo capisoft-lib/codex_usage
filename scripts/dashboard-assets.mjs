@@ -15,6 +15,7 @@ export const DASHBOARD_ASSETS = Object.freeze([
   "quota-forecast.js",
   "styles.css",
   "sw.js",
+  "themes.js",
   "translations.js",
   "usage-pricing.js",
   "visualization.js",
