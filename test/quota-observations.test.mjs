@@ -49,9 +49,24 @@ test("measured history remains visible without priced samples or forecast calibr
     const result = buildQuotaForecast({ rangeStart: stamp(0), rangeEnd: stamp(168), observedAt: stamp(6), asOf: stamp(8), usedPercent: 25, observations, project });
     assert.equal(result.status, "ready");
     assert.equal(result.projectionUnavailable, project);
-    assert.equal(result.actual.at(-1).timestamp, stamp(6));
+    assert.equal(result.actual.at(-1).timestamp, stamp(project ? 8 : 6));
+    assert.equal(result.actual.at(-1).percent, 25);
+    assert.equal(result.observedAt, stamp(6));
     assert.deepEqual(result.projected, []);
   }
+});
+
+test("current measured history stays flat until now and joins the forecast exactly", () => {
+  const result = buildQuotaForecast({ rangeStart: stamp(0), rangeEnd: stamp(168), observedAt: stamp(6), asOf: stamp(12), usedPercent: 25,
+    observations, capacityCredits: 100, samples: [{ timestamp: stamp(4), value: 1 }] });
+  assert.equal(result.status, "ready");
+  assert.equal(result.observedAt, stamp(6));
+  assert.deepEqual(result.actual.at(-1), { timestamp: stamp(12), percent: 25 });
+  assert.deepEqual(result.actual.at(-1), result.projected[0]);
+  assert.equal(interpolateForecastPercent(result.actual, stamp(9), { clamp: false }), 25);
+  const ended = buildQuotaForecast({ rangeStart: stamp(0), rangeEnd: stamp(7), observedAt: stamp(6), asOf: stamp(12), usedPercent: 25, observations });
+  assert.equal(ended.actual.at(-1).timestamp, stamp(7));
+  assert.equal(ended.actual.at(-1).percent, 25);
 });
 
 test("out-of-window observations cannot leak into another quota period", () => {
