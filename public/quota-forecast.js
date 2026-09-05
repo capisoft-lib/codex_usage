@@ -193,12 +193,15 @@ export function buildQuotaForecast({
   const measured = [...measuredByTime.entries()].sort((a, b) => a[0] - b[0]).map(([, point]) => point);
   const historySource = measured.length ? "observed" : "estimated";
   const actual = measured.length ? measured : cumulativePoints(observedSamples, startTime, observedAnchorTime, safeUsedPercent, currentCredits);
-  // A stale observation is not evidence of a plateau through the present.
-  // Measured history stops at its last actual sample, even without a forecast.
-  if (!measured.length && anchorTime > observedAnchorTime) actual.push({ timestamp: new Date(anchorTime).toISOString(), percent: safeUsedPercent });
+  const lastObservedAt = actual.at(-1).timestamp;
+  // Carry the latest known quota to now so the current curve joins the forecast.
+  // Keep the observation timestamp separate from this display-only plateau.
+  if ((project !== false || !measured.length) && anchorTime > validTime(lastObservedAt)) {
+    actual.push({ timestamp: new Date(anchorTime).toISOString(), percent: actual.at(-1).percent });
+  }
   const historyOnly = (reason) => measured.length ? {
     status: "ready", rangeStart: new Date(startTime).toISOString(), rangeEnd: new Date(endTime).toISOString(),
-    observedAt: actual.at(-1).timestamp, asOf: new Date(anchorTime).toISOString(), usedPercent: safeUsedPercent,
+    observedAt: lastObservedAt, asOf: new Date(anchorTime).toISOString(), usedPercent: safeUsedPercent,
     historySource, partialHistory, actual, projected: [], completed: !shouldProject,
     projectionUnavailable: shouldProject, expectedFinalPercent: actual.at(-1).percent, reason,
   } : { status: "insufficient", ...(reason ? { reason } : {}) };
