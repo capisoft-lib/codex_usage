@@ -66,7 +66,7 @@ export function readAccountQuotas({ executable, timeoutMs = 15_000, spawnImpl = 
         } catch { /* Ignore non-protocol output; the deadline remains bounded. */ }
       });
       send({ id: 1, method: "initialize", params: {
-        clientInfo: { name: "codex_usage_dashboard", version: "1.4.0" },
+        clientInfo: { name: "codex_usage_dashboard", version: "1.5.0" },
         capabilities: { experimentalApi: true },
       } });
     } catch { stop(); finish(); }

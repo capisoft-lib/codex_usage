@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 1.5.0 — 2026-09-07
+
+- Added five-hour quota tracking, responsive quota navigation, a current WeeklyQuota filter, and separate 12-month and full-history ranges.
+- Added an optional always-on-top desktop quota window, including remote dashboard connections through Mesh.
+- Added persistent dashboard themes shared with administration and linked desktop quota windows.
+- Added GPT-6 Astra and dated pricing history, with historical/current/custom pricing modes and calculation exports.
+- Improved forecasts with incomplete pricing history and preserved observed quota curves independently of pricing availability. Unknown rates can still prevent a reliable projection.
+- Kept current and completed quota curves continuous through their display endpoint and clarified historical hover values.
+- Restored automatic dashboard refresh and collected available reset counts from Codex App Server while preserving unknown values.
+- Improved Windows reporting-agent recovery, hidden background execution, removal cleanup, and self-hosted hub diagnostics.
+- Localized command-line output and refreshed audited Sites dependencies.
+
+Docker images: `capitaine/codex-usage-dashboard:1.5.0` and `:latest` (Linux AMD64 and ARM64). Pull the new image and recreate the container while preserving its existing configuration and storage volume. Update Windows reporting agents separately to receive collector and supervision changes.
+
 ## 1.4.0 — 2026-08-26
 
 - Added an official Windows `CodexUsageMesh` Task Scheduler installer, single-instance PowerShell supervisor, sleep/resume recovery, non-zero-exit restart loop, UTF-8 timestamped logs, state-preserving updates, and task/process/sync/hub diagnostics.
