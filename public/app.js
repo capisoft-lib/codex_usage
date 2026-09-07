@@ -2,7 +2,7 @@ import { weeklyQuotaPeriods, shortQuotaDisplay, quotaCountdownText } from "./quo
 import { codexCreditsOfCalls, fastMultiplierFor, usageProfilesOfCalls } from "./usage-pricing.js";
 import { apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 import { PRICING_CATALOG } from "./pricing-catalog.js";
-import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryMarkup } from "./pricing-ui.js";
+import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryMarkup, pricingDiagnosticsMarkup } from "./pricing-ui.js";
 import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, resolveLanguage } from "./translations.js";
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
@@ -1100,7 +1100,7 @@ function renderQuotaForecast() {
   });
   if (forecast.status !== "ready") {
     summary.innerHTML = "";
-    chart.innerHTML = `<p class="quota-forecast-empty">${t(forecast.status === "unavailable" ? "quota.unavailable" : "quota.insufficient")}</p>`;
+    chart.innerHTML = `<p class="quota-forecast-empty">${t(forecast.status === "unavailable" ? "quota.unavailable" : forecast.reason ? "dated.blocked." + forecast.reason : "quota.insufficient")}</p>`;
     return;
   }
   const actualLegend = $(".forecast-key.actual")?.nextElementSibling;
@@ -1111,18 +1111,22 @@ function renderQuotaForecast() {
   }
   const historyNote = `<p class="quota-forecast-history-note">${escapeHtml(t(forecast.historySource === "observed" ? "dated.measuredHistoryNote" : "dated.estimatedHistoryNote"))}</p>`;
   if (!current || forecast.projectionUnavailable) {
-    summary.innerHTML = historyNote + (forecast.projectionUnavailable ? `<p class="quota-forecast-history-note">${escapeHtml(t("quota.insufficient"))}</p>` : "");
+    summary.innerHTML = historyNote + (forecast.projectionUnavailable ? `<p class="quota-forecast-history-note">${escapeHtml(t(forecast.reason ? "dated.blocked." + forecast.reason : "quota.insufficient"))}</p>` : "");
     chart.innerHTML = quotaForecastSvg(forecast);
     bindQuotaForecastHover(chart, forecast);
     return;
   }
+  const measuredForecast = forecast.calibrationSource === "observations";
+  const forecastHint = t(measuredForecast ? "dated.measuredHistory" : "quota.forecastHint");
+  const hourRate = measuredForecast ? forecastPercent(forecast.percentPerHour) + " %" : formatCredits(forecast.creditsPerHour);
+  const dayRate = measuredForecast ? forecastPercent(forecast.percentPerDay) + " %" : formatCredits(forecast.creditsPerDay);
   const over = forecast.marginPercent < 0;
   const outcome = t(over ? "quota.overrun" : "quota.margin", { n: forecastPercent(Math.abs(forecast.marginPercent)) });
   summary.innerHTML = `
     <article class="forecast-stat forecast-outcome${over ? " is-over" : " is-safe"}"><span>${t("quota.forecastAtReset")}</span><strong>${forecastPercent(forecast.expectedFinalPercent)} %</strong><small>${escapeHtml(outcome)}</small></article>
-    <article class="forecast-stat"><span>${t("quota.emaHour")}</span><strong>${formatCredits(forecast.creditsPerHour)}</strong><small>${t("quota.forecastHint")}</small></article>
-    <article class="forecast-stat"><span>${t("quota.emaDay")}</span><strong>${formatCredits(forecast.creditsPerDay)}</strong><small>${t("quota.forecastHint")}</small></article>`;
-  summary.innerHTML += historyNote;
+    <article class="forecast-stat"><span>${t("quota.emaHour")}</span><strong>${hourRate}</strong><small>${escapeHtml(forecastHint)}</small></article>
+    <article class="forecast-stat"><span>${t("quota.emaDay")}</span><strong>${dayRate}</strong><small>${escapeHtml(forecastHint)}</small></article>`;
+  summary.innerHTML += historyNote + (measuredForecast ? `<p class="quota-forecast-history-note">${escapeHtml(t("dated.observationForecast"))}</p>` : "");
   chart.innerHTML = quotaForecastSvg(forecast);
   bindQuotaForecastHover(chart, forecast);
 }
@@ -1547,6 +1551,11 @@ function updateFolderFilterSummary() {
   summary.setAttribute("aria-label", t("filter.folder"));
 }
 
+function pricingSelection() {
+  const range = state.view === "quota" ? weeklyRange() : dateRange();
+  return { range, calls: allScopedCalls(state.view === "quota" ? sessionsInRange({ range }) : scopedSessions()) };
+}
+
 function openPricing() {
   if (!state.data) return;
   const models = [...new Set(state.data.sessions.flatMap((session) => session.models))].sort();
@@ -1566,6 +1575,7 @@ function openPricing() {
   $("#pricingLegacy").hidden = !state.pricing.legacyCustom;
   $("#pricingHistoryModel").innerHTML = `<option value="all">${t("dated.allModels")}</option>${[...new Set(PRICING_CATALOG.map((rate) => rate.model))].sort().map((model) => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`).join("")}`;
   $("#pricingHistory").innerHTML = pricingHistoryMarkup(t);
+  $("#pricingDiagnostics").innerHTML = pricingDiagnosticsMarkup(t, pricingSelection().calls, state.pricing);
   $("#pricingDialog").showModal();
 }
 
@@ -1822,8 +1832,8 @@ $("#resetPricing").addEventListener("click", () => {
 $("#pricingMode").addEventListener("change", () => { $("#pricingRows").hidden = $("#pricingMode").value !== "custom"; });
 $("#pricingHistoryModel").addEventListener("change", () => { $("#pricingHistory").innerHTML = pricingHistoryMarkup(t, $("#pricingHistoryModel").value); });
 $("#exportPricing").addEventListener("click", () => {
-  const range = dateRange();
-  const report = createPricingReport(allScopedCalls(scopedSessions()), state.pricing, { start: range.start?.toISOString() || null, end: range.end?.toISOString() || null });
+  const { range, calls } = pricingSelection();
+  const report = createPricingReport(calls, state.pricing, { start: range.start?.toISOString() || null, end: range.end?.toISOString() || null });
   const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: "application/json" }));
   const link = document.createElement("a"); link.href = url; link.download = `codex-pricing-${report.catalogVersion}.json`;
   link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); toast(t("dated.exported"));

@@ -4,7 +4,7 @@ import vm from "node:vm";
 import test from "node:test";
 import { mergeApiPricing, apiPriceFor } from "../public/api-pricing.js";
 import { PRICING_CATALOG } from "../public/pricing-catalog.js";
-import { PRICING_I18N, pricingHistoryMarkup, pricingCatalogLabel } from "../public/pricing-ui.js";
+import { PRICING_I18N, pricingHistoryMarkup, pricingCatalogLabel, pricingDiagnosticsMarkup } from "../public/pricing-ui.js";
 
 const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 const source = app.slice(app.indexOf("function openPricing("), app.indexOf("function applyUsageData("));
@@ -20,7 +20,7 @@ test("pricing dialog preserves legacy custom values and switches saved modes wit
   let renders = 0;
   const context = vm.createContext({
     state, $, $$: () => [{ dataset: { priceType: "model", priceKey: "gpt-6-astra" }, querySelectorAll: () => ["4", "0.4", "12"].map((value) => ({ value })) }],
-    apiPriceFor, PRICING_CATALOG, pricingHistoryMarkup, pricingCatalogLabel,
+    apiPriceFor, PRICING_CATALOG, pricingHistoryMarkup, pricingCatalogLabel, pricingDiagnosticsMarkup, pricingSelection: () => ({ calls: [] }),
     structuredClone, escapeHtml: String, t: (key) => PRICING_I18N.en[key] || key,
     render: () => { renders++; }, toast() {},
     localStorage: { setItem() { throw new Error("storage disabled"); } },

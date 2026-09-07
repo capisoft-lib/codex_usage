@@ -397,6 +397,80 @@ for (const [language, [label, measured, estimated]] of Object.entries(MEASURED_H
   Object.assign(PRICING_I18N[language], { "dated.measuredHistory": label, "dated.measuredHistoryNote": measured, "dated.estimatedHistoryNote": estimated });
 }
 
+const REPAIR_MESSAGES = {
+  en: {
+    "dated.observationForecast": "24h weighting · based on measured quota changes; no token pricing required.",
+    "dated.diagnostics": "Unpriced usage in the selected period",
+    "dated.diagnosticsNote": "These calls are excluded from the amounts. Recalculating identical data will not repair the reasons listed below.",
+    "dated.noErrors": "All received calls in this selection can be priced.",
+    "dated.reason": "Reason", "dated.calls": "Calls", "dated.tier": "Service tier",
+    "dated.reason.unknown-model": "Model absent from this rate card",
+    "dated.reason.uncovered-date": "No rate covering the call date",
+    "dated.reason.missing-timestamp": "Missing or invalid call date",
+    "dated.reason.invalid-usage": "Inconsistent token counters",
+    "dated.reason.unsupported-tier": "Unrecognized service tier",
+    "dated.reason.unsupported-fast": "Fast pricing unavailable for this model/date",
+    "dated.reason.unsupported-cache-write": "Cache-write pricing unavailable",
+    "dated.reason.unsupported-token-type": "Token type has no rate",
+    "dated.blocked.unrated-usage": "Some calls cannot be priced. Open $ for the reasons; more quota observations are needed for an independent projection.",
+    "dated.blocked.missing-calibration": "No usable credit calibration or measured quota history is available for this period.",
+    "dated.blocked.stale-observations": "The last quota observation is over 24 hours old. A new agent observation is needed for this projection.",
+    "dated.blocked.short-observation-history": "The projection needs quota observations spanning at least one hour after the latest decrease or gap over 24 hours.",
+    "dated.blocked.inconsistent-observations": "The latest quota value differs from the recorded history. Refresh the quota observations.",
+  },
+  fr: {
+    "dated.observationForecast": "Pondération 24 h · variations du quota mesuré, sans dépendance aux tarifs des tokens.",
+    "dated.diagnostics": "Consommation non tarifée sur la période sélectionnée",
+    "dated.diagnosticsNote": "Ces appels sont exclus des montants. Recalculer les mêmes données ne corrige pas les causes ci-dessous.",
+    "dated.noErrors": "Tous les appels reçus pour cette sélection peuvent être tarifés.",
+    "dated.reason": "Cause", "dated.calls": "Appels", "dated.tier": "Mode de service",
+    "dated.reason.unknown-model": "Modèle absent de cette grille",
+    "dated.reason.uncovered-date": "Aucun tarif couvrant la date de l’appel",
+    "dated.reason.missing-timestamp": "Date de l’appel absente ou invalide",
+    "dated.reason.invalid-usage": "Compteurs de tokens incohérents",
+    "dated.reason.unsupported-tier": "Mode de service non reconnu",
+    "dated.reason.unsupported-fast": "Tarif Fast indisponible pour ce modèle à cette date",
+    "dated.reason.unsupported-cache-write": "Tarif d’écriture du cache indisponible",
+    "dated.reason.unsupported-token-type": "Type de token sans tarif",
+    "dated.blocked.unrated-usage": "Certains appels ne peuvent pas être tarifés. Ouvrez $ pour les causes ; davantage d’observations de quota sont nécessaires pour une projection indépendante.",
+    "dated.blocked.missing-calibration": "Aucune calibration en crédits ni aucun historique de quota mesuré exploitable pour cette période.",
+    "dated.blocked.stale-observations": "La dernière observation de quota a plus de 24 heures. Une nouvelle observation de l’agent est nécessaire pour cette projection.",
+    "dated.blocked.short-observation-history": "La projection nécessite des observations couvrant au moins une heure après la dernière baisse ou interruption de plus de 24 heures.",
+    "dated.blocked.inconsistent-observations": "Le dernier quota diffère de l’historique enregistré. Actualisez les observations du quota.",
+  },
+};
+for (const [language, messages] of Object.entries(PRICING_I18N)) {
+  Object.assign(messages, REPAIR_MESSAGES.en, REPAIR_MESSAGES[language] || {});
+}
+
+export function pricingDiagnostics(calls, pricing) {
+  const groups = new Map();
+  for (const call of calls) {
+    for (const [billing, result] of [["api", apiCostOfCalls([call], pricing)], ["credits", codexCreditsOfCalls([call])]]) {
+      for (const reason of Object.keys(result.unratedReasons)) {
+        const model = String(call.model || "unknown");
+        const serviceTier = String(call.serviceTier || "default");
+        const key = JSON.stringify([billing, model, serviceTier, reason]);
+        const group = groups.get(key) || { billing, model, serviceTier, reason, calls: 0, firstDate: null, lastDate: null };
+        group.calls++;
+        if (typeof call.timestamp === "string" && Number.isFinite(Date.parse(call.timestamp))) {
+          const day = new Date(call.timestamp).toISOString().slice(0, 10);
+          group.firstDate = group.firstDate === null || day < group.firstDate ? day : group.firstDate;
+          group.lastDate = group.lastDate === null || day > group.lastDate ? day : group.lastDate;
+        }
+        groups.set(key, group);
+      }
+    }
+  }
+  return [...groups.values()].sort((a, b) => b.calls - a.calls || a.model.localeCompare(b.model));
+}
+
+export function pricingDiagnosticsMarkup(t, calls, pricing) {
+  const groups = pricingDiagnostics(calls, pricing);
+  if (!groups.length) return `<p class="dialog-copy">${escapeHtml(t("dated.noErrors"))}</p>`;
+  return `<p class="dialog-copy">${escapeHtml(t("dated.diagnosticsNote"))}</p>${groups.map(group => `<article class="pricing-diagnostic"><strong>${escapeHtml(group.model)} · ${group.billing === "api" ? "API · USD" : "Codex · cr"} · ${group.calls} ${escapeHtml(t("dated.calls"))}</strong><p class="dialog-copy">${escapeHtml(t("dated.reason." + group.reason))}</p><small>${group.firstDate || "—"} → ${group.lastDate || "—"} · ${escapeHtml(t("dated.tier"))}: ${escapeHtml(group.serviceTier)}</small></article>`).join("")}`;
+}
+
 export function pricingHistoryMarkup(t, model = "all") {
   const rows = PRICING_CATALOG.filter((rate) => model === "all" || rate.model === model)
     .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || a.model.localeCompare(b.model) || a.billing.localeCompare(b.billing));
@@ -415,6 +489,7 @@ export function createPricingReport(calls, pricing, selection = {}) {
   return {
     schemaVersion: 1, generatedAt: new Date().toISOString(), catalogVersion: PRICING_CATALOG_VERSION,
     verifiedAt: PRICING_VERIFIED_AT, selection, pricing: structuredClone(pricing), api, credits,
+    diagnostics: pricingDiagnostics(calls, pricing),
     rates: PRICING_CATALOG.filter((rate) => used.has(rate.id)),
     limitations: ["API-equivalent estimate, not a bill", "Includes observed cache writes; excludes unobserved tools, cache writes and regional fees", "Day boundaries use 00:00 UTC; change-day calls are estimated", "Unrated calls are excluded from sums", "Codex credits always use historical rates"],
   };

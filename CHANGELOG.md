@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.5.1 — 2026-09-07
+
+- Restored quota projections when credit calibration is blocked by unpriced calls, using time-weighted measured quota changes as a fallback. The projection explicitly reports percentage-per-hour/day rates rather than inventing credit amounts.
+- Added safeguards for observations older than 24 hours, insufficient coverage, quota decreases, long gaps, and inconsistent current values. Observed history remains separate from the projection.
+- Added grouped pricing diagnostics (reason, model, service tier, count and date range) to the pricing dialog and calculation export; exports from the quota page now use its selected quota period.
+- Kept unpriced calls excluded from monetary and credit totals. This release restores eligible forecasts without requiring source-log reinjection; it does not assume that every unpriced call has a known rate.
+
 ## 1.5.0 — 2026-09-07
 
 - Added five-hour quota tracking, responsive quota navigation, a current WeeklyQuota filter, and separate 12-month and full-history ranges.

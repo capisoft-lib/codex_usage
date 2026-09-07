@@ -67,11 +67,11 @@ test("measured history remains visible without priced samples or forecast calibr
   for (const project of [true, false]) {
     const result = buildQuotaForecast({ rangeStart: stamp(0), rangeEnd: stamp(168), observedAt: stamp(6), asOf: stamp(8), usedPercent: 25, observations, project });
     assert.equal(result.status, "ready");
-    assert.equal(result.projectionUnavailable, project);
+    assert.equal(result.projectionUnavailable, false);
     assert.equal(result.actual.at(-1).timestamp, stamp(project ? 8 : 6));
     assert.equal(result.actual.at(-1).percent, 25);
     assert.equal(result.observedAt, stamp(6));
-    assert.deepEqual(result.projected, []);
+    assert.equal(result.projected.length > 0, project);
   }
 });
 

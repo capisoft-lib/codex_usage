@@ -1267,3 +1267,10 @@ dialog::backdrop { background: #000b; backdrop-filter: blur(3px); }
 }
 
 .quota-forecast-history-note { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--muted); }
+.pricing-diagnostic {
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.pricing-diagnostic strong { font-size: 13px; }
+.pricing-diagnostic small { display: block; line-height: 1.5; }

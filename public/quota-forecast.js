@@ -151,6 +151,42 @@ function projectedPoints(anchorTime, endTime, usedPercent, percentPerHour) {
   return points;
 }
 
+// Integrate time weights over measured intervals, rather than weighting each
+// sample equally: dense polling must not change the forecast. Never extend a
+// measurement to now or invent a zero-percent observation at the window start.
+export function measuredQuotaPace(points, asOf, halfLifeHours = DEFAULT_EMA_HALF_LIFE_HOURS) {
+  const now = validTime(asOf);
+  const last = points.at(-1);
+  if (!last || now === null || now - validTime(last.timestamp) > 24 * FORECAST_HOUR_MS) return { reason: "stale-observations" };
+  let start = 0;
+  for (let i = 1; i < points.length; i += 1) {
+    if (points[i].percent < points[i - 1].percent) start = i;
+  }
+  const recent = points.slice(start);
+  const end = validTime(last.timestamp);
+  if (recent.length < 2 || end - validTime(recent[0].timestamp) < FORECAST_HOUR_MS) return { reason: "short-observation-history" };
+  const decay = Math.LN2 / Math.max(1, finiteNonNegative(halfLifeHours));
+  let weighted = 0;
+  let total = 0;
+  let coveredHours = 0;
+  for (let i = 1; i < recent.length; i += 1) {
+    const left = recent[i - 1];
+    const right = recent[i];
+    const hours = (validTime(right.timestamp) - validTime(left.timestamp)) / FORECAST_HOUR_MS;
+    // A large gap hides changes of pace; restart the usable history after it.
+    // A saturated quota also cannot measure additional consumption.
+    if (hours > 24 || left.percent >= 100) { weighted = 0; total = 0; coveredHours = 0; continue; }
+    if (hours <= 0) continue;
+    const age = (end - validTime(right.timestamp)) / FORECAST_HOUR_MS;
+    const weight = Math.exp(-decay * age) * (-Math.expm1(-decay * hours)) / decay;
+    weighted += (right.percent - left.percent) / hours * weight;
+    total += weight;
+    coveredHours += hours;
+  }
+  if (coveredHours < 1 || total <= 0) return { reason: "short-observation-history" };
+  return { percentPerHour: weighted / total };
+}
+
 export function buildQuotaForecast({
   samples = [],
   observations = [],
@@ -191,8 +227,9 @@ export function buildQuotaForecast({
     }
   }
   const measured = [...measuredByTime.entries()].sort((a, b) => a[0] - b[0]).map(([, point]) => point);
+  const measuredPace = measuredQuotaPace(measured, anchorTime, halfLifeHours);
   const historySource = measured.length ? "observed" : "estimated";
-  const actual = measured.length ? measured : cumulativePoints(observedSamples, startTime, observedAnchorTime, safeUsedPercent, currentCredits);
+  const actual = measured.length ? [...measured] : cumulativePoints(observedSamples, startTime, observedAnchorTime, safeUsedPercent, currentCredits);
   const lastObservedAt = actual.at(-1).timestamp;
   // Carry the latest known quota to now, or to the end of a completed window.
   // Keep the observation timestamp separate from this display-only plateau.
@@ -205,10 +242,24 @@ export function buildQuotaForecast({
     historySource, partialHistory, actual, projected: [], completed: !shouldProject,
     projectionUnavailable: shouldProject, expectedFinalPercent: actual.at(-1).percent, reason,
   } : { status: "insufficient", ...(reason ? { reason } : {}) };
+  const withoutCreditCalibration = (reason = "missing-calibration") => {
+    if (!shouldProject || !measured.length) return historyOnly(reason);
+    if (!Number.isFinite(measuredPace.percentPerHour)) return historyOnly(measuredPace.reason);
+    if (measured.at(-1).percent !== safeUsedPercent) return historyOnly("inconsistent-observations");
+    const percentPerHour = measuredPace.percentPerHour;
+    const expectedFinalPercent = safeUsedPercent + (endTime - anchorTime) / FORECAST_HOUR_MS * percentPerHour;
+    return {
+      ...historyOnly(), projectionUnavailable: false, reason: undefined,
+      calibrationSource: "observations", percentPerHour, percentPerDay: percentPerHour * 24,
+      halfLifeHours: Math.max(1, finiteNonNegative(halfLifeHours)),
+      expectedFinalPercent, marginPercent: 100 - expectedFinalPercent,
+      projected: projectedPoints(anchorTime, endTime, safeUsedPercent, percentPerHour),
+    };
+  };
   const historicalCapacityCredits = finiteNonNegative(capacityCredits);
   const currentCapacityCredits = (!partialHistory || !shouldProject) && safeUsedPercent > 0 && currentCredits > 0 ? currentCredits * 100 / safeUsedPercent : 0;
   const calibratedCapacityCredits = historicalCapacityCredits || currentCapacityCredits;
-  if (calibratedCapacityCredits <= 0) return historyOnly(partialHistory ? "unrated-usage" : undefined);
+  if (calibratedCapacityCredits <= 0) return withoutCreditCalibration(partialHistory ? "unrated-usage" : undefined);
 
   // Old gaps must not suppress a fully priced selected window. Use only the
   // contiguous, fully priced hourly history after the most recent gap.
@@ -219,10 +270,10 @@ export function buildQuotaForecast({
     return sample?.rated === false && time !== null && time >= historyStart && time <= anchorTime ? Math.max(latest, time) : latest;
   }, -Infinity);
   const availableHours = Number.isFinite(latestGap) ? Math.min(requestedHours, Math.floor((anchorTime - latestGap) / FORECAST_HOUR_MS)) : requestedHours;
-  if (shouldProject && availableHours < 1) return historyOnly("unrated-usage");
+  if (shouldProject && availableHours < 1) return withoutCreditCalibration("unrated-usage");
   const historySamples = Number.isFinite(latestGap) ? samples.filter((sample) => validTime(sample?.timestamp) > latestGap) : samples;
   const hourlyValues = shouldProject ? rollingHourlyValues(historySamples, anchorTime, availableHours) : [];
-  if (shouldProject && !hourlyValues.length) return historyOnly();
+  if (shouldProject && !hourlyValues.length) return withoutCreditCalibration();
   const creditsPerHour = exponentialWeightedAverage(hourlyValues, halfLifeHours);
   const quotaPercentPerCredit = 100 / calibratedCapacityCredits;
   const percentPerHour = creditsPerHour * quotaPercentPerCredit;
