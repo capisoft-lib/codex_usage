@@ -9,8 +9,9 @@ function validUsage(data) {
 }
 
 export class UsageStore {
-  constructor({ analyze, fingerprint, serialize = JSON.stringify, snapshotPath = null, refreshIntervalMs = 15_000, onUpdated = null, logger = console }) {
+  constructor({ analyze, fingerprint, enrich = null, serialize = JSON.stringify, snapshotPath = null, refreshIntervalMs = 15_000, onUpdated = null, logger = console }) {
     this.analyze = analyze;
+    this.enrich = enrich;
     this.fingerprint = fingerprint;
     this.serialize = serialize;
     this.snapshotPath = snapshotPath;
@@ -85,7 +86,8 @@ export class UsageStore {
     this.lastAttemptAt = new Date(startedAt).toISOString();
     try {
       const currentFingerprint = await this.fingerprint();
-      if (!force && this.cache.data && currentFingerprint === this.cache.fingerprint) {
+      const unchanged = !force && this.cache.data && currentFingerprint === this.cache.fingerprint;
+      if (unchanged && !this.enrich) {
         this.lastError = null;
         if (this.onUpdated) {
           Promise.resolve(this.onUpdated(this.cache.data)).catch((error) => this.logger.warn(cliText("secondarySyncFailed", error.message)));
@@ -93,7 +95,8 @@ export class UsageStore {
         return this.cache.data;
       }
 
-      const data = await this.analyze(this.cache.data);
+      let data = unchanged ? this.cache.data : await this.analyze(this.cache.data);
+      if (this.enrich) data = await this.enrich(data);
       this.cache = {
         data,
         serialized: this.serialize(data),

@@ -25,6 +25,16 @@ Each machine needs:
 
 The agent never needs an OpenAI API key, a Sites bypass token, or `auth.json`. A shared infrastructure credential must never be installed on a reporting machine.
 
+### Live quota and available resets
+
+When an authenticated Codex CLI is installed on the reporting machine, the collector also reads `account/rateLimits/read` through the local Codex App Server at each refresh. This supplies the actual available-reset count, which session JSONL files generally omit. It uses `rateLimitResetCredits.availableCount`, not the purchased-credit balance or the number of detail rows. The request does not consume a reset.
+
+Only normalized usage percentages, window dates, plan type and the reset count enter the dashboard and Mesh payload. The collector does not read authentication files or transmit account IDs, reset-credit IDs or tokens. Codex manages its existing local authentication. The helper process is hidden on Windows, has a bounded timeout, and exits after each read.
+
+The Windows desktop CLI is detected automatically; otherwise `codex` must be on PATH. Set `CODEX_CLI_PATH` to an executable path when needed. Set `CODEX_ACCOUNT_QUOTA_MODE=off` to use session observations only, especially when analyzing another account's archived data. An unavailable, unsupported or unauthenticated CLI leaves resets unknown. Account reads also run when session files have not changed.
+
+The published Docker image contains the session collector, but does not contain an authenticated Codex CLI. Updating that image alone cannot discover earned resets. Use a native authenticated collector to provide the live account quota to the same Mesh hub; do not mount `auth.json` into the dashboard container.
+
 ## 1. Create a one-time association command
 
 For an OpenAI Sites hub:

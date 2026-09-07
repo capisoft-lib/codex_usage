@@ -4,6 +4,9 @@ import { createDashboardCapabilities } from "./dashboard-contract.mjs";
 import { MeshAgent, readPersistedMeshHubUrl } from "./mesh-agent.mjs";
 import { serializePublicUsage, toPublicUsage } from "./public-usage.mjs";
 import { UsageStore } from "./usage-store.mjs";
+import { applyAccountQuotas, readAccountQuotas } from "./account-quota.mjs";
+
+const defaultAnalyze = (previousData) => analyzeCodexUsage({ previousData });
 
 function serviceError(message, code, status = 503) {
   const error = new Error(message);
@@ -75,7 +78,8 @@ export async function createUsageCollector({
   env = process.env,
   root,
   logger = console,
-  analyze = (previousData) => analyzeCodexUsage({ previousData }),
+  analyze = defaultAnalyze,
+  accountQuotaReader,
   fingerprint = usageFingerprint,
   fetchImpl = fetch,
 } = {}) {
@@ -103,8 +107,13 @@ export async function createUsageCollector({
     await meshAgent.load();
   }
 
+  const quotaReader = accountQuotaReader || (analyze === defaultAnalyze
+    ? () => readAccountQuotas({ executable: env.CODEX_CLI_PATH, env: { ...process.env, ...env } })
+    : null);
   const store = new UsageStore({
     analyze,
+    enrich: env.CODEX_ACCOUNT_QUOTA_MODE !== "off" && quotaReader
+      ? async (data) => applyAccountQuotas(data, await quotaReader()) : null,
     fingerprint,
     serialize: serializePublicUsage,
     snapshotPath,
