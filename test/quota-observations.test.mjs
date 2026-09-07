@@ -14,6 +14,25 @@ const point = (hour, usedPercent) => ({ observedAt: stamp(hour), usedPercent });
 const quota = (hour, percent) => ({ ...point(hour, percent), resetsAt: stamp(168), windowMinutes: 10080, planType: "pro" });
 const observations = [point(1, 10), point(2, 10), point(3, 10), point(4, 30), point(5, 25), point(6, 25)];
 
+test("quota history preserves unknown reset counts across repeated merges", () => {
+  for (const value of [null, undefined, "", "invalid"]) {
+    const merged = mergeWeeklyQuotaObservations([
+      { ...quota(1, 10), resetsAvailable: 3 },
+      { ...quota(2, 20), resetsAvailable: value },
+    ]);
+    assert.equal(merged[0].resetsAvailable, null);
+    assert.equal(mergeWeeklyQuotaObservations(merged)[0].resetsAvailable, null);
+  }
+});
+
+test("quota history retains reported reset counts including explicit zero", () => {
+  for (const value of [0, 3, "2"]) {
+    const merged = mergeWeeklyQuotaObservations([{ ...quota(1, 10), resetsAvailable: value }]);
+    assert.equal(merged[0].resetsAvailable, Number(value));
+    assert.equal(mergeWeeklyQuotaObservations(merged)[0].resetsAvailable, Number(value));
+  }
+});
+
 test("compaction retains plateau boundaries, decreases and exact timestamps", () => {
   assert.deepEqual(compactQuotaObservations([...observations, point(3, 10), point(7, null)]), [observations[0], observations[2], ...observations.slice(3)]);
 });
@@ -123,7 +142,27 @@ test("version 8 cached sessions are reparsed to recover historical quota observa
     legacy.analyzerVersion = 8;
     for (const period of legacy.sessions[0].weeklyQuotaHistory) delete period.observations;
     const recovered = await analyzeCodexUsage({ ...options, previousData: legacy });
-    assert.equal(recovered.analyzerVersion, 9);
+    assert.equal(recovered.analyzerVersion, 10);
     assert.deepEqual(recovered.weeklyQuotaHistory[0].observations, compactQuotaObservations(observations));
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+test("version 9 cached false zero reset counts are reparsed from unchanged sessions", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "quota-resets-migrate-"));
+  try {
+    await writeFile(path.join(dir, "rollout.jsonl"), [
+      { type: "session_meta", timestamp: stamp(0), payload: { id: "quota-resets" } },
+      { type: "event_msg", timestamp: stamp(1), payload: { type: "token_count", rate_limits: {
+        secondary: { used_percent: 5, window_minutes: 10080, resets_at: Date.parse(stamp(168)) / 1000 },
+      } } },
+    ].map(JSON.stringify).join("\n"));
+    const options = { sessionsPath: dir, archivedSessionsPath: path.join(dir, "missing"), sessionIndexPath: path.join(dir, "missing-index") };
+    const legacy = await analyzeCodexUsage(options);
+    legacy.analyzerVersion = 9;
+    for (const period of legacy.sessions[0].weeklyQuotaHistory) period.resetsAvailable = 0;
+    const recovered = await analyzeCodexUsage({ ...options, previousData: legacy });
+    assert.notEqual(recovered.sessions[0], legacy.sessions[0]);
+    assert.equal(recovered.sessions[0].weeklyQuotaHistory[0].resetsAvailable, null);
+    assert.equal(toPublicUsage(recovered).weeklyQuotaHistory[0].resetsAvailable, null);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });

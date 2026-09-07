@@ -85,7 +85,9 @@ export function mergeWeeklyQuotaObservations(values = []) {
       remainingPercent: usedPercent === null ? null : 100 - usedPercent,
       peakUsedPercent,
       peakObservedAt: peak?.peakObservedAt || peak?.observedAt || latest.observedAt,
-      resetsAvailable: Number.isFinite(Number(latest.resetsAvailable)) ? Math.max(0, Number(latest.resetsAvailable)) : null,
+      resetsAvailable: latest.resetsAvailable == null || latest.resetsAvailable === ""
+        ? null
+        : Number.isFinite(Number(latest.resetsAvailable)) ? Math.max(0, Number(latest.resetsAvailable)) : null,
       observedAt: latest.observedAt,
       firstObservedAt: chronological.map((item) => item.firstObservedAt || item.observedAt).sort()[0],
       planType: plan(latest.planType) || planTypes.at(-1) || null,
