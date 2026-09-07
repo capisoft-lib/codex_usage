@@ -6,15 +6,15 @@ const params = new URLSearchParams(location.search);
 const stored = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
 let language = resolveLanguage(params.get("language") || stored("codex-usage-language") || navigator.language) || "en";
 const messages = {
-  en: { fiveHour: "5 hours", weekly: "Weekly", loading: "Loading…", offline: "Connection lost", stale: "Old observation", updated: "Checked", observed: "Observed", waiting: "Awaiting observation", local: "Local", centralized: "Centralized", remaining: "remaining" },
-  fr: { fiveHour: "5 heures", weekly: "Hebdomadaire", loading: "Chargement…", offline: "Connexion perdue", stale: "Observation ancienne", updated: "Vérifié", observed: "Observé", waiting: "En attente d’observation", local: "Local", centralized: "Centralisé", remaining: "restant" },
-  de: { fiveHour: "5 Stunden", weekly: "Wöchentlich", loading: "Laden…", offline: "Verbindung verloren", stale: "Alte Beobachtung", updated: "Geprüft", observed: "Beobachtet", waiting: "Warte auf Beobachtung", local: "Lokal", centralized: "Zentral", remaining: "verbleibend" },
-  es: { fiveHour: "5 horas", weekly: "Semanal", loading: "Cargando…", offline: "Conexión perdida", stale: "Observación antigua", updated: "Comprobado", observed: "Observado", waiting: "Esperando observación", local: "Local", centralized: "Centralizado", remaining: "restante" },
-  it: { fiveHour: "5 ore", weekly: "Settimanale", loading: "Caricamento…", offline: "Connessione persa", stale: "Osservazione precedente", updated: "Verificato", observed: "Osservato", waiting: "In attesa di osservazione", local: "Locale", centralized: "Centralizzato", remaining: "rimanente" },
-  pt: { fiveHour: "5 horas", weekly: "Semanal", loading: "A carregar…", offline: "Ligação perdida", stale: "Observação antiga", updated: "Verificado", observed: "Observado", waiting: "A aguardar observação", local: "Local", centralized: "Centralizado", remaining: "restante" },
-  ja: { fiveHour: "5時間", weekly: "週間", loading: "読み込み中…", offline: "接続が切れました", stale: "古い観測値", updated: "確認", observed: "観測", waiting: "観測待ち", local: "ローカル", centralized: "集中管理", remaining: "残り" },
-  ru: { fiveHour: "5 часов", weekly: "Неделя", loading: "Загрузка…", offline: "Соединение потеряно", stale: "Устаревшие данные", updated: "Проверено", observed: "Наблюдение", waiting: "Ожидание данных", local: "Локально", centralized: "Централизованно", remaining: "осталось" },
-  zh: { fiveHour: "5 小时", weekly: "每周", loading: "加载中…", offline: "连接已断开", stale: "旧观测数据", updated: "已检查", observed: "观测时间", waiting: "等待观测", local: "本地", centralized: "集中", remaining: "剩余" },
+  en: { fiveHour: "5 hours", weekly: "Weekly", loading: "Loading…", offline: "Connection lost", updated: "Checked", observed: "Observed", waiting: "Awaiting observation", local: "Local", centralized: "Centralized", remaining: "remaining" },
+  fr: { fiveHour: "5 heures", weekly: "Hebdomadaire", loading: "Chargement…", offline: "Connexion perdue", updated: "Vérifié", observed: "Observé", waiting: "En attente d’observation", local: "Local", centralized: "Centralisé", remaining: "restant" },
+  de: { fiveHour: "5 Stunden", weekly: "Wöchentlich", loading: "Laden…", offline: "Verbindung verloren", updated: "Geprüft", observed: "Beobachtet", waiting: "Warte auf Beobachtung", local: "Lokal", centralized: "Zentral", remaining: "verbleibend" },
+  es: { fiveHour: "5 horas", weekly: "Semanal", loading: "Cargando…", offline: "Conexión perdida", updated: "Comprobado", observed: "Observado", waiting: "Esperando observación", local: "Local", centralized: "Centralizado", remaining: "restante" },
+  it: { fiveHour: "5 ore", weekly: "Settimanale", loading: "Caricamento…", offline: "Connessione persa", updated: "Verificato", observed: "Osservato", waiting: "In attesa di osservazione", local: "Locale", centralized: "Centralizzato", remaining: "rimanente" },
+  pt: { fiveHour: "5 horas", weekly: "Semanal", loading: "A carregar…", offline: "Ligação perdida", updated: "Verificado", observed: "Observado", waiting: "A aguardar observação", local: "Local", centralized: "Centralizado", remaining: "restante" },
+  ja: { fiveHour: "5時間", weekly: "週間", loading: "読み込み中…", offline: "接続が切れました", updated: "確認", observed: "観測", waiting: "観測待ち", local: "ローカル", centralized: "集中管理", remaining: "残り" },
+  ru: { fiveHour: "5 часов", weekly: "Неделя", loading: "Загрузка…", offline: "Соединение потеряно", updated: "Проверено", observed: "Наблюдение", waiting: "Ожидание данных", local: "Локально", centralized: "Централизованно", remaining: "осталось" },
+  zh: { fiveHour: "5 小时", weekly: "每周", loading: "加载中…", offline: "连接已断开", updated: "已检查", observed: "观测时间", waiting: "等待观测", local: "本地", centralized: "集中", remaining: "剩余" },
 };
 const t = (key) => (messages[language] || messages.en)[key];
 const locale = () => LOCALE_TAGS[language] || "en-GB";
@@ -50,9 +50,8 @@ function render() {
     $("[data-reset]", section).textContent = timeText(isWeekly ? quota?.resetsAt : short.resetsAt);
     $("[data-countdown]", section).textContent = waiting ? t("waiting") : quotaCountdownText(short.resetsAt, locale()) || "—";
     const observation = quota?.observedAt;
-    const old = Number.isFinite(Date.parse(observation)) && Date.now() - Date.parse(observation) > 5 * 60_000;
-    $("[data-observed]", section).textContent = `${old ? t("stale") : t("observed")} · ${timeText(observation)}`;
-    section.dataset.stale = String(old || error);
+    $("[data-observed]", section).textContent = `${t("observed")} · ${timeText(observation)}`;
+    section.dataset.stale = String(error);
   }
   $("#miniSignIn").hidden = !associationRequired;
   $("#miniAccess").hidden = !globalThis.CodexDesktop;

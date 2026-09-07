@@ -92,12 +92,14 @@ test("native window, preferences, network errors, reopen and owned-server shutdo
       if (offline) return route.fulfill({ status: 503, body: "offline" });
       return route.fulfill({ json: { generatedAt: new Date().toISOString(),
         fiveHourQuota: { remainingPercent: 42, resetsAt: new Date(Date.now() + 3600_000).toISOString(), observedAt: new Date().toISOString() },
-        weeklyQuota: { remainingPercent: 76, resetsAt: new Date(Date.now() + 86400_000).toISOString(), observedAt: new Date().toISOString() } } });
+        weeklyQuota: { remainingPercent: 76, resetsAt: new Date(Date.now() + 86400_000).toISOString(), observedAt: new Date(Date.now() - 3600_000).toISOString() } } });
     });
     assert.equal((await fetch(`${fixture.url}/api/desktop/mini?source=centralized&language=fr&theme=blue&fiveHour=1&weekly=1`, { method: "POST", headers: { "X-Codex-Desktop": "1" } })).status, 202);
     await page.waitForURL(/source=centralized/);
     await page.waitForFunction(() => document.querySelector("[data-remaining]").textContent === "42%", null, { polling: 100, timeout: 10_000 });
     console.log("Native data rendered");
+    assert.equal(await page.locator("[data-quota=weekly]").getAttribute("data-stale"), "false");
+    assert.match(await page.locator("[data-quota=weekly] [data-observed]").textContent(), /^Observé · /);
     assert.equal(requests.at(-1), "centralized");
     assert.equal(await page.locator("html").getAttribute("lang"), "fr");
     assert.equal(await page.locator("html").getAttribute("data-theme"), "blue");
@@ -108,10 +110,12 @@ test("native window, preferences, network errors, reopen and owned-server shutdo
     await page.clock.runFor(15_000);
     await page.waitForFunction(() => document.querySelector("#miniStatus").textContent.includes("Connexion perdue"), null, { polling: 100, timeout: 10_000 });
     assert.equal(await page.locator("[data-remaining]").first().textContent(), "42%");
+    assert.equal(await page.locator("[data-quota=weekly]").getAttribute("data-stale"), "true");
     await page.screenshot({ path: path.join(fixture.directory, "offline.png") });
     offline = false;
     await page.clock.runFor(15_000);
     await page.waitForFunction(() => !document.querySelector("#miniStatus").textContent.includes("Connexion perdue"), null, { polling: 100, timeout: 10_000 });
+    assert.equal(await page.locator("[data-quota=weekly]").getAttribute("data-stale"), "false");
     await menuClick(application, "Visible quotas", "Weekly");
     await page.waitForFunction(() => document.querySelector("[data-quota='five-hour']").hidden, null, { polling: 100, timeout: 10_000 });
     await page.screenshot({ path: path.join(fixture.directory, "weekly.png") });
