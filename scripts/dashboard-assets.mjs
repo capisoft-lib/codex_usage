@@ -21,6 +21,8 @@ export const DASHBOARD_ASSETS = Object.freeze([
   "styles.css",
   "sw.js",
   "themes.js",
+  "palettes.css",
+  "theme-sync.js",
   "translations.js",
   "usage-pricing.js",
   "visualization.js",

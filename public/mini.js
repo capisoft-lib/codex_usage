@@ -73,6 +73,7 @@ async function fetchJson(url) {
     associationRequired = Boolean(result.associationRequired);
     if (associationRequired) model.clear();
     if (!result.ok) throw new Error(associationRequired ? "Association required" : "Dashboard unavailable");
+    if (["green", "blue", "violet", "amber"].includes(result.data?.theme)) globalThis.CodexUsageThemes.setTheme(result.data.theme);
     return result.data;
   }
   const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(10_000) });

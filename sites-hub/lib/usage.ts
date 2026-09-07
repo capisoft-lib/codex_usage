@@ -25,7 +25,9 @@ export async function aggregateUsageForOwner(ownerId: string) {
     : []);
   quotaHistory.sort((a, b) => String(b.observedAt || b.receivedAt).localeCompare(String(a.observedAt || a.receivedAt)));
   const uniqueQuotaHistory = quotaHistory.filter((quota, index, all) => all.findIndex((candidate) => candidate.resetsAt === quota.resetsAt && candidate.windowMinutes === quota.windowMinutes) === index);
+  const preferences = await database.prepare("SELECT theme FROM dashboard_preferences WHERE owner_id = ?").bind(ownerId).first<{ theme: string }>();
   return {
+    theme: preferences?.theme || null,
     apiVersion: 1,
     analyzerVersion: Math.max(0, ...active.map((node) => node.analyzer_version || 0)),
     generatedAt: new Date().toISOString(),

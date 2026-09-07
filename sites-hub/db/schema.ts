@@ -33,3 +33,8 @@ export const sessions = sqliteTable("mesh_sessions", {
   snapshotJson: text("snapshot_json").notNull(),
   updatedAt: text("updated_at"),
 }, (table) => [primaryKey({ columns: [table.nodeId, table.sessionId] })]);
+
+export const preferences = sqliteTable("dashboard_preferences", {
+  ownerId: text("owner_id").primaryKey(),
+  theme: text("theme").notNull(),
+});

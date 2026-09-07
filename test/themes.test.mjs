@@ -6,7 +6,7 @@ import { DASHBOARD_ASSETS } from "../scripts/dashboard-assets.mjs";
 import { LOCALE_TAGS, THEME_I18N } from "../public/translations.js";
 
 const source = readFileSync(new URL("../public/themes.js", import.meta.url), "utf8");
-const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
+const css = readFileSync(new URL("../public/palettes.css", import.meta.url), "utf8") + readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 const key = "codex-usage-theme";
 
 function browser({ saved, denied = false } = {}) {

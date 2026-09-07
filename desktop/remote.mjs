@@ -76,6 +76,7 @@ export async function createRemoteDashboard({ baseUrl, miniFile, getMiniWindow }
       if (!data || typeof data !== "object" || Array.isArray(data)) return { ok: false };
       // Only quota metadata crosses the renderer bridge, never conversations.
       return { ok: true, data: endpoint === "capabilities" ? data : {
+        theme: ["green", "blue", "violet", "amber"].includes(data.theme) ? data.theme : null,
         generatedAt: data.generatedAt, weeklyQuota: data.weeklyQuota,
         weeklyQuotaHistory: data.weeklyQuotaHistory, fiveHourQuota: data.fiveHourQuota,
       } };

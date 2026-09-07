@@ -134,7 +134,7 @@ test("remote API works without a hosted mini page or a local collector, rejects 
     response.setHeader("Content-Type", "application/json");
     if (request.url === "/dashboard/api/capabilities") response.end(JSON.stringify({ apiVersion: 1, sources: ["centralized"], defaultSource: "centralized" }));
     else if (request.url === "/dashboard/api/usage?source=centralized") response.end(JSON.stringify({
-      generatedAt: new Date().toISOString(), weeklyQuota: { remainingPercent: 64, resetsAt: new Date(Date.now() + 86400_000).toISOString() },
+      theme: "blue", generatedAt: new Date().toISOString(), weeklyQuota: { remainingPercent: 64, resetsAt: new Date(Date.now() + 86400_000).toISOString() },
       fiveHourQuota: { remainingPercent: 82, resetsAt: new Date(Date.now() + 3600_000).toISOString() },
       sessions: [{ title: "Never sent to the renderer" }],
     }));
@@ -151,6 +151,8 @@ test("remote API works without a hosted mini page or a local collector, rejects 
     const data = await page.evaluate(() => window.CodexDesktop.request("usage?source=centralized"));
     assert.equal(data.data.sessions, undefined);
     assert.equal(data.data.weeklyQuota.remainingPercent, 64);
+    assert.equal(data.data.theme, "blue");
+    await page.waitForFunction(() => document.documentElement.dataset.theme === "blue");
     await assert.rejects(page.evaluate(() => window.CodexDesktop.request("../admin")));
     assert.ok(requests.every((url) => url.startsWith("/dashboard/api/")));
     await assert.rejects(fetch(`${fixture.url}/api/health`));
@@ -198,7 +200,7 @@ test("private hub association signs reads, survives restart and clears revoked q
       if (request.url === "/api/mesh/enroll") response.end(JSON.stringify(await hub.enroll(body)));
       else if (request.url === "/api/mesh/usage") {
         await hub.readUsage(body);
-        response.end(JSON.stringify({ generatedAt: new Date().toISOString(),
+        response.end(JSON.stringify({ theme: "blue", generatedAt: new Date().toISOString(),
           fiveHourQuota: { remainingPercent: 37, resetsAt: new Date(Date.now() + 3600_000).toISOString() },
           weeklyQuota: { remainingPercent: 61, resetsAt: new Date(Date.now() + 86400_000).toISOString() },
           sessions: [{ title: "Private conversation" }],
@@ -223,6 +225,8 @@ test("private hub association signs reads, survives restart and clears revoked q
     assert.equal(await page.locator("#miniAssociationCode").inputValue(), "");
     const result = await page.evaluate(() => window.CodexDesktop.request("usage?source=centralized"));
     assert.equal(result.data.sessions, undefined);
+    await page.waitForFunction(() => document.documentElement.dataset.theme === "blue");
+    await page.screenshot({ path: path.join(fixture.directory, "associated-blue.png") });
     const nodeId = hub.nodes()[0].id;
     const sequence = hub.state.nodes[nodeId].lastSequence;
     await closeApplication(application); application = null;
