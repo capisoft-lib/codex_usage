@@ -1,9 +1,9 @@
-import { weeklyQuotaPeriods, shortQuotaDisplay, quotaCountdownText } from "./quota-display.js";
+import { weeklyQuotaPeriods, shortQuotaDisplay, quotaCountdownText, normalizeTimeFormat, timeFormatOptions } from "./quota-display.js";
 import { codexCreditsOfCalls, fastMultiplierFor, usageProfilesOfCalls } from "./usage-pricing.js";
 import { apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 import { PRICING_CATALOG } from "./pricing-catalog.js";
 import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryMarkup, pricingDiagnosticsMarkup } from "./pricing-ui.js";
-import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, resolveLanguage } from "./translations.js";
+import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, resolveLanguage } from "./translations.js";
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { buildQuotaForecast, estimateQuotaCapacityCredits, interpolateForecastPercent, weeklyForecastTicks } from "./quota-forecast.js";
@@ -18,6 +18,7 @@ const POLL_INTERVAL_MS = 15_000;
 const CUSTOM_RANGE_KEY = "codex-usage-custom-range";
 const DATA_MODE_KEY = "codex-usage-data-mode";
 const MINI_QUOTA_VISIBILITY_KEY = "codex-usage-mini-quota-visibility-v1";
+const TIME_FORMAT_KEY = "codex-usage-time-format";
 const HOSTED_RUNTIME_HINT = new URLSearchParams(location.search).get("hosted") === "1";
 let runtimeCapabilities = {
   apiVersion: 1,
@@ -242,6 +243,7 @@ const PWA_I18N = {
 for (const [language, messages] of Object.entries(PWA_I18N)) Object.assign(I18N[language], messages);
 
 for (const [language, messages] of Object.entries(THEME_I18N)) Object.assign(I18N[language], messages);
+for (const [language, messages] of Object.entries(TIME_FORMAT_I18N)) Object.assign(I18N[language], messages);
 
 const PAGES = ["overview", "projects", "quota", "conversations", "settings"];
 for (const [language, messages] of Object.entries(PRICING_I18N)) Object.assign(I18N[language], messages);
@@ -264,6 +266,11 @@ function loadView() {
   return "overview";
 }
 
+function loadTimeFormat() {
+  try { return normalizeTimeFormat(localStorage.getItem(TIME_FORMAT_KEY)); }
+  catch { return "system"; }
+}
+
 const state = {
   data: null,
   dataMode: loadDataMode(),
@@ -284,6 +291,7 @@ const state = {
   sortKey: "tokens",
   sortDirection: "desc",
   language: preferredLanguage(),
+  timeFormat: loadTimeFormat(),
   pricing: loadPricing(),
   chartZoom: {},
   chartZoomBasePeriods: {},
@@ -293,10 +301,11 @@ const state = {
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const locale = () => LOCALE_TAGS[state.language] || LOCALE_TAGS.fr;
+const clockOptions = (options = {}) => ({ ...options, ...timeFormatOptions(state.timeFormat) });
 const t = (key, values = {}) => (I18N[state.language]?.[key] || I18N.fr[key] || key).replace(/\{(\w+)\}/g, (_, name) => values[name] ?? "");
 const formatInt = (value) => new Intl.NumberFormat(locale(), { maximumFractionDigits: 0 }).format(value);
 const formatCompact = (value) => new Intl.NumberFormat(locale(), { notation: "compact", maximumFractionDigits: 2 }).format(value);
-const formatDate = (value) => new Intl.DateTimeFormat(locale(), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(value);
+const formatDate = (value) => new Intl.DateTimeFormat(locale(), clockOptions({ day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })).format(value);
 
 const PWA_INSTALL_TOAST_DISMISSED_KEY = "codex-usage-pwa-install-toast-dismissed-v1";
 const PWA_INSTALLED_KEY = "codex-usage-pwa-installed";
@@ -728,7 +737,7 @@ function renderQuota() {
   if (quota?.theoretical) {
     const resetAt = weeklyRange().resetsAt;
     const resetText = resetAt
-      ? t("kpi.weeklyReset", { date: resetAt.toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" }) })
+      ? t("kpi.weeklyReset", { date: resetAt.toLocaleString(locale(), clockOptions({ dateStyle: "medium", timeStyle: "short" })) })
       : t("kpi.weeklyReset", { date: "—" });
     target.innerHTML = `${label}<strong class="kpi-value">—</strong><div class="weekly-quota-meta"><span class="quota-badge">${escapeHtml(t("quota.awaitingObservation"))}</span><span class="quota-badge">${escapeHtml(resetText)}</span><span class="quota-badge">${escapeHtml(t("quota.theoretical"))}</span></div>`;
     return;
@@ -742,13 +751,13 @@ function renderQuota() {
   }
   const resetAt = weeklyRange().resetsAt;
   const resetText = resetAt
-    ? t("kpi.weeklyReset", { date: resetAt.toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" }) })
+    ? t("kpi.weeklyReset", { date: resetAt.toLocaleString(locale(), clockOptions({ dateStyle: "medium", timeStyle: "short" })) })
     : t("kpi.weeklyReset", { date: "—" });
   const resetsText = Number.isFinite(quota.resetsAvailable)
     ? t("kpi.resetsAvailable", { n: formatInt(quota.resetsAvailable) })
     : t("kpi.resetsUnknown");
   const planText = quotaPlanSummary(quota);
-  const observationText = quota.observedAt ? t("quota.observedAt", { date: new Date(quota.observedAt).toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" }) }) : t("quota.planUnknown");
+  const observationText = quota.observedAt ? t("quota.observedAt", { date: new Date(quota.observedAt).toLocaleString(locale(), clockOptions({ dateStyle: "medium", timeStyle: "short" })) }) : t("quota.planUnknown");
   target.innerHTML = `${label}<strong class="kpi-value">${t("kpi.remaining", { n: new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(remaining) })}</strong><progress class="weekly-quota-bar${remaining < 20 ? " is-low" : ""}" max="100" value="${remaining}" aria-label="${escapeHtml(t("kpi.remaining", { n: remaining }))}"></progress><div class="weekly-quota-meta"><span class="quota-badge">${escapeHtml(resetText)}</span><span class="quota-badge">${escapeHtml(resetsText)}</span><span class="quota-badge">${escapeHtml(t("quota.plan", { plan: planText }))}</span><span class="quota-badge">${escapeHtml(observationText)}</span></div>`;
 }
 
@@ -767,8 +776,8 @@ function quotaPlanSummary(quota) {
 function quotaPeriodLabel(quota, index) {
   const start = new Date(quota.startsAt || Date.parse(quota.resetsAt) - Number(quota.windowMinutes || 10080) * 60_000);
   const reset = new Date(quota.endsAt || quota.resetsAt);
-  const startLabel = start.toLocaleString(locale(), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-  const resetLabel = reset.toLocaleString(locale(), { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const startLabel = start.toLocaleString(locale(), clockOptions({ day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }));
+  const resetLabel = reset.toLocaleString(locale(), clockOptions({ day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }));
   const dates = `${startLabel} → ${resetLabel}`;
   const status = quota.theoretical ? t("quota.theoretical") : quotaPlanSummary(quota);
   return `${index === 0 ? `${t("quota.current")} · ` : ""}${dates} · ${status}`;
@@ -808,7 +817,7 @@ function renderQuotaNav() {
       ? t("kpi.remaining", { n: new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(weeklyQuota.remainingPercent) })
       : "—";
   const resetAt = weeklyQuota ? currentQuotaResetAt() : null;
-  const resetText = resetAt ? resetAt.toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" }) : "";
+  const resetText = resetAt ? resetAt.toLocaleString(locale(), clockOptions({ dateStyle: "medium", timeStyle: "short" })) : "";
   const countdownText = resetAt ? formatQuotaCountdown(resetAt) : "";
   $$("[data-quota-nav-remaining]").forEach((element) => { element.textContent = remainingText; });
   $$("[data-quota-nav-reset]").forEach((element) => { element.textContent = resetText; });
@@ -823,7 +832,7 @@ function renderQuotaNav() {
     ? t("kpi.remaining", { n: new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(shortQuota.remainingPercent) })
     : "—";
   const fiveHourResetAt = shortQuota.resetsAt;
-  const fiveHourResetText = fiveHourResetAt ? fiveHourResetAt.toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" }) : "—";
+  const fiveHourResetText = fiveHourResetAt ? fiveHourResetAt.toLocaleString(locale(), clockOptions({ dateStyle: "medium", timeStyle: "short" })) : "—";
   const fiveHourCountdown = fiveHourExpired ? t("quota.awaitingShort") : fiveHourResetAt ? formatQuotaCountdown(fiveHourResetAt) : "—";
   $$("[data-five-hour-remaining]").forEach((element) => { element.textContent = fiveHourRemaining; });
   $$("[data-five-hour-mobile-remaining]").forEach((element) => { element.textContent = fiveHourRemaining; });
@@ -879,11 +888,11 @@ function forecastPercent(value) {
 }
 
 function forecastDateLabel(value) {
-  return new Intl.DateTimeFormat(locale(), { weekday: "short", day: "2-digit", hour: "2-digit" }).format(new Date(value));
+  return new Intl.DateTimeFormat(locale(), clockOptions({ weekday: "short", day: "2-digit", hour: "2-digit" })).format(new Date(value));
 }
 
 function forecastDateTimeLabel(value) {
-  return new Intl.DateTimeFormat(locale(), { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat(locale(), clockOptions({ dateStyle: "medium", timeStyle: "short" })).format(new Date(value));
 }
 
 function quotaForecastSamples(quota) {
@@ -1246,7 +1255,7 @@ function bucketsFor(calls, period = state.period) {
     else { start.setDate(now.getDate() - i); start.setHours(0, 0, 0, 0); }
     const end = new Date(start);
     if (byHour) end.setHours(end.getHours() + 1); else end.setDate(end.getDate() + 1);
-    buckets.push({ start, end, label: byHour ? `${String(start.getHours()).padStart(2, "0")}h` : start.toLocaleDateString(locale(), { day: "2-digit", month: count > 7 ? "2-digit" : "short" }), granularity: byHour ? "hour" : "day", calls: [] });
+    buckets.push({ start, end, label: byHour ? start.toLocaleTimeString(locale(), clockOptions({ hour: "2-digit" })) : start.toLocaleDateString(locale(), { day: "2-digit", month: count > 7 ? "2-digit" : "short" }), granularity: byHour ? "hour" : "day", calls: [] });
   }
   for (const call of calls) {
     const time = Date.parse(call.timestamp); const bucket = buckets.find((item) => time >= item.start && time < item.end); if (bucket) bucket.calls.push(call);
@@ -1264,7 +1273,7 @@ function hourlyBucketsFor(calls, range) {
     return {
       start,
       end,
-      label: start.toLocaleString(locale(), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }),
+      label: start.toLocaleString(locale(), clockOptions({ day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })),
       calls: [],
     };
   });
@@ -1289,7 +1298,7 @@ function customBucketsFor(calls, range = dateRange()) {
     const start = new Date(range.start.getTime() + interval * index);
     const end = new Date(index === count - 1 ? rangeEnd : range.start.getTime() + interval * (index + 1));
     const label = span <= 48 * hour
-      ? start.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })
+      ? start.toLocaleTimeString(locale(), clockOptions({ hour: "2-digit", minute: "2-digit" }))
       : start.toLocaleDateString(locale(), { day: "2-digit", month: span <= 370 * day ? "short" : "2-digit", year: span > 370 * day ? "2-digit" : undefined });
     return { start, end, label, granularity: span <= 48 * hour ? "hour" : span <= 45 * day ? "day" : null, calls: [] };
   });
@@ -1308,7 +1317,7 @@ function renderCostChart(calls, target = "#costChart", period = state.period) {
   const zoomStack = state.chartZoom[target] || [];
   const zoom = zoomStack.at(-1);
   const sourceBuckets = zoom
-    ? chartDrilldownBuckets(calls, zoom, zoom.granularity, locale())
+    ? chartDrilldownBuckets(calls, zoom, zoom.granularity, locale(), timeFormatOptions(state.timeFormat))
     : bucketsFor(calls, period);
   const monthly = sourceBuckets.length > 0 && sourceBuckets.every((bucket) => bucket.granularity === "month");
   host.classList.toggle("is-monthly", monthly);
@@ -1496,7 +1505,7 @@ function openDrawer(id) {
 function renderFreshness() {
   if (state.view === "quota") {
     const range = weeklyRange();
-    const options = { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" };
+    const options = clockOptions({ day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
     $("#periodLabel").textContent = t("period.customLabel", {
       start: range.start.toLocaleString(locale(), options),
       end: range.resetsAt ? range.resetsAt.toLocaleString(locale(), options) : t("period.now"),
@@ -1505,7 +1514,7 @@ function renderFreshness() {
     $("#periodLabel").textContent = t("nav.settings");
   } else if (state.period === "custom") {
     const range = dateRange();
-    const options = { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" };
+    const options = clockOptions({ day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
     $("#periodLabel").textContent = t("period.customLabel", {
       start: range.start.toLocaleString(locale(), options),
       end: range.end ? range.end.toLocaleString(locale(), options) : t("period.now"),
@@ -1514,7 +1523,7 @@ function renderFreshness() {
     $("#periodLabel").textContent = t(`period.${state.period}Label`);
   }
   if (state.data) {
-    const time = new Date(state.data.generatedAt).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const time = new Date(state.data.generatedAt).toLocaleTimeString(locale(), clockOptions({ hour: "2-digit", minute: "2-digit", second: "2-digit" }));
     const mesh = state.data.source?.mode === "mesh";
     $$(".privacy-copy").forEach((element) => { element.textContent = t(mesh ? "hero.privacyMesh" : "hero.privacy"); });
     $("#freshness").textContent = mesh
@@ -1662,6 +1671,7 @@ function applyTranslations() {
     $('[data-i18n="license.independent"]').dataset.i18n = "license.independentHosted";
   }
   $("#languageSelect").value = state.language;
+  $("#timeFormatSelect").value = state.timeFormat;
   initThemePicker();
   $$('[data-i18n]').forEach((element) => { element.textContent = t(element.dataset.i18n); });
   $$('[data-i18n-placeholder]').forEach((element) => { element.placeholder = t(element.dataset.i18nPlaceholder); });
@@ -1842,6 +1852,12 @@ $$('[data-close-drawer]').forEach((element) => element.addEventListener("click",
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") { $("#detailDrawer").setAttribute("aria-hidden", "true"); document.body.classList.remove("drawer-open"); } });
 $("#projectSearch").addEventListener("input", (event) => { state.projectQuery = event.target.value; if (state.data) renderProjectsPage(overviewSessions()); });
 $("#settingsPricingButton").addEventListener("click", openPricing);
+$("#timeFormatSelect")?.addEventListener("change", (event) => {
+  state.timeFormat = normalizeTimeFormat(event.target.value);
+  try { localStorage.setItem(TIME_FORMAT_KEY, state.timeFormat); }
+  catch { /* The selection remains active for this tab. */ }
+  render();
+});
 for (const [selector, key] of [["#miniQuotaFiveHour", "fiveHour"], ["#miniQuotaWeekly", "weekly"]]) {
   $(selector)?.addEventListener("change", (event) => {
     const otherKey = key === "fiveHour" ? "weekly" : "fiveHour";
@@ -1861,6 +1877,7 @@ $("#miniQuotaButton")?.addEventListener("click", () => {
     fiveHour: miniQuotaVisibility.fiveHour ? "1" : "0",
     weekly: miniQuotaVisibility.weekly ? "1" : "0",
     source: state.dataMode, language: state.language, theme: globalThis.CodexUsageThemes.getTheme(),
+    timeFormat: state.timeFormat,
   });
   const width = miniQuotaVisibility.fiveHour && miniQuotaVisibility.weekly ? 480 : 280;
   if (runtimeCapabilities.desktopHelper) {

@@ -274,3 +274,19 @@ export const THEME_I18N = Object.fromEntries(Object.entries(THEME_LABELS).map(([
   language,
   Object.fromEntries(["appearance", "label", "copy", "green", "blue", "violet", "amber"].map((key, index) => [`theme.${key}`, labels[index]])),
 ]));
+
+const TIME_FORMAT_LABELS = {
+  fr: ["Format de l’heure", "Choisissez comment les heures sont affichées dans le tableau de bord et la fenêtre de quotas.", "Affichage de l’heure", "Réglage de l’appareil", "12 heures", "24 heures"],
+  en: ["Time format", "Choose how times appear throughout the dashboard and quota window.", "Time display", "Device default", "12-hour", "24-hour"],
+  de: ["Zeitformat", "Legen Sie fest, wie Uhrzeiten im Dashboard und Kontingentfenster angezeigt werden.", "Zeitanzeige", "Geräteeinstellung", "12 Stunden", "24 Stunden"],
+  es: ["Formato de hora", "Elige cómo se muestran las horas en el panel y la ventana de cuota.", "Visualización de hora", "Predeterminado del dispositivo", "12 horas", "24 horas"],
+  it: ["Formato dell’ora", "Scegli come visualizzare gli orari nella dashboard e nella finestra quota.", "Visualizzazione dell’ora", "Predefinito del dispositivo", "12 ore", "24 ore"],
+  pt: ["Formato da hora", "Escolha como as horas aparecem no painel e na janela de quota.", "Apresentação da hora", "Predefinição do dispositivo", "12 horas", "24 horas"],
+  ja: ["時刻形式", "ダッシュボードとクォータウィンドウでの時刻表示を選択します。", "時刻表示", "デバイスの既定値", "12時間制", "24時間制"],
+  ru: ["Формат времени", "Выберите формат времени для панели и окна квот.", "Отображение времени", "Настройка устройства", "12-часовой", "24-часовой"],
+  zh: ["时间格式", "选择仪表板和额度窗口中的时间显示方式。", "时间显示", "设备默认", "12 小时制", "24 小时制"],
+};
+export const TIME_FORMAT_I18N = Object.fromEntries(Object.entries(TIME_FORMAT_LABELS).map(([language, labels]) => [
+  language,
+  Object.fromEntries(["title", "copy", "label", "system", "twelve", "twentyFour"].map((key, index) => [`timeFormat.${key}`, labels[index]])),
+]));

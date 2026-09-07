@@ -39,5 +39,6 @@ export function miniPreferences(input = {}) {
   if (["local", "centralized"].includes(input.source)) result.source = input.source;
   if (typeof input.language === "string" && /^[a-z]{2}(-[A-Za-z]{2})?$/.test(input.language)) result.language = input.language;
   if (["green", "blue", "violet", "amber"].includes(input.theme)) result.theme = input.theme;
+  if (["system", "12", "24"].includes(input.timeFormat)) result.timeFormat = input.timeFormat;
   return result;
 }

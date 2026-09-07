@@ -106,7 +106,7 @@ test("header quotas show exact reset dates, live countdowns, and clock-driven ro
   assert.equal((markup.match(/data-weekly-header-countdown/g) || []).length, 1);
   assert.equal((markup.match(/data-five-hour-countdown/g) || []).length, 1);
   assert.equal((markup.match(/data-five-hour-mobile-remaining/g) || []).length, 1);
-  assert.match(app, /toLocaleString\(locale\(\), \{ dateStyle: "medium", timeStyle: "short" \}\)/);
+  assert.match(app, /toLocaleString\(locale\(\), clockOptions\(\{ dateStyle: "medium", timeStyle: "short" \}\)\)/);
   assert.match(app, /function quotaPeriods\([^)]*\)[\s\S]*weeklyQuotaPeriods/);
   assert.match(app, /setInterval\(\(\) => \{\s*if \(!document\.hidden\) syncQuotaClock\(\);\s*\}, 1_000\);/);
   assert.match(styles, /\.header-quota\s*\{[^}]*font-variant-numeric:\s*tabular-nums;/s);

@@ -81,7 +81,7 @@ export function monthlyChartBuckets(calls, period, locale = "en-US", now = new D
   return buckets;
 }
 
-export function chartDrilldownBuckets(calls, range, granularity, locale = "en-US") {
+export function chartDrilldownBuckets(calls, range, granularity, locale = "en-US", timeOptions = {}) {
   if (!range?.start || !range?.end || !["day", "hour"].includes(granularity)) return [];
   const limit = new Date(range.end);
   let cursor = new Date(range.start);
@@ -96,7 +96,7 @@ export function chartDrilldownBuckets(calls, range, granularity, locale = "en-US
     const end = next < limit ? next : new Date(limit);
     const label = granularity === "day"
       ? start.toLocaleDateString(locale, { day: "2-digit", month: "short" })
-      : start.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+      : start.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", ...timeOptions });
     buckets.push({ start, end, label, granularity, calls: [] });
     cursor = end;
   }

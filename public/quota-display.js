@@ -1,5 +1,17 @@
 import { quotaCountdownParts, theoreticalWeeklyQuotaPeriod } from "./date-range.js";
 
+export function normalizeTimeFormat(value) {
+  return ["system", "12", "24"].includes(value) ? value : "system";
+}
+
+export function timeFormatOptions(value) {
+  const format = normalizeTimeFormat(value);
+  if (format === "12") return { hour12: true };
+  if (format === "24") return { hour12: false };
+  const hour12 = new Intl.DateTimeFormat(undefined, { hour: "numeric" }).resolvedOptions().hour12;
+  return typeof hour12 === "boolean" ? { hour12 } : {};
+}
+
 export function weeklyQuotaPeriods(data, now = new Date()) {
   const history = data?.weeklyQuotaHistory;
   const observed = Array.isArray(history) && history.length ? history : data?.weeklyQuota ? [data.weeklyQuota] : [];

@@ -1,10 +1,11 @@
 import { LOCALE_TAGS, resolveLanguage } from "./translations.js";
-import { weeklyQuotaPeriods, shortQuotaDisplay, quotaCountdownText } from "./quota-display.js";
+import { weeklyQuotaPeriods, shortQuotaDisplay, quotaCountdownText, normalizeTimeFormat, timeFormatOptions } from "./quota-display.js";
 import { createMiniData, selectMiniSource } from "./mini-data.js";
 
 const params = new URLSearchParams(location.search);
 const stored = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
 let language = resolveLanguage(params.get("language") || stored("codex-usage-language") || navigator.language) || "en";
+let timeFormat = normalizeTimeFormat(params.get("timeFormat") || stored("codex-usage-time-format"));
 const messages = {
   en: { fiveHour: "5 hours", weekly: "Weekly", loading: "Loading…", offline: "Connection lost", updated: "Checked", observed: "Observed", waiting: "Awaiting observation", local: "Local", centralized: "Centralized", remaining: "remaining" },
   fr: { fiveHour: "5 heures", weekly: "Hebdomadaire", loading: "Chargement…", offline: "Connexion perdue", updated: "Vérifié", observed: "Observé", waiting: "En attente d’observation", local: "Local", centralized: "Centralisé", remaining: "restant" },
@@ -31,7 +32,7 @@ let associationRequired = false;
 let failedInitialization = false;
 const timeText = (value) => {
   const date = value == null ? null : new Date(value);
-  return date && Number.isFinite(date.getTime()) ? date.toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" }) : "—";
+  return date && Number.isFinite(date.getTime()) ? date.toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short", ...timeFormatOptions(timeFormat) }) : "—";
 };
 
 function render() {
@@ -91,6 +92,7 @@ async function load() {
 }
 globalThis.addEventListener("storage", (event) => {
   if (event.key === "codex-usage-language" && event.newValue) language = resolveLanguage(event.newValue) || "en";
+  if (event.key === "codex-usage-time-format") timeFormat = normalizeTimeFormat(event.newValue);
   if (event.key === "codex-usage-data-mode") { params.delete("source"); void load(); }
   render();
 });

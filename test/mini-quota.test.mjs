@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { weeklyQuotaPeriods, shortQuotaDisplay, quotaCountdownText } from "../public/quota-display.js";
+import { weeklyQuotaPeriods, shortQuotaDisplay, quotaCountdownText, normalizeTimeFormat, timeFormatOptions } from "../public/quota-display.js";
 import { createMiniData, selectMiniSource } from "../public/mini-data.js";
 import { desktopAddress, miniPreferences, remoteApiUrl } from "../src/desktop-options.mjs";
 
@@ -27,9 +27,21 @@ test("desktop preserves custom bind address and port, with connectable wildcard 
 });
 
 test("native preferences retain a visible quota and allow only known source and theme values", () => {
-  assert.deepEqual(miniPreferences({ fiveHour: "0", weekly: "0", source: "centralized", theme: "blue", language: "fr" }),
-    { fiveHour: "1", weekly: "0", source: "centralized", theme: "blue", language: "fr" });
+  assert.deepEqual(miniPreferences({ fiveHour: "0", weekly: "0", source: "centralized", theme: "blue", language: "fr", timeFormat: "24" }),
+    { fiveHour: "1", weekly: "0", source: "centralized", theme: "blue", language: "fr", timeFormat: "24" });
   assert.deepEqual(miniPreferences({ source: "https://elsewhere", theme: "invalid", language: "../../" }), { fiveHour: "1", weekly: "1" });
+});
+
+test("time format accepts system, 12-hour and 24-hour preferences", () => {
+  assert.equal(normalizeTimeFormat("12"), "12");
+  assert.equal(normalizeTimeFormat("24"), "24");
+  assert.equal(normalizeTimeFormat("invalid"), "system");
+  assert.equal(typeof timeFormatOptions("system").hour12, "boolean");
+  assert.deepEqual(timeFormatOptions("12"), { hour12: true });
+  assert.deepEqual(timeFormatOptions("24"), { hour12: false });
+  const date = new Date("2026-09-08T13:05:00Z");
+  assert.match(date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZone: "UTC", ...timeFormatOptions("12") }), /01:05 PM/);
+  assert.match(date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZone: "UTC", ...timeFormatOptions("24") }), /13:05/);
 });
 
 test("hosted mini uses centralized capabilities and local mini respects explicit source", () => {

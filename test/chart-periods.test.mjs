@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 import { resolveDateRange, timestampInRange } from "../public/date-range.js";
+import { timeFormatOptions } from "../public/quota-display.js";
 import * as visualization from "../public/visualization.js";
 
 const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
@@ -19,6 +20,7 @@ function runtimeBuckets(now) {
     ...visualizationBindings,
     Date: FixedDate,
     locale: () => "en-US",
+    clockOptions: (options) => options,
     resolveDateRange,
   });
 }
@@ -128,7 +130,7 @@ test("runtime renders every historical month and preserves the selected period t
   const now = new Date(2026, 7, 31, 12);
   const calls = [callAt("old", new Date(2024, 0, 15, 12)), callAt("recent", new Date(2026, 7, 30, 12))];
   for (const width of [360, 1280]) {
-    const state = { period: "all", chartZoom: {}, chartZoomBasePeriods: {}, transientRange: null };
+    const state = { period: "all", timeFormat: "system", chartZoom: {}, chartZoomBasePeriods: {}, transientRange: null };
     const classes = new Map();
     let columns = [];
     let back;
@@ -154,6 +156,7 @@ test("runtime renders every historical month and preserves the selected period t
       $: () => host,
       bucketsFor: runtimeBuckets(now),
       locale: () => "en-US",
+      timeFormatOptions,
       costOfCalls: (items) => ({ cost: items.length, freshInputCost: 0, cachedInputCost: 0, cacheWriteCost: items.length, outputCost: 0 }),
       formatCost: String,
       formatApiSummary: (summary) => String(summary.cost),

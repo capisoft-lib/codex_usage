@@ -28,6 +28,7 @@ function navigation(quota) {
     Date: ClockDate, Intl, Number, state, quotaCountdownParts,
     shortQuotaDisplay: (quota) => shortQuotaDisplay(quota, now),
     quotaCountdownText,
+    clockOptions: (options) => options,
     locale: () => "en-GB", quotaPeriods: () => [weeklyQuota], currentQuotaResetAt: () => new ClockDate(weeklyQuota.resetsAt),
     t: (key, values) => key === "kpi.remaining" ? `${values.n}% remaining` : messages[key] || key,
     $$: (selector) => {
