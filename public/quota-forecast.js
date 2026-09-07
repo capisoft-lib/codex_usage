@@ -194,9 +194,9 @@ export function buildQuotaForecast({
   const historySource = measured.length ? "observed" : "estimated";
   const actual = measured.length ? measured : cumulativePoints(observedSamples, startTime, observedAnchorTime, safeUsedPercent, currentCredits);
   const lastObservedAt = actual.at(-1).timestamp;
-  // Carry the latest known quota to now so the current curve joins the forecast.
+  // Carry the latest known quota to now, or to the end of a completed window.
   // Keep the observation timestamp separate from this display-only plateau.
-  if ((project !== false || !measured.length) && anchorTime > validTime(lastObservedAt)) {
+  if ((anchorTime === endTime || project !== false || !measured.length) && anchorTime > validTime(lastObservedAt)) {
     actual.push({ timestamp: new Date(anchorTime).toISOString(), percent: actual.at(-1).percent });
   }
   const historyOnly = (reason) => measured.length ? {
