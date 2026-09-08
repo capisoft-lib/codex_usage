@@ -18,6 +18,7 @@ const dashboardMode = process.env.DASHBOARD_MODE || "local";
 const meshHubPath = process.env.MESH_HUB_PATH || path.join(root, ".cache", "mesh-hub.json");
 const meshAdminToken = process.env.MESH_ADMIN_TOKEN || null;
 const maxRequestBytes = Math.max(64 * 1_024, Number(process.env.MESH_MAX_REQUEST_BYTES || 8 * 1_024 * 1_024));
+const dashboardUrl = `http://${host}:${port}`;
 const mime = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -101,6 +102,12 @@ function healthStatus() {
     return { ok: true, ready: true, mode: "hub", nodes: nodes.length, activeNodes: nodes.filter((node) => !node.revokedAt).length };
   }
   return usageCollector.status();
+}
+
+function errorHeading(message) {
+  const colorEnabled = !Object.hasOwn(process.env, "NO_COLOR")
+    && (process.stderr.isTTY || Boolean(process.env.FORCE_COLOR));
+  return colorEnabled ? `\u001b[1;31m${message}\u001b[0m` : message;
 }
 
 async function routeApi(request, response, url) {
@@ -202,10 +209,17 @@ const server = createServer(async (request, response) => {
   }
 });
 
-usageCollector?.start();
+server.once("error", (error) => {
+  usageCollector?.stop();
+  if (error.code === "EADDRINUSE") {
+    console.error(`${errorHeading(cliText("dashboardAlreadyRunning"))}\n\n${cliText("dashboardAddressInUse", dashboardUrl)}`);
+  } else console.error(cliText("dashboardStartFailed", error.message));
+  process.exitCode = 1;
+});
 
 server.listen(port, host, () => {
-  console.log(cliText("dashboardReady", `http://${host}:${port}`));
+  usageCollector?.start();
+  console.log(cliText("dashboardReady", dashboardUrl));
   if (dashboardMode === "hub") console.log(cliText("meshHub"));
   else console.log(usageCollector.meshAgent ? cliText("meshEnabled") : cliText("localOnly"));
 });

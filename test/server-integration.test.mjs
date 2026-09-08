@@ -28,6 +28,16 @@ async function waitForServer(url, child) {
   throw new Error("Le serveur local ne devient pas disponible.");
 }
 
+function outputOf(child) {
+  let stdout = "", stderr = "";
+  child.stdout.on("data", (chunk) => { stdout += chunk; });
+  child.stderr.on("data", (chunk) => { stderr += chunk; });
+  return new Promise((resolve, reject) => {
+    child.once("error", reject);
+    child.once("exit", (code, signal) => resolve({ code, signal, stdout, stderr }));
+  });
+}
+
 test("local HTTP adapter serves the generated UI and common API", async () => {
   const fixtureRoot = await mkdtemp(path.join(tmpdir(), "codex-usage-http-"));
   const sessions = path.join(fixtureRoot, "sessions");
@@ -74,6 +84,22 @@ test("local HTTP adapter serves the generated UI and common API", async () => {
     assert.equal(themesResponse.status, 200);
     assert.match(themesResponse.headers.get("content-type") ?? "", /javascript/);
     assert.match(await themesResponse.text(), /CodexUsageThemes/);
+
+    const { NO_COLOR: _noColor, ...duplicateEnv } = process.env;
+    const duplicate = spawn(process.execPath, ["server.mjs"], {
+      cwd: projectRoot,
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...duplicateEnv, FORCE_COLOR: "1", LANG: "C.UTF-8", LANGUAGE: "", HOST: "127.0.0.1", PORT: String(port),
+        CODEX_SOURCE_MODE: "scoped", CODEX_SESSIONS_PATH: sessions, CODEX_ARCHIVED_SESSIONS_PATH: archives,
+        CODEX_SESSION_INDEX_PATH: index, SNAPSHOT_PATH: "", MESH_HUB_URL: "" },
+    });
+    const duplicateResult = await outputOf(duplicate);
+    assert.equal(duplicateResult.code, 1);
+    assert.equal(duplicateResult.signal, null);
+    assert.match(duplicateResult.stderr, /\u001b\[1;31mDashboard already running!\u001b\[0m/);
+    assert.match(duplicateResult.stderr, new RegExp(`http://127\\.0\\.0\\.1:${port}`));
+    assert.doesNotMatch(duplicateResult.stderr, /EADDRINUSE|node:events/);
   } finally {
     child.kill();
     await Promise.race([
