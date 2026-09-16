@@ -1,4 +1,7 @@
 import { quotaCountdownParts, theoreticalWeeklyQuotaPeriod } from "./date-range.js";
+import { normalizeQuotaPeriods } from "./quota-periods.js";
+
+const normalizedHistory = new WeakMap();
 
 export function normalizeTimeFormat(value) {
   return ["system", "12", "24"].includes(value) ? value : "system";
@@ -17,8 +20,13 @@ export function timeFormatOptions(value) {
 }
 
 export function weeklyQuotaPeriods(data, now = new Date()) {
-  const history = data?.weeklyQuotaHistory;
-  const observed = Array.isArray(history) && history.length ? history : data?.weeklyQuota ? [data.weeklyQuota] : [];
+  if (!data) return [];
+  let observed = normalizedHistory.get(data);
+  if (!observed) {
+    observed = normalizeQuotaPeriods(data);
+    if (!observed.length && data.weeklyQuota) observed = [data.weeklyQuota];
+    normalizedHistory.set(data, observed);
+  }
   const theoretical = theoreticalWeeklyQuotaPeriod(observed[0], now);
   return theoretical ? [theoretical, ...observed] : observed;
 }

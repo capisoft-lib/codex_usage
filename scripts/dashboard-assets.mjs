@@ -1,6 +1,7 @@
 export const DASHBOARD_ASSETS = Object.freeze([
   "api-pricing.js",
   "app.js",
+  "page-data.js",
   "date-range.js",
   "icon-180.png",
   "icon-192.png",
@@ -18,6 +19,8 @@ export const DASHBOARD_ASSETS = Object.freeze([
   "pricing-ui.js",
   "quota-forecast.js",
   "quota-display.js",
+  "quota-data.js",
+  "quota-periods.js",
   "styles.css",
   "sw.js",
   "themes.js",

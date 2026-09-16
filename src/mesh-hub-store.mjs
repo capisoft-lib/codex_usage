@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { cliText } from "./cli-locale.mjs";
+import { normalizeQuotaPeriods } from "../public/quota-periods.js";
 import {
   normalizeNodeAlias,
   publicKeyFingerprint,
@@ -26,17 +27,17 @@ function httpError(message, status = 400, code = "mesh_invalid") {
 
 function latestQuota(nodes, key = "quota") {
   return Object.values(nodes)
-    .filter((node) => node[key])
+    .filter((node) => !node.revokedAt && node[key])
     .map((node) => ({ ...node[key], nodeId: node.id, nodeAlias: node.alias, receivedAt: node.lastSeen }))
     .sort((left, right) => String(right.observedAt || right.receivedAt).localeCompare(String(left.observedAt || left.receivedAt)))[0] || null;
 }
 
 function latestQuotaHistory(nodes) {
-  return Object.values(nodes)
-    .filter((node) => Array.isArray(node.quotaHistory))
+  const history = Object.values(nodes)
+    .filter((node) => !node.revokedAt && Array.isArray(node.quotaHistory))
     .flatMap((node) => node.quotaHistory.map((quota) => ({ ...quota, nodeId: node.id, nodeAlias: node.alias, receivedAt: node.lastSeen })))
-    .sort((left, right) => String(right.observedAt || right.receivedAt).localeCompare(String(left.observedAt || left.receivedAt)))
-    .filter((quota, index, all) => all.findIndex((candidate) => candidate.resetsAt === quota.resetsAt && candidate.windowMinutes === quota.windowMinutes) === index);
+    .sort((left, right) => String(right.observedAt || right.receivedAt).localeCompare(String(left.observedAt || left.receivedAt)));
+  return normalizeQuotaPeriods({ weeklyQuotaHistory: history, weeklyQuota: latestQuota(nodes) });
 }
 
 export class MeshHubStore {
@@ -172,6 +173,7 @@ export class MeshHubStore {
 
   aggregate() {
     const active = Object.values(this.state.nodes).filter((node) => !node.revokedAt);
+    const weeklyQuotaHistory = latestQuotaHistory(this.state.nodes);
     const sessions = active.flatMap((node) => Object.values(node.sessions).map((session) => ({
       ...session,
       id: `${node.id}:${session.id}`,
@@ -184,8 +186,8 @@ export class MeshHubStore {
       generatedAt: new Date().toISOString(),
       source: { mode: "mesh", sessionsAvailable: active.length > 0, archivedSessionsAvailable: false, sessionIndexAvailable: false },
       fiveHourQuota: latestQuota(this.state.nodes, "shortQuota"),
-      weeklyQuota: latestQuota(this.state.nodes),
-      weeklyQuotaHistory: latestQuotaHistory(this.state.nodes),
+      weeklyQuota: weeklyQuotaHistory[0] || latestQuota(this.state.nodes),
+      weeklyQuotaHistory,
       nodes: this.nodes(),
       sessions: sessions.sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt))),
       errorCount: 0,

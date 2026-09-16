@@ -10,7 +10,7 @@
     "dev": "npm run sync:dashboard && node scripts/run-vinext.mjs dev",
     "build": "npm run sync:dashboard && node scripts/run-vinext.mjs build",
     "start": "node scripts/run-vinext.mjs start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/mesh-protocol.test.mjs tests/migrations.test.mjs",
+    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/mesh-protocol.test.mjs tests/migrations.test.mjs tests/quota-api.test.mjs tests/page-api.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },

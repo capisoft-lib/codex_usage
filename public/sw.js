@@ -1,7 +1,8 @@
-const CACHE_NAME = "codex-usage-shell-v4";
+const CACHE_NAME = "codex-usage-shell-v7";
 const SHELL_ASSETS = [
   "./api-pricing.js",
   "./app.js",
+  "./page-data.js",
   "./date-range.js",
   "./icon-180.png",
   "./icon-192.png",
@@ -14,6 +15,9 @@ const SHELL_ASSETS = [
   "./pricing-catalog.js",
   "./pricing-ui.js",
   "./quota-forecast.js",
+  "./quota-display.js",
+  "./quota-data.js",
+  "./quota-periods.js",
   "./styles.css",
   "./themes.js",
   "./palettes.css",

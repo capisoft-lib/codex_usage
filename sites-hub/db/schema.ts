@@ -1,4 +1,4 @@
-import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const enrollments = sqliteTable("mesh_enrollments", {
   codeHash: text("code_hash").primaryKey(),
@@ -32,7 +32,10 @@ export const sessions = sqliteTable("mesh_sessions", {
   sessionId: text("session_id").notNull(),
   snapshotJson: text("snapshot_json").notNull(),
   updatedAt: text("updated_at"),
-}, (table) => [primaryKey({ columns: [table.nodeId, table.sessionId] })]);
+  firstCallDay: real("first_call_day"),
+  lastCallDay: real("last_call_day"),
+  invalidCallDates: integer("invalid_call_dates").notNull().default(-1),
+}, (table) => [primaryKey({ columns: [table.nodeId, table.sessionId] }), index("mesh_sessions_node_call_range").on(table.nodeId, table.lastCallDay, table.firstCallDay)]);
 
 export const preferences = sqliteTable("dashboard_preferences", {
   ownerId: text("owner_id").primaryKey(),

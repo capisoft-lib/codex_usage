@@ -1,4 +1,5 @@
 import { shortQuotaDisplay, quotaCountdownText } from "../public/quota-display.js";
+import { sameQuotaReset } from "../public/quota-periods.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -25,7 +26,7 @@ function navigation(quota) {
     "quota.awaitingShort": "Awaiting data", "quota.awaitingObservation": "Waiting for the first Codex observation",
   };
   const context = vm.createContext({
-    Date: ClockDate, Intl, Number, state, quotaCountdownParts,
+    Date: ClockDate, Intl, Number, state, quotaCountdownParts, sameQuotaReset,
     shortQuotaDisplay: (quota) => shortQuotaDisplay(quota, now),
     quotaCountdownText,
     clockOptions: (options) => options,

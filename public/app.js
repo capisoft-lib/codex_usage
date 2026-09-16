@@ -1,19 +1,34 @@
 import { weeklyQuotaPeriods, shortQuotaDisplay, quotaCountdownText, normalizeTimeFormat, timeFormatOptions } from "./quota-display.js";
-import { codexCreditsOfCalls, fastMultiplierFor, usageProfilesOfCalls } from "./usage-pricing.js";
+import { quotaMetadata } from "./quota-data.js";
+import { sameQuotaReset } from "./quota-periods.js";
+import { codexCreditsOfCalls as rawCreditsOfCalls, fastMultiplierFor, usageProfilesOfCalls as rawUsageProfilesOfCalls } from "./usage-pricing.js";
 import { apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 import { PRICING_CATALOG } from "./pricing-catalog.js";
 import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryMarkup, pricingDiagnosticsMarkup } from "./pricing-ui.js";
 import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, resolveLanguage } from "./translations.js";
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
-import { latestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
+import { latestTimestamp as rawLatestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { buildQuotaForecast, estimateQuotaCapacityCredits, interpolateForecastPercent, weeklyForecastTicks } from "./quota-forecast.js";
 import { OVERVIEW_PROJECT_LIMIT, projectIdentity } from "./project-identity.js";
 
-// Paint the last browser snapshot immediately, then replace it from the server's
-// background-refreshed snapshot. Session files remain the source of truth.
-const USAGE_CACHE_KEY = "codex-usage-data";
-const CENTRALIZED_USAGE_CACHE_KEY = "codex-usage-data-centralized";
-const USAGE_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1_000;
+// Summary arrays keep the renderer shared with the quota/detail paths.
+function summaryCalls(summary) { const calls = []; calls.summary = summary; return calls; }
+function hydratePage(data) {
+  const hydrate = row => { if (row.summary) row.calls = summaryCalls(row.summary); return row; };
+  if (data.pageData && !["detail", "pricing"].includes(data.pageData.view)) {
+    data.sessions.forEach(hydrate);
+    for (const group of data.pageData.projects || []) {
+      group.calls = summaryCalls(group.summary); group.sessions.forEach(hydrate);
+      group.models = group.models.map(m => ({...m, cost:m.summary.cost, tokens:m.summary.usage.totalTokens}));
+    }
+  }
+  return data;
+}
+function codexCreditsOfCalls(calls) { return calls?.summary?.credits || rawCreditsOfCalls(calls); }
+function usageProfilesOfCalls(calls) { return calls?.summary?.profiles || rawUsageProfilesOfCalls(calls); }
+function latestTimestamp(calls) { return calls?.summary?.lastCall || rawLatestTimestamp(calls); }
+function callCount(calls) { return calls?.summary?.count ?? calls.length; }
+
 const POLL_INTERVAL_MS = 15_000;
 const CUSTOM_RANGE_KEY = "codex-usage-custom-range";
 const DATA_MODE_KEY = "codex-usage-data-mode";
@@ -34,7 +49,7 @@ const isHostedRuntime = () => ["hosted", "hub"].includes(runtimeCapabilities.run
 if (isHostedRuntime()) document.documentElement.dataset.hosted = "true";
 
 const I18N = {
-  fr: {
+  fr: { "quota.loading": "Chargement des graphiques…",
     "app.title": "Local Usage — Coûts et activité", "brand.tagline": "pour Codex · local", "license.independent": "Projet libre et indépendant pour les données locales Codex.", "license.source": "Code source", "nav.period": "Période", "nav.main": "Navigation principale", "nav.overview": "Aperçu", "nav.projects": "Projets", "nav.quota": "Quota hebdomadaire", "nav.conversations": "Conversations", "nav.settings": "Réglages", "action.language": "Langue", "action.close": "Fermer", "summary.label": "Synthèse de la période", "summary.kpis": "Indicateurs principaux",
     "period.weeklyQuota": "WeeklyQuota", "period.weeklyQuotaLabel": "WeeklyQuota", "period.today": "Aujourd’hui", "period.7d": "7 jours", "period.30d": "30 jours", "period.12m": "12 mois", "period.all": "Tout", "period.custom": "Personnalisé", "period.customStart": "Début", "period.customEnd": "Fin", "period.now": "Maintenant",
     "period.todayLabel": "Aujourd’hui", "period.7dLabel": "7 derniers jours", "period.30dLabel": "30 derniers jours", "period.12mLabel": "12 derniers mois", "period.allLabel": "Tout l’historique local", "period.customLabel": "Du {start} au {end}",
@@ -55,7 +70,7 @@ const I18N = {
     "freshness": "{n} sessions indexées · relevé {time}", "refresh.done": "Sessions actualisées", "load.loading": "Chargement des sessions locales…", "load.error": "Impossible de lire les sessions : {error}", "load.errorToast": "Erreur de chargement", "units.tokens": "tokens",
     "duration.seconds": "{n} s", "duration.minutes": "{m} min {s} s", "hero.privacyMesh": "Métadonnées minimisées · réseau privé", "node.all": "Toutes les machines", "filter.node": "Filtrer par machine", "table.node": "Machine", "detail.node": "Machine observée", "freshness.mesh": "{n} sessions · {nodes} machines · relevé {time}",
   },
-  en: {
+  en: { "quota.loading": "Loading charts…",
     "app.title": "Local Usage — Costs and activity", "brand.tagline": "for Codex · local", "license.independent": "Independent free software for local Codex data.", "license.source": "Source code", "nav.period": "Period", "nav.main": "Main navigation", "nav.overview": "Overview", "nav.projects": "Projects", "nav.quota": "Weekly Quota", "nav.conversations": "Conversations", "nav.settings": "Settings", "action.language": "Language", "action.close": "Close", "summary.label": "Period summary", "summary.kpis": "Key indicators",
     "period.weeklyQuota": "WeeklyQuota", "period.weeklyQuotaLabel": "WeeklyQuota", "period.today": "Today", "period.7d": "7 days", "period.30d": "30 days", "period.12m": "12 months", "period.all": "All", "period.custom": "Custom", "period.customStart": "Start", "period.customEnd": "End", "period.now": "Now",
     "period.todayLabel": "Today", "period.7dLabel": "Last 7 days", "period.30dLabel": "Last 30 days", "period.12mLabel": "Last 12 months", "period.allLabel": "All local history", "period.customLabel": "From {start} to {end}",
@@ -78,7 +93,7 @@ const I18N = {
     "duration.seconds": "{n}s", "duration.minutes": "{m}m {s}s", "hero.privacyMesh": "Minimized metadata · private network", "node.all": "All machines", "filter.node": "Filter by machine", "table.node": "Machine", "detail.node": "Observed machine", "freshness.mesh": "{n} sessions · {nodes} machines · updated {time}",
     "pwa.eyebrow": "APPLICATION", "pwa.title": "Install on this phone", "pwa.copy": "Add Codex Usage to your home screen and open it like an app.", "pwa.install": "Install app", "pwa.ready": "The app is ready to install.", "pwa.instructions": "On Android, open the browser menu and choose Install app or Add to Home screen if the button does not appear.", "pwa.installed": "Codex Usage is installed on this device.", "pwa.dismissed": "Installation was cancelled. You can try again from the browser menu.", "pwa.toastTitle": "Install Codex Usage", "pwa.toastCopy": "Add the dashboard to your home screen and open it like an app.", "pwa.howTo": "See how", "pwa.toastClose": "Hide install suggestion",
   },
-  de: {
+  de: { "quota.loading": "Diagramme werden geladen…",
     "app.title": "Local Usage — Kosten und Aktivität", "brand.tagline": "für Codex · lokal", "license.independent": "Unabhängige freie Software für lokale Codex-Daten.", "license.source": "Quellcode", "nav.period": "Zeitraum", "nav.main": "Hauptnavigation", "nav.overview": "Übersicht", "nav.projects": "Projekte", "nav.quota": "Wochenkontingent", "nav.conversations": "Konversationen", "nav.settings": "Einstellungen", "action.language": "Sprache", "action.close": "Schließen", "summary.label": "Zusammenfassung des Zeitraums", "summary.kpis": "Wichtigste Kennzahlen",
     "period.weeklyQuota": "WeeklyQuota", "period.weeklyQuotaLabel": "WeeklyQuota", "period.today": "Heute", "period.7d": "7 Tage", "period.30d": "30 Tage", "period.12m": "12 Monate", "period.all": "Alle", "period.custom": "Benutzerdefiniert", "period.customStart": "Beginn", "period.customEnd": "Ende", "period.now": "Jetzt",
     "period.todayLabel": "Heute", "period.7dLabel": "Letzte 7 Tage", "period.30dLabel": "Letzte 30 Tage", "period.12mLabel": "Letzte 12 Monate", "period.allLabel": "Gesamter lokaler Verlauf", "period.customLabel": "Von {start} bis {end}",
@@ -471,29 +486,10 @@ function loadDataMode() {
   catch { return "local"; }
 }
 
-function usageCacheKey() {
-  return state.dataMode === "centralized" ? CENTRALIZED_USAGE_CACHE_KEY : USAGE_CACHE_KEY;
-}
-
-function loadUsageCache() {
-  try {
-    const cached = JSON.parse(localStorage.getItem(usageCacheKey()));
-    if (!cached?.data?.sessions || !Number.isFinite(cached.savedAt)) return null;
-    if (Date.now() - cached.savedAt > USAGE_CACHE_MAX_AGE_MS) return null;
-    return cached.data;
-  } catch { return null; }
-}
-
-function saveUsageCache(data) {
-  try { localStorage.setItem(usageCacheKey(), JSON.stringify({ savedAt: Date.now(), data })); }
-  catch { /* The dashboard still works when browser storage is unavailable or full. */ }
-}
-
-function dateRange() {
+function dateRange(now = new Date()) {
   if (state.transientRange) {
     return { start: new Date(state.transientRange.start), end: new Date(state.transientRange.end) };
   }
-  const now = new Date();
   return resolveDateRange(state.period, state.customRange, now, quotaPeriods(now)[0]);
 }
 
@@ -502,12 +498,12 @@ function inRange(timestamp, range = dateRange()) {
 }
 
 function zeroUsage() { return { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningOutputTokens: 0, totalTokens: 0 }; }
-function sumUsage(items) { return items.reduce((sum, item) => { for (const key of Object.keys(sum)) sum[key] += item.usage?.[key] || 0; return sum; }, zeroUsage()); }
+function sumUsage(items) { if (items.summary) return items.summary.usage; return items.reduce((sum, item) => { for (const key of Object.keys(sum)) sum[key] += item.usage?.[key] || 0; return sum; }, zeroUsage()); }
 
 function effortPriceKey(model, effort) { return `${model}::${effort}`; }
 
 function costOfCalls(calls) {
-  return apiCostOfCalls(calls, state.pricing);
+  return calls?.summary?.cost || apiCostOfCalls(calls, state.pricing);
 }
 
 function formatCost(value) {
@@ -597,6 +593,7 @@ function sessionTitle(session) { return session.title === "Conversation sans tit
 function projectName(session) { return projectIdentity(session, t("projects.unknown")).name; }
 
 function projectGroups(sessions) {
+  if (state.data?.pageData?.projects) return state.data.pageData.projects;
   const groups = new Map();
   for (const session of sessions) {
     const identity = projectIdentity(session, t("projects.unknown"));
@@ -613,6 +610,7 @@ function projectGroups(sessions) {
 
 function sessionsInRange({ node = "all", folders = new Set(), model = "all", range = dateRange() } = {}) {
   if (!state.data) return [];
+  if (state.data.pageOnly) return state.data.sessions;
   return state.data.sessions.filter((session) => node === "all" || session.nodeId === node).map((session) => {
     if (folders.size && !folders.has(session.cwd || "")) return null;
     const calls = session.calls.filter((call) => inRange(call.timestamp, range) && (model === "all" || call.model === model));
@@ -635,7 +633,7 @@ function quotaPeriods(now = new Date()) {
 
 function selectedQuota() {
   const periods = quotaPeriods();
-  const selected = periods.find((quota) => quota.resetsAt === state.selectedQuotaReset) || periods[0] || null;
+  const selected = periods.find((quota) => sameQuotaReset(quota.resetsAt, state.selectedQuotaReset)) || periods[0] || null;
   state.selectedQuotaReset = selected?.resetsAt || null;
   return selected;
 }
@@ -655,7 +653,7 @@ function weeklyRange(now = new Date()) {
   return resolveWeeklyRange(quota, now);
 }
 
-function allScopedCalls(sessions = scopedSessions()) { return sessions.flatMap((session) => session.calls); }
+function allScopedCalls(sessions = scopedSessions()) { if (state.data?.pageData?.totals) return summaryCalls(state.data.pageData.totals); return sessions.flatMap((session) => session.calls); }
 
 function modelGroups(calls) {
   const groups = new Map();
@@ -672,18 +670,20 @@ function modelGroups(calls) {
 
 function render() {
   syncPageChrome();
-  const overview = overviewSessions();
-  const overviewCalls = allScopedCalls(overview);
-  const overviewUsage = sumUsage(overviewCalls);
-  renderCostSummary(overviewCalls);
-  renderKpis(overview, overviewCalls, overviewUsage);
-  renderCostChart(overviewCalls, "#costChart");
-  renderProjectRows("#overviewProjects", projectGroups(overview).slice(0, OVERVIEW_PROJECT_LIMIT), { navigate: true });
-  renderRecentConversations(overview);
-  renderProjectsPage(overview);
-  renderQuotaPage();
-  renderTable(scopedSessions());
-  renderSettingsNodes();
+  if (state.view !== "quota" && state.data?.pageOnly && state.data.requestKey !== pageRequestKey()) { schedulePageLoad(); return; }
+  renderQuotaNav();
+  if (state.view === "overview") {
+    const overview = overviewSessions();
+    const overviewCalls = allScopedCalls(overview);
+    renderCostSummary(overviewCalls);
+    renderKpis(overview, overviewCalls, sumUsage(overviewCalls));
+    renderCostChart(overviewCalls, "#costChart");
+    renderProjectRows("#overviewProjects", projectGroups(overview).slice(0, OVERVIEW_PROJECT_LIMIT), { navigate: true });
+    renderRecentConversations(overview);
+  } else if (state.view === "projects") renderProjectsPage(overviewSessions());
+  else if (state.view === "quota") renderQuotaPage();
+  else if (state.view === "conversations") renderTable(scopedSessions());
+  else if (state.view === "settings") renderSettingsNodes();
   renderFreshness();
 }
 
@@ -719,10 +719,10 @@ function renderKpis(sessions, calls, usage) {
   const cacheRate = usage.inputTokens ? usage.cachedInputTokens / usage.inputTokens : 0;
   const projects = projectGroups(sessions);
   const cards = [
-    [t("kpi.projects"), formatInt(projects.length), t("kpi.conversations", { n: sessions.length }), "P"],
+    [t("kpi.projects"), formatInt(state.data?.pageData?.projectCount ?? projects.length), t("kpi.conversations", { n: state.data?.pageData?.matched ?? sessions.length }), "P"],
     [t("kpi.credits"), formatCreditSummary(credits), creditSummaryMeta(credits), "◇"],
     [t("kpi.tokens"), formatCompact(usage.totalTokens), `${formatInt(usage.totalTokens)} · ${t("kpi.cacheRate", { n: Math.round(cacheRate * 100) })}`, "T"],
-    [t("kpi.calls"), formatInt(calls.length), calls.length ? t("kpi.tokensPerCall", { n: formatCompact(usage.totalTokens / calls.length) }) : t("kpi.noCall"), "↗"],
+    [t("kpi.calls"), formatInt(callCount(calls)), callCount(calls) ? t("kpi.tokensPerCall", { n: formatCompact(usage.totalTokens / callCount(calls)) }) : t("kpi.noCall"), "↗"],
   ];
   $("#kpis").innerHTML = cards.map(([label, value, meta, icon]) => `<article class="kpi"><span class="kpi-label">${label}<b class="kpi-icon">${icon}</b></span><strong class="kpi-value">${value}</strong><span class="kpi-meta" title="${escapeHtml(meta)}">${escapeHtml(meta)}</span></article>`).join("");
 }
@@ -789,9 +789,13 @@ function renderQuotaHistoryNavigation() {
   if (!select) return;
   const quota = selectedQuota();
   const index = Math.max(0, periods.findIndex((period) => period.resetsAt === quota?.resetsAt));
-  select.innerHTML = periods.length
+  const options = periods.length
     ? periods.map((period, position) => `<option value="${escapeHtml(period.resetsAt)}"${position === index ? " selected" : ""}>${escapeHtml(quotaPeriodLabel(period, position))}</option>`).join("")
     : `<option value="">${t("kpi.weeklyUnavailable")}</option>`;
+  if (select.dataset.quotaOptions !== options) {
+    select.innerHTML = options;
+    select.dataset.quotaOptions = options;
+  }
   select.disabled = periods.length < 2;
   $("#quotaPrevious").disabled = !periods.length || index >= periods.length - 1;
   $("#quotaNext").disabled = index <= 0;
@@ -854,6 +858,13 @@ function renderQuotaNav() {
 function renderQuotaPage() {
   renderQuota();
   const quota = selectedQuota();
+  if (state.data?.quotaOnly && (!state.data.quotaDetail || !sameQuotaReset(state.data.quotaDetail.reset, quota?.resetsAt || null))) {
+    $("#quotaKpis").innerHTML = "";
+    $("#quotaChart").innerHTML = `<p role="status">${escapeHtml(t("quota.loading"))}</p>`;
+    $("#quotaForecastSummary").innerHTML = "";
+    $("#quotaForecastChart").innerHTML = "";
+    return;
+  }
   const sessions = sessionsInRange({ range: weeklyRange() });
   const calls = allScopedCalls(sessions);
   const usage = sumUsage(calls);
@@ -1095,8 +1106,8 @@ function renderQuotaForecast() {
     chart.innerHTML = `<p class="quota-forecast-empty">${t("quota.unavailable")}</p>`;
     return;
   }
-  const samples = quotaForecastSamples(quota);
-  const forecast = buildQuotaForecast({
+  const samples = state.data?.quotaDetail ? [] : quotaForecastSamples(quota);
+  const forecast = state.data?.quotaDetail?.forecast || buildQuotaForecast({
     samples,
     observations: quota.observations,
     rangeStart: range.start,
@@ -1161,7 +1172,7 @@ function renderProjectRows(selector, groups, { navigate = false } = {}) {
     const active = isSelectedProject(group);
     const share = total ? group.cost.cost / total * 100 : 0;
     const tokens = sumUsage(group.calls).totalTokens;
-    return `<button class="project-row${active ? " active" : ""}" type="button" data-project-index="${index}" aria-pressed="${active}" aria-label="${escapeHtml(t("projects.filter", { name: group.name }))}"><span class="project-name">${escapeHtml(group.name)}</span><span class="project-value">${formatApiSummary(group.cost)}</span><span class="project-meta">${formatInt(group.sessions.length)} · ${new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(share)} % · ${formatCompact(tokens)}</span><progress class="project-bar" max="${max}" value="${group.cost.cost}" aria-label="${escapeHtml(group.name)}"></progress></button>`;
+    return `<button class="project-row${active ? " active" : ""}" type="button" data-project-index="${index}" aria-pressed="${active}" aria-label="${escapeHtml(t("projects.filter", { name: group.name }))}"><span class="project-name">${escapeHtml(group.name)}</span><span class="project-value">${formatApiSummary(group.cost)}</span><span class="project-meta">${formatInt(group.sessionCount ?? group.sessions.length)} · ${new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(share)} % · ${formatCompact(tokens)}</span><progress class="project-bar" max="${max}" value="${group.cost.cost}" aria-label="${escapeHtml(group.name)}"></progress></button>`;
   }).join("");
   $$(`${selector} .project-row`).forEach((row) => row.addEventListener("click", () => {
     selectProject(groups[Number(row.dataset.projectIndex)]);
@@ -1186,7 +1197,7 @@ function renderProjectDetail(group) {
   }
   const usage = sumUsage(group.calls);
   const credits = codexCreditsOfCalls(group.calls);
-  const models = modelGroups(group.calls);
+  const models = group.models || modelGroups(group.calls);
   const maxCost = Math.max(0.0001, ...models.map((item) => item.cost.cost));
   const recent = [...group.sessions].sort((left, right) => Date.parse(latestTimestamp(right.calls)) - Date.parse(latestTimestamp(left.calls))).slice(0, 6);
   const modelMarkup = models.map((item) => `<div class="model-row"><div class="model-row-head"><strong>${escapeHtml(item.model)}</strong><span>${formatApiSummary(item.cost)} · ${formatCompact(item.tokens)}</span></div><progress class="project-bar" max="${maxCost}" value="${item.cost.cost}" aria-label="${escapeHtml(item.model)}"></progress></div>`).join("") || `<p class="kpi-meta">${t("projects.none")}</p>`;
@@ -1241,14 +1252,13 @@ function renderSettingsNodes() {
   target.innerHTML = `<div class="node-list">${nodes.map((node) => `<article class="node-row"><span class="node-pill">${escapeHtml(node.alias)}</span></article>`).join("")}</div>`;
 }
 
-function bucketsFor(calls, period = state.period) {
+function bucketsFor(calls, period = state.period, now = new Date(), range = null) {
   if (period === "quota-hourly") return hourlyBucketsFor(calls, weeklyRange());
-  if (period === "custom" || period === "weeklyQuota" || period === "week") return customBucketsFor(calls, period === "week" ? weeklyRange() : dateRange());
-  if (period === "12m" || period === "all") return monthlyChartBuckets(calls, period, locale(), new Date());
+  if (period === "custom" || period === "weeklyQuota" || period === "week") return customBucketsFor(calls, period === "week" ? weeklyRange(now) : (range || dateRange(now)));
+  if (period === "12m" || period === "all") return monthlyChartBuckets(calls, period, locale(), now);
   const byHour = period === "today";
   const count = byHour ? 24 : period === "7d" ? 7 : 30;
   const buckets = [];
-  const now = new Date();
   for (let i = count - 1; i >= 0; i--) {
     const start = new Date(now);
     if (byHour) { start.setHours(now.getHours() - i, 0, 0, 0); }
@@ -1316,7 +1326,7 @@ function renderCostChart(calls, target = "#costChart", period = state.period) {
   host.classList.toggle("is-hourly", period === "quota-hourly");
   const zoomStack = state.chartZoom[target] || [];
   const zoom = zoomStack.at(-1);
-  const sourceBuckets = zoom
+  const sourceBuckets = target === "#costChart" && state.data?.pageData?.buckets ? state.data.pageData.buckets.map(b => ({ ...b, start:new Date(b.start), end:new Date(b.end), calls:summaryCalls(b.summary) })) : zoom
     ? chartDrilldownBuckets(calls, zoom, zoom.granularity, locale(), timeFormatOptions(state.timeFormat))
     : bucketsFor(calls, period);
   const monthly = sourceBuckets.length > 0 && sourceBuckets.every((bucket) => bucket.granularity === "month");
@@ -1401,6 +1411,8 @@ function chartZoomContext(zoom) {
 }
 
 function renderTable(sessions) {
+  if (state.data?.pageOnly && state.data.requestKey !== pageRequestKey()) { schedulePageLoad(); return; }
+  const pagination = state.data?.pageData?.view === "conversations" ? state.data.pageData : null;
   const query = normalizeSearch(state.query);
   const prepared = sessions.map((session) => ({
     ...session,
@@ -1412,23 +1424,23 @@ function renderTable(sessions) {
     tableCredits: codexCreditsOfCalls(session.calls),
     tableLastCall: latestTimestamp(session.calls),
   }));
-  const filtered = prepared.filter((session) => {
+  const filtered = pagination ? prepared : prepared.filter((session) => {
     const profileSearch = session.tableProfiles.map((profile) => `${profile.model} ${effortLabel(profile.effort)} ${profile.fast ? "fast" : "standard"}`).join(" ");
     const haystack = normalizeSearch(`${sessionTitle(session)} ${session.tableNode} ${session.tableModel} ${profileSearch} ${session.cwd || ""}`);
     return session.usage.totalTokens >= state.usageThreshold && (!query || haystack.includes(query));
   });
   filtered.sort((left, right) => compareSessions(left, right) * (state.sortDirection === "asc" ? 1 : -1));
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / state.pageSize));
+  const totalPages = Math.max(1, Math.ceil((pagination?.total ?? filtered.length) / state.pageSize));
   state.page = Math.min(Math.max(1, state.page), totalPages);
   const startIndex = (state.page - 1) * state.pageSize;
-  const visible = filtered.slice(startIndex, startIndex + state.pageSize);
+  const visible = pagination ? filtered : filtered.slice(startIndex, startIndex + state.pageSize);
   $("#conversationRows").innerHTML = visible.length ? visible.map((session) =>
     `<tr data-session-id="${escapeHtml(session.id)}" tabindex="0"><td><div class="conversation-name">${escapeHtml(sessionTitle(session))}</div><div class="conversation-date">${formatInt(session.exchanges)} ${session.exchanges === 1 ? t("table.exchange") : t("table.exchanges").toLocaleLowerCase(locale())} · ${formatDuration(session.durationMs)}</div></td><td><span class="node-pill">${escapeHtml(session.tableNode)}</span></td><td><span class="project-pill" title="${escapeHtml(session.cwd || session.tableProject)}">${escapeHtml(session.tableProject)}</span></td><td>${usageProfilesMarkup(session.calls, { limit: 2, compact: true })}</td><td class="last-call"><time datetime="${escapeHtml(session.tableLastCall)}">${formatDate(new Date(session.tableLastCall))}</time></td><td>${formatInt(session.modelCalls)}</td><td title="${formatInt(session.usage.totalTokens)} ${t("units.tokens")}">${formatCompact(session.usage.totalTokens)}</td><td><div class="cost-stack"><strong>${formatApiSummary(session.tableCost)}${session.tableCost.estimatedCalls ? " ≈" : ""}</strong><span>${formatCreditSummary(session.tableCredits)} Codex</span></div></td></tr>`
   ).join("") : `<tr><td colspan="8" class="empty">${t("conversation.none")}</td></tr>`;
   const rangeStart = filtered.length ? startIndex + 1 : 0;
-  const rangeEnd = Math.min(startIndex + visible.length, filtered.length);
-  $("#tableCount").textContent = t("table.range", { start: rangeStart, end: rangeEnd, total: filtered.length });
+  const rangeEnd = Math.min(startIndex + visible.length, pagination?.total ?? filtered.length);
+  $("#tableCount").textContent = t("table.range", { start: rangeStart, end: rangeEnd, total: pagination?.total ?? filtered.length });
   $("#pageIndicator").textContent = t("pagination.page", { page: state.page, pages: totalPages });
   $("#previousPage").disabled = state.page <= 1;
   $("#nextPage").disabled = state.page >= totalPages;
@@ -1469,8 +1481,8 @@ function compareSessions(left, right) {
   return values[0] - values[1];
 }
 
-function openDrawer(id) {
-  const session = overviewSessions().find((item) => item.id === id) || scopedSessions().find((item) => item.id === id); if (!session) return;
+async function openDrawer(id) {
+  const session = state.data?.pageOnly ? await loadSessionDetail(id) : overviewSessions().find((item) => item.id === id) || scopedSessions().find((item) => item.id === id); if (!session) return;
   const cost = costOfCalls(session.calls); const credits = codexCreditsOfCalls(session.calls); const usage = session.usage;
   const turns = session.turns.map((turn, index) => {
     const effort = `<span class="effort-badge">${escapeHtml(effortLabel(turn.effort))}</span>`;
@@ -1527,8 +1539,8 @@ function renderFreshness() {
     const mesh = state.data.source?.mode === "mesh";
     $$(".privacy-copy").forEach((element) => { element.textContent = t(mesh ? "hero.privacyMesh" : "hero.privacy"); });
     $("#freshness").textContent = mesh
-      ? t("freshness.mesh", { n: state.data.sessions.length, nodes: (state.data.nodes || []).filter((node) => !node.revokedAt).length, time })
-      : t("freshness", { n: state.data.sessions.length, time });
+      ? t("freshness.mesh", { n: state.data.sessionCount ?? state.data.sessions.length, nodes: (state.data.nodes || []).filter((node) => !node.revokedAt).length, time })
+      : t("freshness", { n: state.data.sessionCount ?? state.data.sessions.length, time });
   }
 }
 
@@ -1541,14 +1553,14 @@ function populateNodes() {
 }
 
 function populateModels() {
-  const models = [...new Set(state.data.sessions.flatMap((session) => session.models))].sort();
+  const models = state.data.pageData?.filters?.models || [...new Set(state.data.sessions.flatMap((session) => session.models))].sort();
   $("#modelFilter").innerHTML = `<option value="all">${t("model.all")}</option>${models.map((model) => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`).join("")}`;
   $("#modelFilter").value = state.model;
 }
 
 function populateFolders() {
-  const folders = [...new Set(state.data.sessions.map((session) => session.cwd).filter(Boolean))].sort((left, right) => left.localeCompare(right, locale(), { sensitivity: "base" }));
-  state.folders = new Set([...state.folders].filter((folder) => folders.includes(folder)));
+  const folders = [...new Set(state.data.pageData?.filters?.folders || state.data.sessions.map((session) => session.cwd).filter(Boolean))].sort((left, right) => left.localeCompare(right, locale(), { sensitivity: "base" }));
+  // Preserve filters when switching to a page that does not load filter options.
   $("#folderFilterOptions").innerHTML = folders.map((folder) => `<label class="folder-filter-option" title="${escapeHtml(folder)}"><input type="checkbox" value="${escapeHtml(folder)}" ${state.folders.has(folder) ? "checked" : ""}><span>${escapeHtml(folder)}</span></label>`).join("");
   updateFolderFilterSummary();
 }
@@ -1562,13 +1574,16 @@ function updateFolderFilterSummary() {
 
 function pricingSelection() {
   const range = state.view === "quota" ? weeklyRange() : dateRange();
+  if (state.data?.pageOnly && pricingData) return { range, calls:pricingData.sessions.flatMap(s=>s.calls) };
   return { range, calls: allScopedCalls(state.view === "quota" ? sessionsInRange({ range }) : scopedSessions()) };
 }
 
-function openPricing() {
+async function openPricing() {
   if (!state.data) return;
-  const models = [...new Set(state.data.sessions.flatMap((session) => session.models))].sort();
-  const effortCalls = [...new Map(state.data.sessions.flatMap((session) => session.calls)
+  if (state.data.pageOnly) { pricingData = await loadPageExtras("pricing"); if (!pricingData) return; }
+  const sourceData = state.data.pageOnly ? pricingData : state.data;
+  const models = [...new Set(sourceData.sessions.flatMap((session) => session.models))].sort();
+  const effortCalls = [...new Map(sourceData.sessions.flatMap((session) => session.calls)
     .filter((call) => call.effort)
     .map((call) => [effortPriceKey(call.model, call.effort), call])).values()];
   const custom = { ...state.pricing, mode: "custom" };
@@ -1614,9 +1629,8 @@ function savePricing() {
 }
 
 function applyUsageData(data) {
-  const changed = state.data?.generatedAt !== data.generatedAt;
-  state.data = data;
-  saveUsageCache(data);
+  const changed = (state.data?.revision || state.data?.generatedAt) !== (data.revision || data.generatedAt) || state.data?.quotaOnly !== data.quotaOnly || state.data?.requestKey !== data.requestKey;
+  state.data = hydratePage(data);
   if (!changed) return;
   populateNodes();
   populateModels();
@@ -1625,38 +1639,162 @@ function applyUsageData(data) {
 }
 
 let dataRequest = null;
+let dataRequestKey = null;
+let dataController = null;
 let dataModeRequest = Promise.resolve();
+let fullUsageData = null;
+let pageLoadTimer = null;
+const pageCache = new Map();
+let pricingData = null;
+let detailController = null;
+const quotaResponses = new Map();
+const quotaMetadataResponses = new Map();
+
+async function readUsageResponse(response) {
+  if (!response.ok) {
+    let details = null;
+    try { details = await response.json(); } catch { /* Fall back to HTTP status. */ }
+    throw new Error(details?.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+async function loadQuotaData(force, source, signal) {
+  const parameters = new URLSearchParams({ source });
+  if (force) parameters.set("refresh", "1");
+  const previousMetadata = quotaMetadataResponses.get(source);
+  const metadataResponse = await fetch(`/api/quota?${parameters}`, { signal, cache: "no-store", headers: !force && previousMetadata?.etag ? { "If-None-Match": previousMetadata.etag } : {} });
+  const metadata = metadataResponse.status === 304 && previousMetadata ? previousMetadata.data : await readUsageResponse(metadataResponse);
+  if (signal.aborted) return;
+  quotaMetadataResponses.set(source, { data: metadata, etag: metadataResponse.headers.get("etag") || previousMetadata?.etag });
+  const periods = weeklyQuotaPeriods(metadata);
+  const reset = (periods.find((period) => sameQuotaReset(period.resetsAt, state.selectedQuotaReset)) || periods[0])?.resetsAt || null;
+  state.selectedQuotaReset = reset;
+  dataRequestKey = `${source}:quota:${reset || "current"}`;
+  const key = `${source}:${reset}`;
+  const cached = quotaResponses.get(key) || [...quotaResponses.entries()].find(([entry, response]) => entry.startsWith(`${source}:`) && sameQuotaReset(response.data.quotaDetail?.reset, reset))?.[1];
+  if (!force && cached?.data.revision === metadata.revision) {
+    const alreadyRendered = state.data?.quotaDetail === cached.data.quotaDetail;
+    state.data = { ...cached.data, ...metadata, sessions: cached.data.sessions, quotaDetail: cached.data.quotaDetail };
+    if (alreadyRendered) { renderQuotaNav(); renderFreshness(); }
+    else render();
+    return;
+  }
+  // Retain a coherent graph while refreshing the same window. Only an initial
+  // visit or a user-selected different window needs an empty loading state.
+  const displayed = state.data?.quotaDetail && sameQuotaReset(state.data.quotaDetail.reset, reset) ? state.data : cached?.data;
+  if (!displayed) { state.data = metadata; render(); }
+  else if (displayed !== state.data) { state.data = displayed; render(); }
+  parameters.delete("refresh");
+  parameters.set("detail", "1");
+  if (reset) parameters.set("period", reset);
+  const response = await fetch(`/api/quota?${parameters}`, { signal, cache: "no-store", headers: !force && cached?.etag ? { "If-None-Match": cached.etag } : {} });
+  const data = response.status === 304 && cached ? cached.data : await readUsageResponse(response);
+  if (signal.aborted) return;
+  // A reset timestamp may be corrected between the metadata and detail reads.
+  // Accept that correction for the same window, but never switch the selection
+  // to a different week's response behind the user's back.
+  if (!sameQuotaReset(data.quotaDetail?.reset, reset)) {
+    quotaMetadataResponses.delete(source);
+    throw new Error(t("load.errorToast"));
+  }
+  quotaResponses.delete(key);
+  quotaResponses.set(key, { data, etag: response.headers.get("etag") || cached?.etag });
+  while (quotaResponses.size > 3) quotaResponses.delete(quotaResponses.keys().next().value);
+  state.data = data;
+  render();
+}
 
 async function loadData(force = false, silent = false) {
-  if (!force && !state.data) {
-    const cachedData = loadUsageCache();
-    if (cachedData) applyUsageData(cachedData);
-  }
-  if (dataRequest) return dataRequest;
+  clearTimeout(pageLoadTimer);
+  const quotaView = state.view === "quota";
+  const source = state.dataMode;
+  const key = quotaView ? `${source}:quota:${state.selectedQuotaReset || "current"}` : pageRequestKey();
+  const quotaPrefix = `${source}:quota:`;
+  if (dataRequest && !dataController?.signal.aborted && (dataRequestKey === key || (quotaView && dataRequestKey?.startsWith(quotaPrefix) && sameQuotaReset(dataRequestKey.slice(quotaPrefix.length), state.selectedQuotaReset)))) return dataRequest;
+  dataController?.abort();
+  const controller = new AbortController();
+  dataController = controller;
+  dataRequestKey = key;
+
   if (!silent) $("#refreshButton").classList.add("loading");
   dataRequest = (async () => {
-  try {
-    const parameters = new URLSearchParams({ source: state.dataMode });
-    if (force) parameters.set("refresh", "1");
-    const response = await fetch(`/api/usage?${parameters}`);
-    if (!response.ok) {
-      let details = null;
-      try { details = await response.json(); } catch { /* Fall back to the HTTP status. */ }
-      throw new Error(details?.error || `HTTP ${response.status}`);
+    try {
+      if (quotaView) await loadQuotaData(force, source, controller.signal);
+      else {
+        const cached = pageCache.get(key);
+        const parameters = new URLSearchParams({ source, query: JSON.stringify(pageQuery()) });
+        if (force) parameters.set("refresh", "1");
+        const response = await fetch(`/api/page?${parameters}`, { signal: controller.signal, headers: !force && cached?.etag ? {"If-None-Match":cached.etag} : {} });
+        if (controller.signal.aborted) return;
+        const data = response.status === 304 && cached ? cached.data : await readUsageResponse(response);
+        if (controller.signal.aborted) return;
+        data.requestKey = key;
+        if (data.pageData?.view === "conversations") { state.page = data.pageData.page; data.requestKey = pageRequestKey(); }
+        pageCache.delete(key); pageCache.set(key, {data, etag:response.headers?.get("etag") || cached?.etag});
+        while (pageCache.size > 4) pageCache.delete(pageCache.keys().next().value);
+        applyUsageData(data);
+      }
+      if (force && !controller.signal.aborted) toast(t(source === "centralized" ? "refresh.doneCentralized" : "refresh.done"));
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (quotaView && state.data?.quotaOnly && !state.data.quotaDetail) {
+        $("#quotaChart").innerHTML = `<p role="alert">${escapeHtml(t("load.error", { error: error.message }))}</p>`;
+      }
+      if (!silent || !state.data) {
+        $("#freshness").textContent = t("load.error", { error: error.message });
+        toast(t("load.errorToast"));
+      }
+    } finally {
+      if (dataController === controller) {
+        $("#refreshButton").classList.remove("loading");
+        dataRequest = null;
+        dataRequestKey = null;
+      }
     }
-    applyUsageData(await response.json());
-    if (force) toast(t(state.dataMode === "centralized" ? "refresh.doneCentralized" : "refresh.done"));
-  } catch (error) {
-    if (!silent || !state.data) {
-      $("#freshness").textContent = t("load.error", { error: error.message });
-      toast(t("load.errorToast"));
-    }
-  } finally {
-    $("#refreshButton").classList.remove("loading");
-    dataRequest = null;
-  }
   })();
   return dataRequest;
+}
+
+function pageQuery(view = state.view, id = null) {
+  const requestNow = new Date(Math.floor(Date.now() / 60000) * 60000);
+  const range = dateRange(requestNow);
+  const fixedEnd = state.transientRange || (state.period === "custom" && state.customRange.end);
+  const zoom = state.chartZoom["#costChart"]?.at(-1);
+  let buckets = [];
+  if (view === "overview") {
+    const seed = state.period === "all" && state.data?.firstSessionAt ? [{timestamp:state.data.firstSessionAt}] : [];
+    buckets = zoom ? chartDrilldownBuckets([], zoom, zoom.granularity, locale(), timeFormatOptions(state.timeFormat)) : bucketsFor(seed, state.period, requestNow, {...range,end:range.end || requestNow});
+    const last = buckets.at(-1);
+    if (!fixedEnd && last && last.end.getTime() <= requestNow.getTime() + 1) last.end = new Date(requestNow.getTime() + 60000);
+  }
+  return { view, id, start:range.start?.toISOString() || null, end:fixedEnd ? range.end?.toISOString() : null,
+    node:view === "detail" && state.view !== "conversations" ? "all" : state.node, model:view === "detail" && state.view !== "conversations" ? "all" : state.model, folders:view === "detail" && state.view !== "conversations" ? [] : [...state.folders].sort(), search:state.query, usageThreshold:state.usageThreshold,
+    page:state.page, pageSize:state.pageSize, sortKey:state.sortKey, sortDirection:state.sortDirection,
+    project:state.selectedProject?.key, locale:locale(), unknownProject:t("projects.unknown"), untitled:t("conversation.untitled"), localNode:t("node.local"),
+    effortLabels:Object.fromEntries(["low","medium","high","xhigh","max","ultra"].map(e=>[e,effortLabel(e)])), pricing:state.pricing,
+    buckets:buckets.map(b=>({start:b.start.toISOString(),end:b.end.toISOString(),label:b.label,granularity:b.granularity,inclusiveEnd:state.period==="custom" && b === buckets.at(-1)})) };
+}
+function pageRequestKey() { return `${state.dataMode}:${JSON.stringify(pageQuery())}`; }
+function schedulePageLoad() {
+  clearTimeout(pageLoadTimer);
+  dataController?.abort();
+  $("#freshness").textContent = t("quota.loading");
+  pageLoadTimer = setTimeout(()=>void loadData(false,true),180);
+}
+async function loadPageExtras(view, id = null, signal) {
+  try {
+    const params = new URLSearchParams({source:state.dataMode, query:JSON.stringify(pageQuery(view,id))});
+    const response = await fetch(`/api/page?${params}`, {signal});
+    return await readUsageResponse(response);
+  } catch { if (!signal?.aborted) toast(t("load.errorToast")); return null; }
+}
+async function loadSessionDetail(id) {
+  detailController?.abort(); detailController = new AbortController();
+  const controller = detailController;
+  const data = await loadPageExtras("detail",id,controller.signal);
+  if (controller.signal.aborted) return null;
+  return data?.sessions.find(s=>s.id===id) || null;
 }
 
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]); }
@@ -1841,15 +1979,16 @@ $("#resetPricing").addEventListener("click", () => {
 });
 $("#pricingMode").addEventListener("change", () => { $("#pricingRows").hidden = $("#pricingMode").value !== "custom"; });
 $("#pricingHistoryModel").addEventListener("change", () => { $("#pricingHistory").innerHTML = pricingHistoryMarkup(t, $("#pricingHistoryModel").value); });
-$("#exportPricing").addEventListener("click", () => {
+$("#exportPricing").addEventListener("click", async () => {
+  if (state.data?.pageOnly) { pricingData = await loadPageExtras("pricing"); if (!pricingData) return; }
   const { range, calls } = pricingSelection();
   const report = createPricingReport(calls, state.pricing, { start: range.start?.toISOString() || null, end: range.end?.toISOString() || null });
   const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: "application/json" }));
   const link = document.createElement("a"); link.href = url; link.download = `codex-pricing-${report.catalogVersion}.json`;
   link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); toast(t("dated.exported"));
 });
-$$('[data-close-drawer]').forEach((element) => element.addEventListener("click", () => { $("#detailDrawer").setAttribute("aria-hidden", "true"); document.body.classList.remove("drawer-open"); }));
-document.addEventListener("keydown", (event) => { if (event.key === "Escape") { $("#detailDrawer").setAttribute("aria-hidden", "true"); document.body.classList.remove("drawer-open"); } });
+$$('[data-close-drawer]').forEach((element) => element.addEventListener("click", () => { $("#detailDrawer").setAttribute("aria-hidden", "true"); document.body.classList.remove("drawer-open"); detailController?.abort(); }));
+document.addEventListener("keydown", (event) => { if (event.key === "Escape") { $("#detailDrawer").setAttribute("aria-hidden", "true"); document.body.classList.remove("drawer-open"); detailController?.abort(); } });
 $("#projectSearch").addEventListener("input", (event) => { state.projectQuery = event.target.value; if (state.data) renderProjectsPage(overviewSessions()); });
 $("#settingsPricingButton").addEventListener("click", openPricing);
 $("#timeFormatSelect")?.addEventListener("change", (event) => {
@@ -1889,16 +2028,16 @@ $("#miniQuotaButton")?.addEventListener("click", () => {
   const popup = window.open(`./mini.html?${query}`, "codexQuotaMini", `popup=yes,width=${width},height=250,resizable=yes`);
   if (popup) { popup.resizeTo(width, 250); popup.focus(); }
 });
-$("#quotaPeriodSelect").addEventListener("change", (event) => { state.selectedQuotaReset = event.target.value || null; render(); });
+$("#quotaPeriodSelect").addEventListener("change", (event) => { state.selectedQuotaReset = event.target.value || null; render(); void loadData(false, true); });
 $("#quotaPrevious").addEventListener("click", () => {
   const periods = quotaPeriods();
   const index = periods.findIndex((period) => period.resetsAt === selectedQuota()?.resetsAt);
-  if (index >= 0 && index < periods.length - 1) { state.selectedQuotaReset = periods[index + 1].resetsAt; render(); }
+  if (index >= 0 && index < periods.length - 1) { state.selectedQuotaReset = periods[index + 1].resetsAt; render(); void loadData(false, true); }
 });
 $("#quotaNext").addEventListener("click", () => {
   const periods = quotaPeriods();
   const index = periods.findIndex((period) => period.resetsAt === selectedQuota()?.resetsAt);
-  if (index > 0) { state.selectedQuotaReset = periods[index - 1].resetsAt; render(); }
+  if (index > 0) { state.selectedQuotaReset = periods[index - 1].resetsAt; render(); void loadData(false, true); }
 });
 
 function setActiveNav(section) {
@@ -1919,7 +2058,14 @@ function syncPageChrome() {
 
 function showPage(page, { updateHash = true } = {}) {
   if (!PAGES.includes(page)) page = "overview";
+  const switchedQuota = (state.view === "quota") !== (page === "quota");
+  const switchedPage = state.view !== page;
+  detailController?.abort();
   state.view = page;
+  if (switchedQuota) {
+    if (page === "quota" && state.data) state.data = quotaMetadata(state.data);
+    else if (state.data?.quotaOnly) state.data = fullUsageData?.source === state.dataMode ? fullUsageData.data : null;
+  }
   try { localStorage.setItem(VIEW_KEY, page); } catch { /* Hash routing remains available. */ }
   if (updateHash) {
     const hash = `#${page}`;
@@ -1927,6 +2073,7 @@ function showPage(page, { updateHash = true } = {}) {
   }
   if (state.data) render();
   else { syncPageChrome(); renderFreshness(); }
+  if (switchedPage || !state.data) void loadData(false, true);
 }
 
 window.addEventListener("hashchange", () => {
@@ -1942,7 +2089,7 @@ let quotaResizeTimer = null;
 window.addEventListener("resize", () => {
   clearTimeout(quotaResizeTimer);
   quotaResizeTimer = setTimeout(() => {
-    if (state.data && state.view === "quota") {
+    if (state.data && state.view === "quota" && (!state.data.quotaOnly || state.data.quotaDetail?.reset === selectedQuota()?.resetsAt)) {
       renderCostChart(allScopedCalls(sessionsInRange({ range: weeklyRange() })), "#quotaChart", "quota-hourly");
       renderQuotaForecast();
     }
@@ -1982,8 +2129,8 @@ void initializeDashboard();
 function syncQuotaClock() {
   if (!state.data) return;
   const currentReset = quotaPeriods()[0]?.resetsAt || null;
-  const rolledOver = Boolean(state.renderedQuotaReset && currentReset && currentReset !== state.renderedQuotaReset);
-  if (rolledOver && state.selectedQuotaReset === state.renderedQuotaReset) state.selectedQuotaReset = null;
+  const rolledOver = Boolean(state.renderedQuotaReset && currentReset && !sameQuotaReset(currentReset, state.renderedQuotaReset));
+  if (rolledOver && sameQuotaReset(state.selectedQuotaReset, state.renderedQuotaReset)) state.selectedQuotaReset = null;
   if (rolledOver && state.period === "weeklyQuota") {
     render();
     return;
@@ -1991,6 +2138,7 @@ function syncQuotaClock() {
   if (rolledOver && state.view === "quota") {
     renderQuotaPage();
     renderFreshness();
+    if (state.data.quotaOnly) void loadData(false, true);
     return;
   }
   renderQuotaNav();
@@ -2015,7 +2163,7 @@ async function pollForNewData() {
   if (pollRequest) return pollRequest;
   pollRequest = (async () => {
     try {
-      if (!state.data || state.dataMode === "centralized") {
+      if (!state.data || state.view === "quota" || state.dataMode === "centralized") {
         await loadData(false, true);
         return;
       }

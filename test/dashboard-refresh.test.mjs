@@ -2,13 +2,15 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
+import { weeklyQuotaPeriods } from "../public/quota-display.js";
+import { sameQuotaReset } from "../public/quota-periods.js";
 
 const source = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 const constants = source.slice(source.indexOf("const POLL_INTERVAL_MS"), source.indexOf("const CUSTOM_RANGE_KEY"));
-const loading = source.slice(source.indexOf("function applyUsageData("), source.indexOf("function escapeHtml("));
+const loading = source.slice(source.indexOf("function applyUsageData("), source.indexOf("function pageQuery("));
 const polling = source.slice(source.indexOf("\nsetInterval(", source.indexOf("function syncQuotaClock(")));
 
-function dashboard({ mode = "centralized", data = { generatedAt: "initial" }, fetch: fetchImpl } = {}) {
+function dashboard({ mode = "centralized", view = "overview", data = { generatedAt: "initial" }, fetch: fetchImpl } = {}) {
   let now = 1_000_000;
   class ClockDate extends Date {
     static now() { return now; }
@@ -17,18 +19,19 @@ function dashboard({ mode = "centralized", data = { generatedAt: "initial" }, fe
   const renders = [];
   const timers = [];
   const listeners = new Map();
-  const state = { data, dataMode: mode };
+  const state = { data, dataMode: mode, view };
   const document = { hidden: false, addEventListener: (event, callback) => listeners.set(event, callback) };
   const context = vm.createContext({
-    state, document, Date: ClockDate, URLSearchParams,
-    fetch: async (url) => {
-      requests.push(url);
-      return fetchImpl ? fetchImpl(url, requests.length) : { ok: true, json: async () => ({ generatedAt: String(now) }) };
+    state, document, Date: ClockDate, URL, hydratePage: (data) => data, clearTimeout() {}, pageQuery: () => ({view:state.view}), pageRequestKey: () => `${state.dataMode}:${state.view}`, URLSearchParams, AbortController, weeklyQuotaPeriods, sameQuotaReset,
+    fetch: async (url, options) => {
+      const normalized = new URL(url, "http://localhost"); normalized.searchParams.delete("query"); requests.push(normalized.pathname + normalized.search);
+      return fetchImpl ? fetchImpl(url, requests.length, options) : { ok: true, json: async () => ({ generatedAt: String(now) }) };
     },
     setInterval: (callback, interval) => timers.push({ callback, interval, next: now + interval }),
     $: () => ({ classList: { add() {}, remove() {} }, textContent: "" }),
     loadUsageCache: () => null, saveUsageCache() {},
     populateNodes() {}, populateModels() {}, populateFolders() {}, syncQuotaClock() {},
+    renderQuotaNav() {}, renderFreshness() {}, escapeHtml: String,
     render: () => renders.push(state.data.generatedAt), toast() {}, t: (key) => key,
   });
   vm.runInContext(`${constants}\n${loading}\n${polling}`, context);
@@ -72,6 +75,76 @@ test("centralized polling keeps rendering new snapshots beyond the former thrott
   assert.equal(ui.renders.length, 7);
 });
 
+test("quota paints metadata first, reuses unchanged graphs and never requests full usage", async () => {
+  const reset = "2099-09-21T00:00:00Z";
+  const metadata = { revision: "v1", generatedAt: "first", quotaOnly: true, weeklyQuota: { resetsAt: reset }, sessions: [] };
+  let finish;
+  const detail = new Promise((resolve) => { finish = resolve; });
+  const ui = dashboard({ view: "quota", data: null, fetch: async (url, count, options) => {
+    if (url.includes("detail=1")) return detail;
+    if (options.headers["If-None-Match"]) return { status: 304, headers: new Headers({ etag: '"v1"' }) };
+    return { ok: true, headers: new Headers({ etag: '"v1"' }), json: async () => metadata };
+  } });
+  const loading = ui.load();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(ui.renders.length, 1);
+  assert.equal(ui.state.data.quotaDetail, undefined);
+  finish({ ok: true, headers: new Headers({ etag: '"v1"' }), json: async () => ({ ...metadata, quotaDetail: { reset, forecast: {} } }) });
+  await loading;
+  await ui.poll();
+  assert.equal(ui.renders.length, 2);
+  assert.equal(ui.requests.filter((url) => url.includes("detail=1")).length, 1);
+  assert.ok(ui.requests.every((url) => url.startsWith("/api/quota?")));
+});
+
+test("a late full response cannot replace quota data after navigation", async () => {
+  let finish;
+  const full = new Promise((resolve) => { finish = resolve; });
+  const metadata = { revision: "v1", generatedAt: "quota", quotaOnly: true, sessions: [] };
+  const ui = dashboard({ fetch: async (url) => url.startsWith("/api/page") ? full : { ok: true, headers: new Headers(), json: async () => url.includes("detail=1") ? { ...metadata, quotaDetail: { reset: null } } : metadata } });
+  const first = ui.load();
+  ui.state.view = "quota";
+  await ui.load();
+  finish({ ok: true, json: async () => ({ generatedAt: "late-full" }) });
+  await first;
+  assert.equal(ui.state.data.generatedAt, "quota");
+  assert.ok(!ui.renders.includes("late-full"));
+});
+
+test("refresh preserves the displayed graph through reset jitter, slow responses and failure", async () => {
+  const reset = "2099-09-21T09:57:16Z", corrected = "2099-09-21T09:59:23Z";
+  let revision = "v1", fail = false, finish;
+  const metadata = () => ({ revision, generatedAt: revision, quotaOnly: true, weeklyQuota: { resetsAt: revision === "v1" ? reset : corrected }, sessions: [] });
+  const ui = dashboard({ view: "quota", data: null, fetch: async (url) => {
+    if (url.includes("detail=1") && revision === "v2") return new Promise((resolve, reject) => { finish = () => fail ? reject(new Error("offline")) : resolve({ ok: true, headers: new Headers(), json: async () => ({ ...metadata(), quotaDetail: { reset: corrected, forecast: { actual: [2] } } }) }); });
+    return { ok: true, headers: new Headers(), json: async () => url.includes("detail=1") ? { ...metadata(), quotaDetail: { reset, forecast: { actual: [1] } } } : metadata() };
+  } });
+  await ui.load();
+  const previous = ui.state.data;
+  const renderCount = ui.renders.length;
+  revision = "v2";
+  fail = true;
+  const first = ui.poll();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(ui.state.data, previous);
+  assert.equal(ui.renders.length, renderCount);
+  // Re-rendering the old graph can restore its old timestamp while in flight.
+  ui.state.selectedQuotaReset = reset;
+  const shared = ui.load();
+  const requestCount = ui.requests.length;
+  finish();
+  await Promise.all([first, shared]);
+  assert.equal(ui.requests.length, requestCount);
+  assert.equal(ui.state.data, previous);
+  fail = false;
+  const next = ui.poll();
+  await new Promise((resolve) => setImmediate(resolve));
+  finish();
+  await next;
+  assert.equal(ui.state.data.quotaDetail.reset, corrected);
+  assert.equal(ui.renders.length, renderCount + 1);
+});
+
 test("visible dashboards check for new data every fifteen seconds in both modes", async () => {
   for (const mode of ["local", "centralized"]) {
     const ui = dashboard({ mode });
@@ -81,7 +154,7 @@ test("visible dashboards check for new data every fifteen seconds in both modes"
     assert.equal(ui.renders.length, 1, mode);
     await ui.advance(30_000);
     assert.equal(ui.renders.length, 3, mode);
-    assert.equal(ui.requests.filter((url) => url.startsWith("/api/usage?")).length, 3);
+    assert.equal(ui.requests.filter((url) => url.startsWith("/api/page?")).length, 3);
   }
 });
 
@@ -123,7 +196,7 @@ test("local polling downloads usage only after the snapshot changes", async () =
   assert.deepEqual(ui.renders, []);
   generatedAt = "updated";
   await ui.poll();
-  assert.deepEqual(ui.requests.slice(2), ["/api/health", "/api/usage?source=local"]);
+  assert.deepEqual(ui.requests.slice(2), ["/api/health", "/api/page?source=local"]);
   assert.deepEqual(ui.renders, ["updated"]);
   await ui.poll();
   assert.equal(ui.requests.length, 5);
@@ -142,7 +215,7 @@ test("slow requests are shared by automatic and manual loads", async () => {
   await Promise.all([first, manual]);
   assert.deepEqual(ui.renders, ["updated"]);
   await ui.load(true);
-  assert.equal(ui.requests.at(-1), "/api/usage?source=centralized&refresh=1");
+  assert.equal(ui.requests.at(-1), "/api/page?source=centralized&refresh=1");
   await ui.advance(15_000);
   assert.equal(ui.requests.length, 3);
 });

@@ -36,6 +36,13 @@
       "when": 1788787653211,
       "tag": "0004_harsh_christian_walker",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789545876352,
+      "tag": "0005_wise_anthem",
+      "breakpoints": true
     }
   ]
 }

@@ -64,7 +64,8 @@ test("mini and dashboard share weekly rollover, unknown short reset, and countdo
   const quota = { remainingPercent: 28, resetsAt: reset, observedAt: "2026-09-07T10:00:00Z" };
   const data = { weeklyQuotaHistory: [quota], fiveHourQuota: quota };
   const before = new Date(Date.parse(reset) - 1);
-  assert.equal(weeklyQuotaPeriods(data, before)[0], quota);
+  assert.equal(weeklyQuotaPeriods(data, before)[0].remainingPercent, quota.remainingPercent);
+  assert.equal(weeklyQuotaPeriods(data, before)[0].resetsAt, quota.resetsAt);
   assert.equal(shortQuotaDisplay(quota, before).remainingPercent, 28);
   assert.match(quotaCountdownText(reset, "en-GB", before), /1s/);
   assert.equal(weeklyQuotaPeriods(data, new Date(reset))[0].theoretical, true);

@@ -55,10 +55,12 @@ test("packages the local dashboard as the hosted centralized interface", async (
   assert.match(html, /id="pwaInstallToast"/);
   assert.match(html, /href="\/admin"/);
   assert.match(app, /\/api\/capabilities/);
-  assert.match(app, /\/api\/usage/);
+  assert.match(app, /\/api\/page/);
   assert.doesNotMatch(app, /\/api\/centralized-usage/);
   assert.equal(manifest.version, 1);
-  assert.equal(Object.keys(manifest.assets).length, 27);
+  assert.equal(Object.keys(manifest.assets).length, 30);
+  assert.ok(manifest.assets["quota-periods.js"]);
+  assert.ok(manifest.assets["quota-data.js"]);
   assert.ok(manifest.assets["mini.html"]);
   assert.ok(manifest.assets["mini.css"]);
   assert.ok(manifest.assets["mini.js"]);

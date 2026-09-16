@@ -125,12 +125,12 @@ const zh = {
 };
 
 const meshMessages = {
-  es: { "hero.privacyMesh": "Metadatos minimizados · red privada", "node.all": "Todos los equipos", "node.local": "Este PC", "filter.node": "Filtrar por equipo", "table.node": "Equipo", "detail.node": "Equipo observado", "freshness.mesh": "{n} sesiones · {nodes} equipos · actualizado {time}" },
-  it: { "hero.privacyMesh": "Metadati minimizzati · rete privata", "node.all": "Tutti i computer", "node.local": "Questo PC", "filter.node": "Filtra per computer", "table.node": "Computer", "detail.node": "Computer osservato", "freshness.mesh": "{n} sessioni · {nodes} computer · aggiornato {time}" },
-  pt: { "hero.privacyMesh": "Metadados minimizados · rede privada", "node.all": "Todos os computadores", "node.local": "Este PC", "filter.node": "Filtrar por computador", "table.node": "Computador", "detail.node": "Computador observado", "freshness.mesh": "{n} sessões · {nodes} computadores · atualizado às {time}" },
-  ja: { "hero.privacyMesh": "最小化されたメタデータ · プライベートネットワーク", "node.all": "すべてのマシン", "node.local": "このPC", "filter.node": "マシンで絞り込む", "table.node": "マシン", "detail.node": "観測したマシン", "freshness.mesh": "{n}件のセッション · {nodes}台 · {time}更新" },
-  ru: { "hero.privacyMesh": "Минимизированные метаданные · частная сеть", "node.all": "Все компьютеры", "node.local": "Этот ПК", "filter.node": "Фильтр по компьютеру", "table.node": "Компьютер", "detail.node": "Компьютер наблюдения", "freshness.mesh": "Сеансов: {n} · компьютеров: {nodes} · обновлено в {time}" },
-  zh: { "hero.privacyMesh": "最小化元数据 · 私有网络", "node.all": "所有设备", "node.local": "此电脑", "filter.node": "按设备筛选", "table.node": "设备", "detail.node": "观测设备", "freshness.mesh": "{n} 个会话 · {nodes} 台设备 · {time} 更新" },
+  es: { "quota.loading": "Cargando gráficos…", "hero.privacyMesh": "Metadatos minimizados · red privada", "node.all": "Todos los equipos", "node.local": "Este PC", "filter.node": "Filtrar por equipo", "table.node": "Equipo", "detail.node": "Equipo observado", "freshness.mesh": "{n} sesiones · {nodes} equipos · actualizado {time}" },
+  it: { "quota.loading": "Caricamento grafici…", "hero.privacyMesh": "Metadati minimizzati · rete privata", "node.all": "Tutti i computer", "node.local": "Questo PC", "filter.node": "Filtra per computer", "table.node": "Computer", "detail.node": "Computer osservato", "freshness.mesh": "{n} sessioni · {nodes} computer · aggiornato {time}" },
+  pt: { "quota.loading": "A carregar gráficos…", "hero.privacyMesh": "Metadados minimizados · rede privada", "node.all": "Todos os computadores", "node.local": "Este PC", "filter.node": "Filtrar por computador", "table.node": "Computador", "detail.node": "Computador observado", "freshness.mesh": "{n} sessões · {nodes} computadores · atualizado às {time}" },
+  ja: { "quota.loading": "グラフを読み込み中…", "hero.privacyMesh": "最小化されたメタデータ · プライベートネットワーク", "node.all": "すべてのマシン", "node.local": "このPC", "filter.node": "マシンで絞り込む", "table.node": "マシン", "detail.node": "観測したマシン", "freshness.mesh": "{n}件のセッション · {nodes}台 · {time}更新" },
+  ru: { "quota.loading": "Загрузка графиков…", "hero.privacyMesh": "Минимизированные метаданные · частная сеть", "node.all": "Все компьютеры", "node.local": "Этот ПК", "filter.node": "Фильтр по компьютеру", "table.node": "Компьютер", "detail.node": "Компьютер наблюдения", "freshness.mesh": "Сеансов: {n} · компьютеров: {nodes} · обновлено в {time}" },
+  zh: { "quota.loading": "正在加载图表…", "hero.privacyMesh": "最小化元数据 · 私有网络", "node.all": "所有设备", "node.local": "此电脑", "filter.node": "按设备筛选", "table.node": "设备", "detail.node": "观测设备", "freshness.mesh": "{n} 个会话 · {nodes} 台设备 · {time} 更新" },
 };
 for (const [language, messages] of Object.entries(meshMessages)) {
   Object.assign({ es, it, pt, ja, ru, zh }[language], messages);

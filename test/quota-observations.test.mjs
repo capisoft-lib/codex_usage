@@ -142,7 +142,7 @@ test("version 8 cached sessions are reparsed to recover historical quota observa
     legacy.analyzerVersion = 8;
     for (const period of legacy.sessions[0].weeklyQuotaHistory) delete period.observations;
     const recovered = await analyzeCodexUsage({ ...options, previousData: legacy });
-    assert.equal(recovered.analyzerVersion, 10);
+    assert.equal(recovered.analyzerVersion, 11);
     assert.deepEqual(recovered.weeklyQuotaHistory[0].observations, compactQuotaObservations(observations));
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
