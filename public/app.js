@@ -305,7 +305,7 @@ const state = {
   usageThreshold: 0,
   page: 1,
   pageSize: 25,
-  sortKey: "tokens",
+  sortKey: "lastCall",
   sortDirection: "desc",
   language: preferredLanguage(),
   timeFormat: loadTimeFormat(),
@@ -2013,7 +2013,7 @@ $("#resetTableFilters").addEventListener("click", () => {
   state.node = "all";
   state.folders.clear();
   state.usageThreshold = 0;
-  state.sortKey = "tokens";
+  state.sortKey = "lastCall";
   state.sortDirection = "desc";
   state.page = 1;
   $("#searchInput").value = "";

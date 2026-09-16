@@ -125,7 +125,7 @@ export function createPageData(metadata, query) {
       const filters = { models: [...models].sort(), folders: [...folders].sort() };
       if (['detail', 'pricing'].includes(q.view)) return { ...data, sessions: rawSessions, pageData: { view: q.view, filters } };
       if (q.view === 'conversations') {
-        const value = r => ({ title: r.tableTitle, node: r.nodeAlias || q.localNode, project: r.tableProject, model: r.models.join(', ') || 'unknown', lastCall: Date.parse(r.summary.lastCall) || 0, exchanges: r.exchanges, calls: r.modelCalls, tokens: r.usage.totalTokens, duration: r.durationMs, cost: r.summary.cost.cost })[q.sortKey || 'tokens'];
+        const value = r => ({ title: r.tableTitle, node: r.nodeAlias || q.localNode, project: r.tableProject, model: r.models.join(', ') || 'unknown', lastCall: Date.parse(r.summary.lastCall) || 0, exchanges: r.exchanges, calls: r.modelCalls, tokens: r.usage.totalTokens, duration: r.durationMs, cost: r.summary.cost.cost })[q.sortKey || 'lastCall'];
         rows.sort((a,b) => { const x=value(a), y=value(b); const c=typeof x === 'string' ? x.localeCompare(String(y), q.locale, {sensitivity:'base'}) : x-y; return (c || a.id.localeCompare(b.id)) * (q.sortDirection === 'asc' ? 1 : -1); });
         const total = rows.length, page = Math.min(q.page, Math.max(1, Math.ceil(total / q.pageSize)));
         return { ...data, sessions: rows.slice((page-1)*q.pageSize, page*q.pageSize), pageData: { view: q.view, total, page, pageSize: q.pageSize, filters } };
