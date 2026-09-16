@@ -18,6 +18,18 @@ export async function GET(request: Request) {
     const metadata = await quotaMetadataForOwner(owner, parsed?.view === 'overview' && Date.parse(parsed.start) === 0);
     let builder;
     try { builder = createPageData(metadata, raw); } catch { return json({error:'Filtres invalides.'},400); }
+    if (builder.query.view === 'project-groups') {
+      // Read only identity fields in one owner-scoped snapshot; no call history,
+      // rollup warming or revision retry is needed for an editable catalogue.
+      const catalogue = await db().prepare(`SELECT s.node_id AS nodeId, s.session_id AS sourceSessionId,
+        json_extract(s.snapshot_json,'$.cwd') AS cwd,
+        json_extract(s.snapshot_json,'$.projectName') AS projectName,
+        json_extract(s.snapshot_json,'$.projectGitHubUrl') AS projectGitHubUrl
+        FROM mesh_sessions s JOIN mesh_nodes n ON n.id=s.node_id
+        WHERE n.owner_id=? AND n.revoked_at IS NULL`).bind(owner).all();
+      for (const row of catalogue.results || []) builder.add(row);
+      return Response.json(builder.finish(), { headers: { 'Cache-Control': 'private, no-store' } });
+    }
     const q = builder.query;
     // Continue warming even when the client's unchanged payload receives 304.
     if (!['settings','detail','pricing'].includes(q.view) && q.end-q.start >= 28*86400000) {

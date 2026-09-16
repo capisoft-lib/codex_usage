@@ -52,6 +52,13 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
     assert.equal((await route.GET(new Request("http://localhost/api/page"))).status,401);
     const settings = await route.GET(request({view:"settings"}));
     assert.equal(settings.status,200);assert.equal((await settings.json()).sessions.length,0);assert.equal(sessionQueries,0);
+    const catalogueResponse = await route.GET(request({view:"project-groups"}));
+    assert.equal(catalogueResponse.status,200);
+    const catalogue = await catalogueResponse.json();
+    assert.equal(catalogue.pageData.projectCatalog.length,502);
+    assert.ok(catalogue.pageData.projectCatalog.some(p=>p.name==='old-project'));
+    assert.ok(!JSON.stringify(catalogue).includes('excluded'));
+    assert.equal(sessionQueries,0, 'Catalogue must not read or aggregate calls');
     const query={view:"overview",start,end:now};
     assert.equal((await route.GET(request(query))).status,503);
     assert.equal((await route.GET(request(query))).status,503);

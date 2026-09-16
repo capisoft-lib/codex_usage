@@ -1,17 +1,17 @@
 import { conversationTitle } from './conversation-title.js';
 import { apiCostOfCalls, mergeApiPricing } from './api-pricing.js';
 import { codexCreditsOfCalls, usageProfilesOfCalls } from './usage-pricing.js';
-import { projectIdentity, OVERVIEW_PROJECT_LIMIT } from './project-identity.js';
+import { projectIdentity, normalizeProjectGroups, OVERVIEW_PROJECT_LIMIT } from './project-identity.js';
 
 export function parsePageQuery(value) {
   const q = typeof value === 'string' ? JSON.parse(value) : value;
-  if (!q || !['overview', 'projects', 'conversations', 'settings', 'detail', 'pricing'].includes(q.view)) throw new Error('Invalid page');
+  if (!q || !['project-groups', 'overview', 'projects', 'conversations', 'settings', 'detail', 'pricing'].includes(q.view)) throw new Error('Invalid page');
   if (['id','node','model'].some(key=>q[key]!=null && typeof q[key]!=='string') || (q.folders!=null && (!Array.isArray(q.folders) || q.folders.some(value=>typeof value!=='string')))) throw new Error('Invalid filters');
   const start = q.start == null ? -Infinity : Date.parse(q.start);
   const end = q.end == null ? Infinity : Date.parse(q.end);
   if (Number.isNaN(start) || Number.isNaN(end) || start > end) throw new Error('Invalid range');
   if (q.buckets && (!Array.isArray(q.buckets) || q.buckets.length > 400 || q.buckets.some(b => !Number.isFinite(Date.parse(b.start)) || !Number.isFinite(Date.parse(b.end)) || Date.parse(b.start) >= Date.parse(b.end)))) throw new Error('Invalid buckets');
-  return { ...q, start, end, page: Math.max(1, Math.floor(Number(q.page) || 1)), pageSize: Math.min(100, Math.max(1, Math.floor(Number(q.pageSize) || 25))), folders: Array.isArray(q.folders) ? q.folders : [], pricing: mergeApiPricing(q.pricing) };
+  return { ...q, projectGroups: normalizeProjectGroups(q.projectGroups || []), start, end, page: Math.max(1, Math.floor(Number(q.page) || 1)), pageSize: Math.min(100, Math.max(1, Math.floor(Number(q.pageSize) || 25))), folders: Array.isArray(q.folders) ? q.folders : [], pricing: mergeApiPricing(q.pricing) };
 }
 
 export function pageMetadata(data) {
@@ -77,12 +77,18 @@ export function createPageData(metadata, query) {
   const groups = new Map(), models = new Set(), folders = new Set(), rows = [];
   const buckets = (q.buckets || []).map(b => ({ ...b, summary: summarize([], q.pricing) }));
   const rawSessions = [];
+  const projectCatalog = new Map();
   let matched = 0;
   const inRange = timestamp => { const n = Date.parse(timestamp); return n >= q.start && n <= q.end; };
   return {
     query: q,
     add(session) {
       if (q.view === 'settings') return;
+      if (q.view === 'project-groups') {
+        const identity = projectIdentity(session, q.unknownProject || 'No project');
+        projectCatalog.set(identity.key, identity);
+        return;
+      }
       for (const model of session.models || []) models.add(model);
       folders.add(session.cwd || '');
       if (q.id && session.id !== q.id) return;
@@ -95,7 +101,7 @@ export function createPageData(metadata, query) {
       const summary = summarize(calls, q.pricing);
       const row = { id: session.id, sourceSessionId: session.sourceSessionId, title: conversationTitle(session), nodeId: session.nodeId, nodeAlias: session.nodeAlias, cwd: session.cwd, projectName: session.projectName, projectGitHubUrl: session.projectGitHubUrl, startedAt: session.startedAt, models: [...new Set(calls.map(c => c.model))], summary, usage: summary.usage, modelCalls: summary.count, exchanges: turns.reduce((n,t)=>n+(t._count ?? 1),0), durationMs: turns.reduce((n, t) => n + (t.durationMs || 0), 0), calls: [], turns: [] };
       if (['detail', 'pricing'].includes(q.view)) { rawSessions.push({ ...row, calls, turns }); return; }
-      const identity = projectIdentity(row, q.unknownProject || 'No project');
+      const identity = projectIdentity(row, q.unknownProject || 'No project', q.projectGroups);
       if (q.view === 'conversations') {
         const profiles = summary.profiles.map(p => `${p.model} ${(q.effortLabels || {})[p.effort] || p.effort || ''} ${p.fast ? 'fast' : 'standard'}`).join(' ');
         const title = row.title === 'Conversation sans titre' ? q.untitled : row.title;
@@ -123,6 +129,7 @@ export function createPageData(metadata, query) {
       }
     },
     finish() {
+      if (q.view === "project-groups") return { ...data, sessions: [], pageData: { view: q.view, projectCatalog: [...projectCatalog.values()] } };
       const filters = { models: [...models].sort(), folders: [...folders].sort() };
       if (['detail', 'pricing'].includes(q.view)) return { ...data, sessions: rawSessions, pageData: { view: q.view, filters } };
       if (q.view === 'conversations') {
