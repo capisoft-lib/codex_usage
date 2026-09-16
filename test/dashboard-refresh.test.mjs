@@ -18,12 +18,13 @@ function dashboard({ mode = "centralized", view = "overview", data = { generated
   }
   const requests = [];
   const renders = [];
+  const loadingStates = [];
   const timers = [];
   const listeners = new Map();
   const state = { data, dataMode: mode, view };
   const document = { hidden: false, addEventListener: (event, callback) => listeners.set(event, callback) };
   const context = vm.createContext({
-    state, document, Date: ClockDate, URL, hydratePage: (data) => data, clearTimeout() {}, pageQuery: () => ({view:state.view}), pageRequestKey: () => `${state.dataMode}:${state.view}`, URLSearchParams, AbortController, weeklyQuotaPeriods, sameQuotaReset,
+    state, document, Date: ClockDate, URL, hydratePage: (data) => data, clearTimeout() {}, pageQuery: () => ({view:state.view, period:state.period}), pageRequestKey: () => `${state.dataMode}:${state.view}:${state.period}`, URLSearchParams, AbortController, weeklyQuotaPeriods, sameQuotaReset,
     fetch: async (url, options) => {
       const normalized = new URL(url, "http://localhost"); normalized.searchParams.delete("query"); requests.push(normalized.pathname + normalized.search);
       return fetchImpl ? fetchImpl(url, requests.length, options) : { ok: true, json: async () => ({ generatedAt: String(now) }) };
@@ -31,7 +32,7 @@ function dashboard({ mode = "centralized", view = "overview", data = { generated
     setInterval: (callback, interval) => timers.push({ callback, interval, next: now + interval }),
     $: () => ({ classList: { add() {}, remove() {} }, textContent: "" }),
     loadUsageCache: () => null, saveUsageCache() {},
-    populateNodes() {}, populateModels() {}, populateFolders() {}, syncQuotaClock() {}, setPageLoading() {},
+    populateNodes() {}, populateModels() {}, populateFolders() {}, syncQuotaClock() {}, setPageLoading: (active, error) => loadingStates.push({active,error}),
     renderQuotaNav() {}, renderFreshness() {}, escapeHtml: String,
     render: () => renders.push(state.data.generatedAt), toast() {}, t: (key) => key,
   });
@@ -39,8 +40,8 @@ function dashboard({ mode = "centralized", view = "overview", data = { generated
   vm.runInContext(`${constants}\n${loading}\n${polling}`, context);
   const flush = () => new Promise((resolve) => setImmediate(resolve));
   return {
-    state, requests, renders,
-    load: (force = false) => vm.runInContext(`loadData(${force})`, context),
+    state, requests, renders, loadingStates,
+    load: (force = false, silent = false) => vm.runInContext(`loadData(${force},${silent})`, context),
     poll: () => vm.runInContext("pollForNewData()", context),
     async advance(ms) {
       const end = now + ms;
@@ -238,4 +239,34 @@ test("HTTP, network and invalid JSON failures retain the snapshot and release th
       assert.equal(ui.state.data.generatedAt, "recovered", mode);
     }
   }
+});
+
+test("Today to All failure hides stale values, then a retry displays all history", async () => {
+  let fail = true;
+  const ui = dashboard({fetch: async (url) => {
+    const {period} = JSON.parse(new URL(url, 'http://localhost').searchParams.get('query'));
+    if (period === 'all' && fail) return Response.json({error:'Unavailable'}, {status:500});
+    return Response.json({generatedAt:period, pageOnly:true, pageData:{view:'overview', totals:{count:period === 'all' ? 100 : 3}}});
+  }});
+  ui.state.period = 'today';
+  await ui.load();
+  ui.state.period = 'all';
+  await ui.load(false, true);
+  assert.equal(ui.state.data.pageData.totals.count, 3);
+  assert.equal(ui.loadingStates.at(-1).active, true, 'Old period must remain hidden after failure');
+  assert.ok(ui.loadingStates.at(-1).error, 'A filter failure must be visible even on a silent load');
+  fail = false;
+  await ui.load();
+  assert.equal(ui.state.data.pageData.totals.count, 100);
+  assert.equal(ui.loadingStates.at(-1).active, false);
+});
+
+test("an uncached response drops the previous ETag after concurrent ingestion", async () => {
+  const headers = [];
+  const ui = dashboard({fetch:async (url, count, options) => {
+    headers.push(options.headers['If-None-Match']);
+    return Response.json({generatedAt:String(count),pageOnly:true}, {headers: count === 1 ? {ETag:'"old"'} : {'Cache-Control':'private, no-store'}});
+  }});
+  await ui.load(); await ui.load(); await ui.load();
+  assert.deepEqual(headers, [undefined, '"old"', undefined]);
 });

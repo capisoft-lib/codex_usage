@@ -9,13 +9,14 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
   const globalsKey = `pageApiTest${process.pid}`;
   let sessionQueries = 0;
   let materializedRows=0;
+  let onSessionRead = () => {};
   globalThis[globalsKey] = { prepare(sql) {
     if (sql.includes("AS snapshot_json")) sessionQueries++;
     const statement = database.prepare(sql);
     return { bind(...values) { return {
       first: async () => statement.get(...values),
       run: async () => ({meta:statement.run(...values)}),
-      all: async () => { const results=statement.all(...values); if(sql.includes("AS snapshot_json")) materializedRows+=results.length; return {results}; },
+      all: async () => { const results=statement.all(...values); if(sql.includes("AS snapshot_json")) { materializedRows+=results.length; onSessionRead(); } return {results}; },
     }; } };
   } };
   const load = async (path, prefix) => {
@@ -73,6 +74,17 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
       const blocked=await (await route.GET(request({...query,view:"detail",id}))).json();assert.equal(blocked.sessions.length,0);
     }
     assert.equal((await route.GET(request({view:"invalid"}))).status,400);
+    // All-history reads must finish even when live quota/ingestion metadata
+    // changes between batches, without caching them under a stale revision.
+    onSessionRead = () => database.prepare("UPDATE mesh_nodes SET last_payload_hash=? WHERE id='a'").run(String(sessionQueries));
+    const allResponse = await route.GET(request({view:'overview',start:'1970-01-01T00:00:00.000Z'}));
+    assert.equal(allResponse.status,200);
+    assert.equal(allResponse.headers.get('etag'),null);
+    assert.equal(allResponse.headers.get('cache-control'),'private, no-store');
+    const allData = await allResponse.json();
+    assert.equal(allData.pageData.totals.count,1503);
+    assert.equal(allData.pageData.matched,1002);
+    onSessionRead = () => {};
     // Date bounds must track edits and new snapshots, including malformed dates.
     database.prepare("UPDATE mesh_sessions SET snapshot_json=? WHERE node_id='a' AND session_id='0001'").run(JSON.stringify({calls:[{...value,timestamp:'2020-01-01'}, {...value,timestamp:'invalid'}]}));
     const indexed=database.prepare("SELECT first_call_day,last_call_day,invalid_call_dates FROM mesh_sessions WHERE node_id='a' AND session_id='0001'").get();
