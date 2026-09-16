@@ -1,12 +1,15 @@
 import { miniPreferences } from "./src/desktop-options.mjs";
-import { timingSafeEqual } from "node:crypto";
+import { createPageData, pageMetadata } from "./public/page-data.js";
+import { timingSafeEqual, createHash } from "node:crypto";
+import { createQuotaDetail, quotaMetadata } from "./public/quota-data.js";
+import { matchesQuotaEtag, normalizeQuotaPeriods } from "./public/quota-periods.js";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDashboardCapabilities } from "./src/dashboard-contract.mjs";
 import { MeshHubStore } from "./src/mesh-hub-store.mjs";
-import { serializePublicUsage } from "./src/public-usage.mjs";
+import { serializePublicUsage, toPublicUsage } from "./src/public-usage.mjs";
 import { createUsageCollector } from "./src/usage-collector.mjs";
 import { cliText } from "./src/cli-locale.mjs";
 
@@ -134,6 +137,26 @@ async function routeApi(request, response, url) {
     sendJson(response, 200, { ...capabilities, desktopHelper: process.env.CODEX_DESKTOP_HELPER === "1" && Boolean(process.connected) });
     return true;
   }
+  if (url.pathname === "/api/page" && request.method === "GET") {
+    const source = url.searchParams.get("source") || (dashboardMode === "hub" ? "centralized" : "local");
+    if (!["local", "centralized"].includes(source)) { sendJson(response, 400, { error: "Source invalide." }); return true; }
+    const raw = url.searchParams.get("query") || "";
+    if (raw.length > 64000) { sendJson(response, 400, { error: "Requête trop longue." }); return true; }
+    const force = url.searchParams.get("refresh") === "1";
+    const data = dashboardMode === "hub" ? meshHub.aggregate() : source === "centralized"
+      ? await usageCollector.centralizedUsage(force) : await usageCollector.store.getUsage(force);
+    const metadata = pageMetadata(data);
+    const safeMetadata = { ...toPublicUsage(metadata), sessionCount: metadata.sessionCount, firstSessionAt: metadata.firstSessionAt };
+    let builder;
+    try { builder = createPageData(safeMetadata, raw); } catch { sendJson(response, 400, { error: "Filtres invalides." }); return true; }
+    const etag = `"${createHash("sha256").update(JSON.stringify([data.generatedAt, data.analyzerVersion, raw])).digest("hex")}"`;
+    response.setHeader("ETag", etag);
+    response.setHeader("Cache-Control", "private, no-cache");
+    if (matchesQuotaEtag(request.headers["if-none-match"], etag)) { send(response, 304, ""); return true; }
+    if (builder.query.view !== "settings") for (const session of data.sessions) builder.add(toPublicUsage({ sessions: [session] }).sessions[0]);
+    sendJson(response, 200, { ...builder.finish(), revision: etag });
+    return true;
+  }
   if (url.pathname === "/api/usage" && request.method === "GET") {
     const requestedSource = url.searchParams.get("source") || (dashboardMode === "hub" ? "centralized" : "local");
     if (!["local", "centralized"].includes(requestedSource)) {
@@ -141,6 +164,37 @@ async function routeApi(request, response, url) {
       return true;
     }
     send(response, 200, await serializedUsage(url.searchParams.get("refresh") === "1", requestedSource));
+    return true;
+  }
+  if (url.pathname === "/api/quota" && request.method === "GET") {
+    const source = url.searchParams.get("source") || (dashboardMode === "hub" ? "centralized" : "local");
+    if (!["local", "centralized"].includes(source)) {
+      sendJson(response, 400, { error: "Source de données invalide." });
+      return true;
+    }
+    const force = url.searchParams.get("refresh") === "1";
+    const data = dashboardMode === "hub" ? meshHub.aggregate() : source === "centralized"
+      ? await usageCollector.centralizedUsage(force) : await usageCollector.store.getUsage(force);
+    const metadata = quotaMetadata(data);
+    // Keep the existing public privacy contract, including for raw local snapshots.
+    const { toPublicUsage } = await import("./src/public-usage.mjs");
+    const safe = { ...toPublicUsage(metadata), sessionCount: metadata.sessionCount, quotaOnly: true };
+    safe.weeklyQuotaHistory = normalizeQuotaPeriods(safe);
+    safe.weeklyQuota = safe.weeklyQuotaHistory[0] || safe.weeklyQuota;
+    const revision = createHash("sha256").update(JSON.stringify(safe)).digest("hex");
+    safe.revision = revision;
+    const etag = `"${revision}:${url.searchParams.get("period") || "current"}"`;
+    response.setHeader("ETag", etag);
+    if (!force && matchesQuotaEtag(request.headers["if-none-match"], etag)) { send(response, 304, ""); return true; }
+    if (url.searchParams.get("detail") !== "1") { sendJson(response, 200, safe); return true; }
+    const detail = createQuotaDetail(safe, url.searchParams.get("period"));
+    for (const session of data.sessions || []) for (const call of session.calls || []) {
+      const time = Date.parse(call.timestamp);
+      if (!Number.isFinite(time) || (time >= detail.from && time <= detail.to)) {
+        detail.add({ timestamp: call.timestamp, model: call.model, effort: call.effort, serviceTier: call.serviceTier, usage: call.usage }, session.nodeId);
+      }
+    }
+    sendJson(response, 200, detail.finish());
     return true;
   }
   if (url.pathname === "/api/centralized-usage" && request.method === "GET") {

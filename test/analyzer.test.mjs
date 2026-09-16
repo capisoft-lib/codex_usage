@@ -32,6 +32,53 @@ test("normalizes the weekly Codex quota without inventing reset availability", (
   assert.equal(fiveHourQuota.resetsAt, "2026-07-09T19:41:39.000Z");
 });
 
+test("keeps Codex and legacy quotas but excludes independent named buckets", () => {
+  const raw = {
+    primary: { used_percent: 12, window_minutes: 300, resets_at: 1789510009 },
+    secondary: { used_percent: 82, window_minutes: 10080, resets_at: 1789811836 },
+  };
+  for (const normalize of [normalizeWeeklyQuota, normalizeFiveHourQuota]) {
+    assert.ok(normalize(raw));
+    assert.ok(normalize({ ...raw, limit_id: "codex" }));
+    assert.ok(normalize({ ...raw, limitId: "codex" }));
+    for (const limitId of ["codex_bengalfox", "another_bucket"]) {
+      assert.equal(normalize({ ...raw, limit_id: limitId }), null);
+      assert.equal(normalize({ ...raw, limitId }), null);
+    }
+  }
+});
+
+test("rebuilds cached quota history without Spark points while retaining token usage", async () => {
+  const codexHome = await mkdtemp(path.join(tmpdir(), "codex-quota-buckets-"));
+  await mkdir(path.join(codexHome, "sessions"));
+  const rows = [{ type: "session_meta", payload: { id: "buckets" } }];
+  for (const [minute, limitId, percent, reset] of [
+    [0, "codex", 82, 1789811836],
+    [7, "codex_bengalfox", 10, 1789811965],
+    [15, "codex", 83, 1789811836],
+    [16, "codex_bengalfox", 10, 1789811965],
+  ]) {
+    rows.push({ timestamp: `2026-09-15T17:${String(minute).padStart(2, "0")}:00.000Z`, type: "event_msg", payload: {
+      type: "token_count",
+      info: { last_token_usage: { input_tokens: 100, output_tokens: 10, total_tokens: 110 } },
+      rate_limits: { limit_id: limitId, secondary: { used_percent: percent, window_minutes: 10080, resets_at: reset } },
+    } });
+  }
+  await writeFile(path.join(codexHome, "sessions", "session.jsonl"), rows.map(JSON.stringify).join("\n"));
+  const first = await analyzeCodexUsage({ codexHome });
+  const polluted = { ...first, analyzerVersion: 10, sessions: first.sessions.map(session => ({
+    ...session, weeklyQuota: { usedPercent: 10 }, weeklyQuotaHistory: [{ usedPercent: 10 }],
+  })) };
+  const rebuilt = await analyzeCodexUsage({ codexHome, previousData: polluted });
+  assert.notEqual(rebuilt.sessions[0], polluted.sessions[0]);
+  assert.equal(rebuilt.weeklyQuota.usedPercent, 83);
+  assert.equal(rebuilt.weeklyQuotaHistory.length, 1);
+  assert.deepEqual(rebuilt.weeklyQuotaHistory[0].observations.map(point => point.usedPercent), [82, 83]);
+  assert.equal(rebuilt.sessions[0].modelCalls, 4);
+  assert.equal(rebuilt.sessions[0].usage.totalTokens, 440);
+  assert.match(await usageFingerprint({ codexHome }), /^11:/);
+});
+
 test("merges nearby reset observations, retains plan transitions, and ignores unused drifting windows", () => {
   const history = mergeWeeklyQuotaObservations([
     { usedPercent: 0, windowMinutes: 10080, resetsAt: "2026-07-01T20:25:00.000Z", observedAt: "2026-06-24T20:25:00.000Z", planType: "plus" },
@@ -120,7 +167,7 @@ test("reuses persisted per-file analysis when a session has not changed", async 
 
   const first = await analyzeCodexUsage({ codexHome });
   const second = await analyzeCodexUsage({ codexHome, previousData: first });
-  assert.equal(first.analyzerVersion, 10);
+  assert.equal(first.analyzerVersion, 11);
   assert.equal(second.sessions[0], first.sessions[0]);
   assert.equal(second.sessions[0].fileSize > 0, true);
   assert.equal(Number.isFinite(second.sessions[0].fileModifiedAtMs), true);
@@ -155,7 +202,7 @@ test("supports least-privilege scoped sources without a Codex home mount", async
   const result = await analyzeCodexUsage(options);
   assert.equal(result.sessions[0].title, "Scoped source");
   assert.equal(result.source.mode, "scoped");
-  assert.match(await usageFingerprint(options), /^10:1:/);
+  assert.match(await usageFingerprint(options), /^11:1:/);
 });
 
 test("fingerprints include the analyzer version so persisted snapshots migrate after upgrades", async () => {
@@ -166,7 +213,7 @@ test("fingerprints include the analyzer version so persisted snapshots migrate a
   await mkdir(archivedSessionsPath);
   await writeFile(path.join(sessionsPath, "session.jsonl"), `${JSON.stringify({ type: "session_meta", payload: { id: "versioned" } })}\n`);
   const fingerprint = await usageFingerprint({ sessionsPath, archivedSessionsPath, sessionIndexPath: path.join(root, "missing-index.jsonl") });
-  assert.match(fingerprint, /^10:/);
+  assert.match(fingerprint, /^11:/);
 });
 
 test("rejects a source with no readable session directory", async () => {

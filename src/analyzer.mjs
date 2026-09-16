@@ -13,7 +13,7 @@ const EMPTY_USAGE = Object.freeze({
   totalTokens: 0,
 });
 
-export const ANALYZER_VERSION = 10;
+export const ANALYZER_VERSION = 11;
 
 function projectNameFromCwd(value) {
   const name = String(value || "").replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop()?.trim();
@@ -138,6 +138,10 @@ function resetDate(value) {
 
 function normalizeQuotaWindow(raw, windowMinutes, observedAt = null) {
   if (!raw || typeof raw !== "object") return null;
+  // Spark and other named buckets have independent quotas, even when their
+  // reset times match Codex. Older logs omit the ID and remain supported.
+  const limitId = raw.limit_id ?? raw.limitId;
+  if (limitId != null && limitId !== "codex") return null;
   const windows = [raw.primary, raw.secondary, raw.individual_limit]
     .filter((window) => window && typeof window === "object")
     .map((window) => ({ ...window, windowMinutes: optionalNumber(window.window_minutes) }))

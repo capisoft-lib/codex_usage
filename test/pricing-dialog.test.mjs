@@ -7,7 +7,7 @@ import { PRICING_CATALOG } from "../public/pricing-catalog.js";
 import { PRICING_I18N, pricingHistoryMarkup, pricingCatalogLabel, pricingDiagnosticsMarkup } from "../public/pricing-ui.js";
 
 const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
-const source = app.slice(app.indexOf("function openPricing("), app.indexOf("function applyUsageData("));
+const source = app.slice(app.indexOf("async function openPricing("), app.indexOf("function applyUsageData("));
 
 test("pricing dialog preserves legacy custom values and switches saved modes without rewriting them", () => {
   const elements = new Map();
