@@ -26,3 +26,16 @@ test("association command rejects unknown and incomplete options", () => {
   assert.throws(() => parseAgentOptions(["--token", "secret"], {}), /Option inconnue/);
   assert.throws(() => parseAgentOptions(["--associate"], {}), /Valeur manquante/);
 });
+
+test("conversation titles require an explicit flag or existing environment setting", () => {
+  assert.equal(parseAgentOptions([], {}).env.MESH_INCLUDE_TITLES, undefined);
+  for (const value of ["false", "true"]) {
+    const baseEnv = { MESH_INCLUDE_TITLES: value };
+    assert.equal(parseAgentOptions([], baseEnv).env.MESH_INCLUDE_TITLES, value);
+    const result = parseAgentOptions(["--include-titles", "--once", "--alias", "Office"], baseEnv);
+    assert.equal(result.env.MESH_INCLUDE_TITLES, "true");
+    assert.equal(result.once, true);
+    assert.equal(result.env.MESH_NODE_ALIAS, "Office");
+    assert.equal(baseEnv.MESH_INCLUDE_TITLES, value);
+  }
+});

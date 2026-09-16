@@ -19,6 +19,10 @@ export function parseAgentOptions(argv, baseEnv = process.env) {
       once = true;
       continue;
     }
+    if (option === "--include-titles") {
+      env.MESH_INCLUDE_TITLES = "true";
+      continue;
+    }
     const envName = OPTION_ENV.get(option);
     if (!envName) throw new Error(`Option inconnue : ${option}`);
     const value = argv[index + 1];
@@ -36,4 +40,5 @@ export const AGENT_HELP = `Usage : npm run start:agent -- [options]
   --alias <nom>        Nom lisible de la machine (facultatif)
   --state-path <fichier> Emplacement de l’identité persistante (facultatif)
   --once               Synchronise une fois puis quitte (installation)
+  --include-titles     Transmet les titres Codex au tableau de bord central
   --help               Affiche cette aide`;

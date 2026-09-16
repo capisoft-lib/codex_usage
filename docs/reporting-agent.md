@@ -141,6 +141,18 @@ Project modes:
 
 Enabling `MESH_INCLUDE_TITLES` permits sanitized conversation titles to leave the machine. Leave it disabled unless those titles are needed and their disclosure has been reviewed.
 
+### Show Codex conversation titles
+
+By default, the central dashboard shows `Conversation <hash>` instead of the local Codex title. To send the titles from an already-associated machine, start its agent with:
+
+```bash
+npm run start:agent -- --include-titles
+```
+
+This flag sets `MESH_INCLUDE_TITLES=true` for that process. Include it on subsequent starts, or set that environment variable in your launcher. For a Windows scheduled agent, use the [supervisor configuration](windows-agent.md#show-codex-conversation-titles) instead of starting a second agent.
+
+The agent reads titles from the local `session_index.jsonl`. The next successful synchronization updates existing conversations as well as new ones; refresh the dashboard after it completes. Sessions without a title in that index remain untitled. Enable the option on each reporting machine whose titles you want to see. Prompts and responses remain excluded, and the project privacy setting is unchanged.
+
 The Mesh payload excludes raw JSONL, prompts, responses, reasoning, tool output, credentials, usernames, and full local paths by default.
 
 ## Update an agent
