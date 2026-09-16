@@ -53,6 +53,8 @@ FROM runtime AS dashboard
 
 COPY --chown=node:node server.mjs ./
 COPY --from=ui-build --chown=node:node /build/dist/dashboard ./dist/dashboard
+# Shared modules are also imported by the Node server from the source layout.
+COPY --from=ui-build --chown=node:node /build/dist/dashboard/*.js ./public/
 
 EXPOSE 4317
 
