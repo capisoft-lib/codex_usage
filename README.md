@@ -73,11 +73,13 @@ Local mode is always the default. Nothing is sent to a hub unless `MESH_HUB_URL`
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) 20 or newer for the local dashboard/agent, or [Docker](https://www.docker.com/);
+- [Node.js](https://nodejs.org/) 22.13 or newer for the local dashboard/agent, or [Docker](https://www.docker.com/);
 - a local Codex installation with session files under the Codex home directory;
-- Node.js 22.13 or newer only when developing or testing `sites-hub/` locally.
+- Node.js 22.13 or newer when developing or testing `sites-hub/` locally.
 
 The root application has no npm runtime dependencies. Windows, macOS, and Linux are supported anywhere Node.js or Docker can access the user's Codex data directory.
+
+Usage is stored relationally in embedded SQLite locally and in Docker, and D1 on Sites. No database server or SQL container is needed. Existing JSON caches are imported automatically without deleting the originals. See [storage, migrations, backups and performance](docs/relational-storage.md).
 
 ## Quick start: local GUI only
 
@@ -123,7 +125,7 @@ It does not authenticate with OpenAI and never opens `auth.json`.
 
 In dashboard Settings, choose the five-hour quota, weekly quota, or both, then open the compact window. It uses the selected data source, language and palette. The browser popup does not guarantee always-on-top behavior.
 
-For a native always-on-top window, install the **separate** desktop helper with Node.js 22.12 or newer:
+For a native always-on-top window, install the **separate** desktop helper with Node.js 22.13 or newer:
 
 ```bash
 npm ci --prefix desktop
@@ -449,7 +451,10 @@ While the dashboard tab is visible, it checks for updated data every 15 seconds 
 | `CODEX_ARCHIVED_SESSIONS_PATH` | `$CODEX_HOME/archived_sessions` | Explicit archived-session directory. |
 | `CODEX_SESSION_INDEX_PATH` | `$CODEX_HOME/session_index.jsonl` | Explicit conversation-title index. |
 | `REFRESH_INTERVAL_MS` | `60000` | Source reindex interval in milliseconds, minimum 1000. |
-| `SNAPSHOT_PATH` | `.cache/usage-snapshot.json` | Derived snapshot; empty disables persistence. |
+| `SNAPSHOT_PATH` | `.cache/usage-snapshot.json` | Legacy import source; SQLite defaults to this path plus `.sqlite`. Empty uses in-memory SQLite unless `USAGE_DATABASE_PATH` is set. |
+| `USAGE_DATABASE_PATH` | `${SNAPSHOT_PATH}.sqlite` | Optional embedded SQLite path; use a persistent Docker volume. |
+| `MESH_HUB_PATH` | `.cache/mesh-hub.json` | Legacy hub import source; SQLite defaults to this path plus `.sqlite`. |
+| `MESH_DATABASE_PATH` | `${MESH_HUB_PATH}.sqlite` | Optional embedded SQLite path for self-hosted hubs. |
 | `DASHBOARD_ASSETS_PATH` | `dist/dashboard` | Generated UI bundle served locally. |
 | `DASHBOARD_MODE` | `local` | `local` analyzes this machine; `hub` accepts and aggregates Mesh snapshots. |
 | `MESH_HUB_URL` | empty | Enables the outbound reporting agent and Centralized source. |

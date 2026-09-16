@@ -6,6 +6,7 @@ import { projectIdentity, OVERVIEW_PROJECT_LIMIT } from './project-identity.js';
 export function parsePageQuery(value) {
   const q = typeof value === 'string' ? JSON.parse(value) : value;
   if (!q || !['overview', 'projects', 'conversations', 'settings', 'detail', 'pricing'].includes(q.view)) throw new Error('Invalid page');
+  if (['id','node','model'].some(key=>q[key]!=null && typeof q[key]!=='string') || (q.folders!=null && (!Array.isArray(q.folders) || q.folders.some(value=>typeof value!=='string')))) throw new Error('Invalid filters');
   const start = q.start == null ? -Infinity : Date.parse(q.start);
   const end = q.end == null ? Infinity : Date.parse(q.end);
   if (Number.isNaN(start) || Number.isNaN(end) || start > end) throw new Error('Invalid range');
@@ -29,6 +30,29 @@ function compactPrice(price) {
   return summary;
 }
 function summarize(calls, pricing) {
+  if (calls.some(call => call._count != null)) {
+    const total = summarize([], pricing), profiles = new Map();
+    for (const call of calls) {
+      const count = call._count ?? 1;
+      const one = summarize([{ ...call, _count: undefined,
+        ...(call._totals ? {usage:call._totals,_contextInputTokens:call.usage.inputTokens} : {}) }], pricing);
+      for (const object of [one.cost, one.credits, one.usage]) {
+        for (const key of Object.keys(object)) {
+          if (typeof object[key] === 'number' && !['officialCoverage','catalogVersion'].includes(key)
+            && (!call._totals || key.endsWith('Calls'))) object[key] *= count;
+        }
+      }
+      one.count = count;
+      mergeSummary(total, one);
+      for (const profile of one.profiles) {
+        const key = JSON.stringify([profile.model,profile.effort,profile.fast,profile.multiplier]);
+        const merged = profiles.get(key) || { ...profile,calls:0 };
+        merged.calls += profile.calls * count; profiles.set(key,merged);
+      }
+    }
+    total.profiles = [...profiles.values()].sort((a,b) => b.calls-a.calls || Number(b.fast)-Number(a.fast) || a.model.localeCompare(b.model) || String(a.effort).localeCompare(String(b.effort)));
+    return total;
+  }
   return { cost: compactPrice(apiCostOfCalls(calls, pricing)), credits: compactPrice(codexCreditsOfCalls(calls)), usage: usageOf(calls), profiles: usageProfilesOfCalls(calls), count: calls.length, lastCall: calls.map(c => c.timestamp).sort().at(-1) || null };
 }
 function addTotals(target, source) {
@@ -69,7 +93,7 @@ export function createPageData(metadata, query) {
       if (!calls.length) return;
       const turns = (session.turns || []).filter(t => inRange(t.startedAt) && (!scoped || !q.model || q.model === 'all' || t.model === q.model));
       const summary = summarize(calls, q.pricing);
-      const row = { id: session.id, sourceSessionId: session.sourceSessionId, title: conversationTitle(session), nodeId: session.nodeId, nodeAlias: session.nodeAlias, cwd: session.cwd, projectName: session.projectName, projectGitHubUrl: session.projectGitHubUrl, startedAt: session.startedAt, models: [...new Set(calls.map(c => c.model))], summary, usage: summary.usage, modelCalls: calls.length, exchanges: turns.length, durationMs: turns.reduce((n, t) => n + (t.durationMs || 0), 0), calls: [], turns: [] };
+      const row = { id: session.id, sourceSessionId: session.sourceSessionId, title: conversationTitle(session), nodeId: session.nodeId, nodeAlias: session.nodeAlias, cwd: session.cwd, projectName: session.projectName, projectGitHubUrl: session.projectGitHubUrl, startedAt: session.startedAt, models: [...new Set(calls.map(c => c.model))], summary, usage: summary.usage, modelCalls: summary.count, exchanges: turns.reduce((n,t)=>n+(t._count ?? 1),0), durationMs: turns.reduce((n, t) => n + (t.durationMs || 0), 0), calls: [], turns: [] };
       if (['detail', 'pricing'].includes(q.view)) { rawSessions.push({ ...row, calls, turns }); return; }
       const identity = projectIdentity(row, q.unknownProject || 'No project');
       if (q.view === 'conversations') {

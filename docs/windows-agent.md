@@ -7,7 +7,7 @@ The installer operates only on the local scheduled task and local files. It neve
 ## Prerequisites
 
 - Windows 10 or Windows 11;
-- Node.js 20 or newer available to the current user;
+- Node.js 22.13 or newer available to the current user;
 - this repository checked out locally;
 - the same Windows user that owns the local Codex session data;
 - either an existing `.cache\mesh-agent.json` association or a fresh one-time association code.

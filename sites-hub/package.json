@@ -6,11 +6,12 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "typecheck": "tsc --noEmit --incremental false",
     "sync:dashboard": "node scripts/sync-dashboard.mjs",
     "dev": "npm run sync:dashboard && node scripts/run-vinext.mjs dev",
     "build": "npm run sync:dashboard && node scripts/run-vinext.mjs build",
     "start": "node scripts/run-vinext.mjs start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/mesh-protocol.test.mjs tests/migrations.test.mjs tests/quota-api.test.mjs tests/page-api.test.mjs",
+    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/mesh-protocol.test.mjs tests/migrations.test.mjs tests/quota-api.test.mjs tests/page-api.test.mjs tests/relational-d1.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.52.1",
+    "@cloudflare/workers-types": "5.20260811.1",
     "@eslint/js": "9.39.4",
     "@next/eslint-plugin-next": "16.2.6",
     "@openai/sites-vite-plugin": "0.2.0",
@@ -36,6 +38,7 @@
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "16.4.0",
+    "miniflare": "5.20260811.1-alpha",
     "react-server-dom-webpack": "19.2.8",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",

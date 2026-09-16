@@ -47,7 +47,13 @@ jobs:
         run: npm test --prefix sites-hub
       - name: Lint Sites
         run: npm run lint --prefix sites-hub
+      - name: Type-check Sites and D1 bindings
+        run: npm run typecheck --prefix sites-hub
       - name: Audit all Sites dependencies
         run: npm audit --audit-level=low --prefix sites-hub
       - name: Build container
         run: docker build --tag codex-usage-dashboard:ci .
+      - name: Verify relational storage and persistent Docker volume
+        run: npm run test:storage:docker
+        env:
+          STORAGE_TEST_IMAGE: codex-usage-dashboard:ci

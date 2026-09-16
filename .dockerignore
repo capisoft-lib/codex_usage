@@ -1,6 +1,7 @@
 .git
 .codex
 .cache
+.wrangler
 node_modules
 test
 *.log

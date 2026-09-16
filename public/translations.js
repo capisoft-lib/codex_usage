@@ -290,3 +290,17 @@ export const TIME_FORMAT_I18N = Object.fromEntries(Object.entries(TIME_FORMAT_LA
   language,
   Object.fromEntries(["title", "copy", "label", "system", "twelve", "twentyFour"].map((key, index) => [`timeFormat.${key}`, labels[index]])),
 ]));
+
+const MIGRATION_MESSAGES = {
+  fr: ['Mise à niveau des données en cours', 'Votre historique est préparé pour accélérer les prochaines consultations. Cette opération peut prendre quelques minutes au premier accès. Le tableau de bord s’affichera automatiquement.'],
+  en: ['Upgrading your data', 'Your history is being prepared to make future visits faster. This may take a few minutes on the first visit. The dashboard will appear automatically.'],
+  de: ['Daten werden aktualisiert', 'Ihr Verlauf wird für schnellere Zugriffe vorbereitet. Beim ersten Zugriff kann dies einige Minuten dauern. Das Dashboard wird automatisch angezeigt.'],
+  es: ['Actualizando los datos', 'Estamos preparando tu historial para acelerar las próximas consultas. La primera vez puede tardar unos minutos. El panel aparecerá automáticamente.'],
+  it: ['Aggiornamento dei dati in corso', 'Stiamo preparando la cronologia per velocizzare le prossime consultazioni. Il primo accesso può richiedere alcuni minuti. Il pannello apparirà automaticamente.'],
+  pt: ['A atualizar os dados', 'O histórico está a ser preparado para acelerar as próximas consultas. No primeiro acesso, isto pode demorar alguns minutos. O painel aparecerá automaticamente.'],
+  ja: ['データを更新しています', '次回からの表示を速くするため、履歴を準備しています。初回は数分かかる場合があります。完了するとダッシュボードが自動的に表示されます。'],
+  ru: ['Обновление данных', 'История подготавливается для ускорения следующих просмотров. При первом доступе это может занять несколько минут. Панель появится автоматически.'],
+  zh: ['正在升级数据', '正在整理历史记录，以加快今后的查询。首次访问可能需要几分钟，完成后将自动显示仪表板。'],
+};
+
+export const MIGRATION_I18N = Object.fromEntries(Object.entries(MIGRATION_MESSAGES).map(([language, [title, copy]]) => [language, { 'migration.title': title, 'migration.copy': copy }]));
