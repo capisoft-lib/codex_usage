@@ -685,6 +685,12 @@ function modelGroups(calls) {
     .sort((left, right) => right.cost.cost - left.cost.cost);
 }
 
+function setPageLoading(active) {
+  $('#pageLoader').hidden = !active;
+  $('#pageContent').setAttribute('aria-busy', String(active));
+  $('#pageLoaderLabel').textContent = t(state.dataMode === 'centralized' ? 'load.loadingCentralized' : 'load.loading');
+}
+
 function render() {
   syncPageChrome();
   if (state.view !== "quota" && state.data?.pageOnly && state.data.requestKey !== pageRequestKey()) { schedulePageLoad(); return; }
@@ -1733,6 +1739,7 @@ async function loadData(force = false, silent = false) {
   const controller = new AbortController();
   dataController = controller;
   dataRequestKey = key;
+  if (!state.data) setPageLoading(true);
 
   if (!silent) $("#refreshButton").classList.add("loading");
   dataRequest = (async () => {
@@ -1764,6 +1771,7 @@ async function loadData(force = false, silent = false) {
       }
     } finally {
       if (dataController === controller) {
+        setPageLoading(false);
         $("#refreshButton").classList.remove("loading");
         dataRequest = null;
         dataRequestKey = null;
@@ -1794,6 +1802,7 @@ function pageQuery(view = state.view, id = null) {
 }
 function pageRequestKey() { return `${state.dataMode}:${JSON.stringify(pageQuery())}`; }
 function schedulePageLoad() {
+  setPageLoading(true);
   clearTimeout(pageLoadTimer);
   dataController?.abort();
   $("#freshness").textContent = t("quota.loading");
@@ -2090,7 +2099,7 @@ function showPage(page, { updateHash = true } = {}) {
   }
   if (state.data) render();
   else { syncPageChrome(); renderFreshness(); }
-  if (switchedPage || !state.data) void loadData(false, true);
+  if (switchedPage || !state.data) { setPageLoading(true); void loadData(false, true); }
 }
 
 window.addEventListener("hashchange", () => {

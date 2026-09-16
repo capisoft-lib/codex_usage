@@ -31,7 +31,7 @@ function dashboard({ mode = "centralized", view = "overview", data = { generated
     setInterval: (callback, interval) => timers.push({ callback, interval, next: now + interval }),
     $: () => ({ classList: { add() {}, remove() {} }, textContent: "" }),
     loadUsageCache: () => null, saveUsageCache() {},
-    populateNodes() {}, populateModels() {}, populateFolders() {}, syncQuotaClock() {},
+    populateNodes() {}, populateModels() {}, populateFolders() {}, syncQuotaClock() {}, setPageLoading() {},
     renderQuotaNav() {}, renderFreshness() {}, escapeHtml: String,
     render: () => renders.push(state.data.generatedAt), toast() {}, t: (key) => key,
   });
