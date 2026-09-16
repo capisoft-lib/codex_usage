@@ -1,3 +1,4 @@
+import { conversationTitle } from './conversation-title.js';
 import { apiCostOfCalls, mergeApiPricing } from './api-pricing.js';
 import { codexCreditsOfCalls, usageProfilesOfCalls } from './usage-pricing.js';
 import { projectIdentity, OVERVIEW_PROJECT_LIMIT } from './project-identity.js';
@@ -68,7 +69,7 @@ export function createPageData(metadata, query) {
       if (!calls.length) return;
       const turns = (session.turns || []).filter(t => inRange(t.startedAt) && (!scoped || !q.model || q.model === 'all' || t.model === q.model));
       const summary = summarize(calls, q.pricing);
-      const row = { id: session.id, sourceSessionId: session.sourceSessionId, title: session.title, nodeId: session.nodeId, nodeAlias: session.nodeAlias, cwd: session.cwd, projectName: session.projectName, projectGitHubUrl: session.projectGitHubUrl, startedAt: session.startedAt, models: [...new Set(calls.map(c => c.model))], summary, usage: summary.usage, modelCalls: calls.length, exchanges: turns.length, durationMs: turns.reduce((n, t) => n + (t.durationMs || 0), 0), calls: [], turns: [] };
+      const row = { id: session.id, sourceSessionId: session.sourceSessionId, title: conversationTitle(session), nodeId: session.nodeId, nodeAlias: session.nodeAlias, cwd: session.cwd, projectName: session.projectName, projectGitHubUrl: session.projectGitHubUrl, startedAt: session.startedAt, models: [...new Set(calls.map(c => c.model))], summary, usage: summary.usage, modelCalls: calls.length, exchanges: turns.length, durationMs: turns.reduce((n, t) => n + (t.durationMs || 0), 0), calls: [], turns: [] };
       if (['detail', 'pricing'].includes(q.view)) { rawSessions.push({ ...row, calls, turns }); return; }
       const identity = projectIdentity(row, q.unknownProject || 'No project');
       if (q.view === 'conversations') {

@@ -1,3 +1,4 @@
+import { conversationTitle } from "./conversation-title.js";
 import { weeklyQuotaPeriods, shortQuotaDisplay, quotaCountdownText, normalizeTimeFormat, timeFormatOptions } from "./quota-display.js";
 import { quotaMetadata } from "./quota-data.js";
 import { sameQuotaReset } from "./quota-periods.js";
@@ -589,7 +590,7 @@ function formatDuration(ms) {
   return t("duration.minutes", { m: minutes, s: seconds % 60 });
 }
 
-function sessionTitle(session) { return session.title === "Conversation sans titre" ? t("conversation.untitled") : session.title; }
+function sessionTitle(session) { return conversationTitle(session); }
 function projectName(session) { return projectIdentity(session, t("projects.unknown")).name; }
 
 function projectGroups(sessions) {

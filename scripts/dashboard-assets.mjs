@@ -1,6 +1,7 @@
 export const DASHBOARD_ASSETS = Object.freeze([
   "api-pricing.js",
   "app.js",
+  "conversation-title.js",
   "page-data.js",
   "date-range.js",
   "icon-180.png",
