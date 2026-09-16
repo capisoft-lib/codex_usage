@@ -64,3 +64,15 @@ test('rejects overlapping or malformed custom groups', () => {
   assert.throws(()=>build({view:'projects',projectGroups:[{...group,name:' '}]}));
   assert.throws(()=>build({view:'projects',projectGroups:[{...group,members:['name:project 0']}]}));
 });
+
+
+test('group editor catalogue ignores call history, dates and grouping preferences', () => {
+  const b = createPageData({}, {view:'project-groups',start:'2099-01-01',projectGroups:[{id:'g',name:'Group',members:['name:a','name:b']}]});
+  b.add({projectName:'A',get calls() {throw new Error('Must not inspect history');}});
+  b.add({projectName:'B'});
+  b.add({projectName:'A'});
+  const result = b.finish();
+  assert.equal(result.pageData.view,'project-groups');
+  assert.deepEqual(result.pageData.projectCatalog.map(p=>p.key),['name:a','name:b']);
+  assert.deepEqual(result.sessions,[]);
+});

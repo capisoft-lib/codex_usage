@@ -281,13 +281,17 @@ function saveProjectGroups(groups) {
   renderGroupEditor();
 }
 function renderGroupEditor() {
-  const projects = state.data?.pageData?.projects || (() => {
+  const projects = state.data?.pageData?.projectCatalog || (() => {
     const originals = new Map();
-    for (const session of state.data?.sessions || []) { const p = projectIdentity(session, t("projects.unknown")); originals.set(p.key, p); }
+    for (const session of (state.data?.pageOnly ? [] : state.data?.sessions) || []) { const p = projectIdentity(session, t("projects.unknown")); originals.set(p.key, p); }
     return [...originals.values()];
   })();
-  const signature = JSON.stringify([projects.map(p => [p.key,p.name]), state.projectGroups, state.language, editingGroup]);
+  const catalogReady = state.data?.pageData?.view === "project-groups" || (state.data && !state.data.pageOnly);
+  const signature = JSON.stringify([Boolean(catalogReady), projects.map(p => [p.key,p.name]), state.projectGroups, state.language, editingGroup]);
   if (signature === groupEditorSignature) return;
+  const draftName = $("#groupName")?.value;
+  const draftMembers = $$("#groupForm input[name=member]:checked").map(input => input.value);
+  const preserveDraft = Boolean(groupEditorSignature && editingGroup === JSON.parse(groupEditorSignature).at(-1));
   groupEditorSignature = signature;
   const current = state.projectGroups.find(g => g.id === editingGroup);
   const occupied = new Set(state.projectGroups.filter(g => g.id !== editingGroup).flatMap(g => g.members));
@@ -297,7 +301,11 @@ function renderGroupEditor() {
     <div class="group-list">${state.projectGroups.map(g => `<article class="group-item"><div><strong>${escapeHtml(g.name)}</strong><p>${g.members.length} ${escapeHtml(t("nav.projects"))}</p></div><button type="button" class="primary-button" data-edit-group="${escapeHtml(g.id)}">${t("groups.edit")}</button><button type="button" class="primary-button" data-remove-group="${escapeHtml(g.id)}">${t("groups.remove")}</button></article>`).join('') || `<p>${t("groups.empty")}</p>`}</div>
     <form id="groupForm"><h3>${escapeHtml(current?.name || t("groups.new"))}</h3><label for="groupName">${t("groups.name")}</label><input id="groupName" maxlength="120" required value="${escapeHtml(current?.name || '')}">
     <fieldset><legend>${t("groups.members")}</legend><div class="group-options">${[...available.values()].sort((a,b) => a.name.localeCompare(b.name)).map(p => `<label class="folder-filter-option"><input type="checkbox" name="member" value="${escapeHtml(p.key)}" ${current?.members.includes(p.key) ? 'checked' : ''} ${occupied.has(p.key) ? 'disabled' : ''}><span>${escapeHtml(p.name)}<small>${escapeHtml(p.key)}</small></span></label>`).join('')}</div></fieldset>
-    <div class="group-actions"><button class="primary-button" type="submit">${t("groups.save")}</button><button class="primary-button" id="cancelGroup" type="button">${t("groups.cancel")}</button></div></form><p id="groupStatus" role="status"></p>`;
+    <div class="group-actions"><button class="primary-button" type="submit">${t("groups.save")}</button><button class="primary-button" id="cancelGroup" type="button">${t("groups.cancel")}</button></div></form><p id="groupStatus" role="status">${catalogReady ? "" : escapeHtml(t("load.loading"))}</p>`;
+  if (preserveDraft) {
+    $("#groupName").value = draftName || "";
+    $$("#groupForm input[name=member]").forEach(input => { input.checked = draftMembers.includes(input.value); });
+  }
   $$("[data-edit-group]").forEach(b => b.onclick = () => { editingGroup = b.dataset.editGroup; renderGroupEditor(); $("#groupName").focus(); });
   $$("[data-remove-group]").forEach(b => b.onclick = () => saveProjectGroups(state.projectGroups.filter(g => g.id !== b.dataset.removeGroup)));
   $("#cancelGroup").onclick = () => { editingGroup = null; groupEditorSignature = null; renderGroupEditor(); };
@@ -1795,7 +1803,10 @@ async function loadData(force = false, silent = false) {
       if (quotaView && state.data?.quotaOnly && !state.data.quotaDetail) {
         $("#quotaChart").innerHTML = `<p role="alert">${escapeHtml(t("load.error", { error: error.message }))}</p>`;
       }
-      if (!silent || !state.data) {
+      if (state.view === "project-groups") {
+        $("#groupStatus").textContent = t("load.error", { error: error.message });
+      }
+      if (!silent || !state.data || state.view === "project-groups") {
         $("#freshness").textContent = t("load.error", { error: error.message });
         toast(t("load.errorToast"));
       }
@@ -1822,7 +1833,7 @@ function pageQuery(view = state.view, id = null) {
     const last = buckets.at(-1);
     if (!fixedEnd && last && last.end.getTime() <= requestNow.getTime() + 1) last.end = new Date(requestNow.getTime() + 60000);
   }
-  return { view: view === "project-groups" ? "projects" : view, id, projectGroups: view === "project-groups" ? [] : state.projectGroups, start:view === "project-groups" ? null : range.start?.toISOString() || null, end:view === "project-groups" ? null : fixedEnd ? range.end?.toISOString() : null,
+  return { view, id, projectGroups: view === "project-groups" ? [] : state.projectGroups, start:view === "project-groups" ? null : range.start?.toISOString() || null, end:view === "project-groups" ? null : fixedEnd ? range.end?.toISOString() : null,
     node:view === "detail" && state.view !== "conversations" ? "all" : state.node, model:view === "detail" && state.view !== "conversations" ? "all" : state.model, folders:view === "detail" && state.view !== "conversations" ? [] : [...state.folders].sort(), search:state.query, usageThreshold:state.usageThreshold,
     page:state.page, pageSize:state.pageSize, sortKey:state.sortKey, sortDirection:state.sortDirection,
     project:state.selectedProject?.key, locale:locale(), unknownProject:t("projects.unknown"), untitled:t("conversation.untitled"), localNode:t("node.local"),
@@ -2102,6 +2113,7 @@ function setActiveNav(section) {
 
 function syncPageChrome() {
   const page = state.view;
+  if (page === "project-groups") renderGroupEditor();
   document.body.dataset.page = page;
   $$(".page").forEach((section) => { section.hidden = section.dataset.page !== page; });
   $$('[data-period]').forEach((button) => button.classList.toggle("active", button.dataset.period === state.period));

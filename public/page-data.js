@@ -4,7 +4,7 @@ import { projectIdentity, normalizeProjectGroups, OVERVIEW_PROJECT_LIMIT } from 
 
 export function parsePageQuery(value) {
   const q = typeof value === 'string' ? JSON.parse(value) : value;
-  if (!q || !['overview', 'projects', 'conversations', 'settings', 'detail', 'pricing'].includes(q.view)) throw new Error('Invalid page');
+  if (!q || !['project-groups', 'overview', 'projects', 'conversations', 'settings', 'detail', 'pricing'].includes(q.view)) throw new Error('Invalid page');
   const start = q.start == null ? -Infinity : Date.parse(q.start);
   const end = q.end == null ? Infinity : Date.parse(q.end);
   if (Number.isNaN(start) || Number.isNaN(end) || start > end) throw new Error('Invalid range');
@@ -52,12 +52,18 @@ export function createPageData(metadata, query) {
   const groups = new Map(), models = new Set(), folders = new Set(), rows = [];
   const buckets = (q.buckets || []).map(b => ({ ...b, summary: summarize([], q.pricing) }));
   const rawSessions = [];
+  const projectCatalog = new Map();
   let matched = 0;
   const inRange = timestamp => { const n = Date.parse(timestamp); return n >= q.start && n <= q.end; };
   return {
     query: q,
     add(session) {
       if (q.view === 'settings') return;
+      if (q.view === 'project-groups') {
+        const identity = projectIdentity(session, q.unknownProject || 'No project');
+        projectCatalog.set(identity.key, identity);
+        return;
+      }
       for (const model of session.models || []) models.add(model);
       folders.add(session.cwd || '');
       if (q.id && session.id !== q.id) return;
@@ -98,6 +104,7 @@ export function createPageData(metadata, query) {
       }
     },
     finish() {
+      if (q.view === "project-groups") return { ...data, sessions: [], pageData: { view: q.view, projectCatalog: [...projectCatalog.values()] } };
       const filters = { models: [...models].sort(), folders: [...folders].sort() };
       if (['detail', 'pricing'].includes(q.view)) return { ...data, sessions: rawSessions, pageData: { view: q.view, filters } };
       if (q.view === 'conversations') {
