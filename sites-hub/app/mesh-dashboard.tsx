@@ -22,13 +22,13 @@ export default function MeshDashboard({ displayName, signOutPath }: { displayNam
   const load = useCallback(async () => {
     const response = await fetch("/api/mesh/usage", { cache: "no-store" });
     if (!response.ok) throw new Error("Les données Mesh ne sont pas disponibles.");
-    setUsage(await response.json());
+    setUsage(await response.json() as Usage);
   }, []);
   useEffect(() => {
     let current = true;
     fetch("/api/mesh/usage", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : Promise.reject(new Error("Les données Mesh ne sont pas disponibles.")))
-      .then((body) => { if (current) setUsage(body); })
+      .then((body) => { if (current) setUsage(body as Usage); })
       .catch((cause) => { if (current) setError(cause.message); });
     return () => { current = false; };
   }, []);
@@ -42,7 +42,7 @@ export default function MeshDashboard({ displayName, signOutPath }: { displayNam
     setError("");
     setCopied(false);
     const response = await fetch("/api/mesh/enrollments", { method: "POST" });
-    const body = await response.json();
+    const body = await response.json() as {code:string;expiresAt:string;hubUrl:string;error?:string};
     if (!response.ok) return setError(body.error || "Création impossible.");
     setEnrollment(body);
   }

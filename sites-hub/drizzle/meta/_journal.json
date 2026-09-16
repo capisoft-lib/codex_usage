@@ -43,6 +43,27 @@
       "when": 1789545876352,
       "tag": "0005_wise_anthem",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789549124196,
+      "tag": "0006_relational_usage",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789549878749,
+      "tag": "0007_relational_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1789553176234,
+      "tag": "0008_keen_the_enforcers",
+      "breakpoints": true
     }
   ]
 }

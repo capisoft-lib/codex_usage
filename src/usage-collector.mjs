@@ -29,6 +29,8 @@ export class UsageCollector {
     this.store.stop();
   }
 
+  close() { return this.store.close(); }
+
   refresh(force = false) {
     return this.store.refresh(force);
   }
@@ -117,6 +119,7 @@ export async function createUsageCollector({
     fingerprint,
     serialize: serializePublicUsage,
     snapshotPath,
+    databasePath: env.USAGE_DATABASE_PATH || undefined,
     refreshIntervalMs,
     onUpdated: meshAgent ? (data) => meshAgent.sync(data) : null,
     logger,

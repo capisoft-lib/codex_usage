@@ -1276,3 +1276,29 @@ dialog::backdrop { background: #000b; backdrop-filter: blur(3px); }
 }
 .pricing-diagnostic strong { font-size: 13px; }
 .pricing-diagnostic small { display: block; line-height: 1.5; }
+.migration-content { padding: 28px; max-width: 480px; }
+.migration-content h2 { margin-top: 0; }
+.migration-content progress { width: 100%; accent-color: var(--accent); }
+.data-region, .table-wrap { position: relative; min-width: 0; }
+.data-region { display: grid; }
+.activity-panel > .data-region { flex: 1 1 auto; }
+.region-loading { min-height: 160px; }
+.region-loader { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 20px; background: var(--surface); color: var(--muted); text-align: center; border-radius: inherit; font-size: 12px; }
+.region-loading [aria-busy="true"] { visibility: hidden; pointer-events: none; }
+.region-loading tbody { position: relative; }
+.region-loader-row { position: absolute; inset: 0; display: block; visibility: visible; }
+.region-loader-row > td { display: block; padding: 0; border: 0; }
+tbody:not(:has(tr:not(.region-loader-row))) > .region-loader-row { position: relative; display: table-row; height: 160px; }
+.region-loader-row .region-loader { border-radius: 0; }
+.metric-loading { position: relative; color: transparent !important; }
+.metric-loading > :not(.region-loader) { visibility: hidden; }
+.metric-loading > .region-loader { background: var(--surface); padding: 0; gap: 0; border-radius: 6px; }
+.metric-loading .page-loader-spinner { width: 20px; height: 20px; border-width: 2px; }
+.cost-value.metric-loading .page-loader-spinner { width: 30px; height: 30px; border-width: 3px; }
+.metric-loading .region-loader > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.kpi:has(.metric-loading) .kpi-meta,
+.cost-card:has(.metric-loading) .cost-value + .cost-caption,
+.cost-card:has(.metric-loading) .cost-share { visibility: hidden; }
+.summary-grid > .data-region:first-child { border-radius: var(--radius); }
+.page-loader-spinner { width: 30px; height: 30px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .page-loader-spinner { animation: none; } }

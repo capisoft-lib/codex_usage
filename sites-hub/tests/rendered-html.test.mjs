@@ -58,7 +58,8 @@ test("packages the local dashboard as the hosted centralized interface", async (
   assert.match(app, /\/api\/page/);
   assert.doesNotMatch(app, /\/api\/centralized-usage/);
   assert.equal(manifest.version, 1);
-  assert.equal(Object.keys(manifest.assets).length, 30);
+  assert.equal(Object.keys(manifest.assets).length, 31);
+  assert.ok(manifest.assets['storage-fetch.js']);
   assert.ok(manifest.assets["quota-periods.js"]);
   assert.ok(manifest.assets["quota-data.js"]);
   assert.ok(manifest.assets["mini.html"]);

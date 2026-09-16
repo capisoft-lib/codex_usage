@@ -1,5 +1,6 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { readFile } from "node:fs/promises";
+import { openSqlite, sqlitePath } from './storage/sqlite.mjs';
+import { LocalRepository } from './storage/local-repository.mjs';
 import { cliText } from "./cli-locale.mjs";
 
 const SNAPSHOT_VERSION = 1;
@@ -9,12 +10,15 @@ function validUsage(data) {
 }
 
 export class UsageStore {
-  constructor({ analyze, fingerprint, enrich = null, serialize = JSON.stringify, snapshotPath = null, refreshIntervalMs = 15_000, onUpdated = null, logger = console }) {
+  constructor({ analyze, fingerprint, enrich = null, serialize = JSON.stringify, snapshotPath = null, databasePath = undefined, refreshIntervalMs = 15_000, onUpdated = null, logger = console }) {
     this.analyze = analyze;
     this.enrich = enrich;
     this.fingerprint = fingerprint;
     this.serialize = serialize;
     this.snapshotPath = snapshotPath;
+    this.databasePath = databasePath ?? sqlitePath(snapshotPath);
+    this.database = openSqlite(this.databasePath);
+    this.repository = new LocalRepository(this.database);
     this.refreshIntervalMs = refreshIntervalMs;
     this.onUpdated = onUpdated;
     this.logger = logger;
@@ -27,21 +31,26 @@ export class UsageStore {
   }
 
   async loadSnapshot() {
-    if (!this.snapshotPath) return false;
-    try {
-      const snapshot = JSON.parse(await readFile(this.snapshotPath, "utf8"));
-      if (snapshot.version !== SNAPSHOT_VERSION || !validUsage(snapshot.data)) return false;
-      this.cache = {
-        data: snapshot.data,
-        serialized: this.serialize(snapshot.data),
-        fingerprint: snapshot.fingerprint || null,
-      };
-      this.lastSuccessAt = snapshot.savedAt || snapshot.data.generatedAt;
+    const stored = this.repository.loadUsage();
+    if (stored) {
+      this.cache = { data: stored.data, serialized: null, fingerprint: stored.fingerprint };
+      this.lastSuccessAt = stored.savedAt;
       return true;
+    }
+    if (!this.snapshotPath || this.snapshotPath === this.databasePath) return false;
+    let snapshot;
+    try {
+      snapshot = JSON.parse(await readFile(this.snapshotPath, "utf8"));
     } catch (error) {
       if (error.code !== "ENOENT") this.logger.warn(cliText("snapshotIgnored", error.message));
       return false;
     }
+    if (snapshot.version !== SNAPSHOT_VERSION || !validUsage(snapshot.data)) return false;
+    const savedAt = snapshot.savedAt || snapshot.data.generatedAt;
+    this.repository.saveUsage(snapshot.data,snapshot.fingerprint || null,savedAt);
+    this.cache = { data:snapshot.data,serialized:null,fingerprint:snapshot.fingerprint || null };
+    this.lastSuccessAt = savedAt;
+    return true;
   }
 
   start({ unrefTimer = true } = {}) {
@@ -58,17 +67,14 @@ export class UsageStore {
     this.timer = null;
   }
 
+  async close() {
+    this.stop();
+    await this.refreshPromise;
+    this.database.close();
+  }
+
   async persist() {
-    if (!this.snapshotPath) return;
-    await mkdir(path.dirname(this.snapshotPath), { recursive: true });
-    const temporaryPath = `${this.snapshotPath}.${process.pid}.tmp`;
-    await writeFile(temporaryPath, JSON.stringify({
-      version: SNAPSHOT_VERSION,
-      savedAt: this.lastSuccessAt,
-      fingerprint: this.cache.fingerprint,
-      data: this.cache.data,
-    }), "utf8");
-    await rename(temporaryPath, this.snapshotPath);
+    this.repository.saveUsage(this.cache.data, this.cache.fingerprint, this.lastSuccessAt);
   }
 
   refresh(force = false) {
@@ -97,14 +103,15 @@ export class UsageStore {
 
       let data = unchanged ? this.cache.data : await this.analyze(this.cache.data);
       if (this.enrich) data = await this.enrich(data);
+      const savedAt = new Date().toISOString();
+      this.repository.saveUsage(data,currentFingerprint,savedAt);
       this.cache = {
         data,
-        serialized: this.serialize(data),
+        serialized: null,
         fingerprint: currentFingerprint,
       };
-      this.lastSuccessAt = new Date().toISOString();
+      this.lastSuccessAt = savedAt;
       this.lastError = null;
-      await this.persist();
       if (this.onUpdated) {
         Promise.resolve(this.onUpdated(data)).catch((error) => this.logger.warn(cliText("secondarySyncFailed", error.message)));
       }
@@ -125,6 +132,7 @@ export class UsageStore {
 
   async getSerializedUsage(force = false) {
     await this.getUsage(force);
+    this.cache.serialized ??= this.serialize(this.cache.data);
     return this.cache.serialized;
   }
 
