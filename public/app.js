@@ -6,7 +6,7 @@ import { codexCreditsOfCalls as rawCreditsOfCalls, fastMultiplierFor, usageProfi
 import { apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 import { PRICING_CATALOG } from "./pricing-catalog.js";
 import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryMarkup, pricingDiagnosticsMarkup } from "./pricing-ui.js";
-import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, resolveLanguage } from "./translations.js";
+import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, MIGRATION_I18N, resolveLanguage } from "./translations.js";
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp as rawLatestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { buildQuotaForecast, estimateQuotaCapacityCredits, interpolateForecastPercent, weeklyForecastTicks } from "./quota-forecast.js";
@@ -260,6 +260,7 @@ for (const [language, messages] of Object.entries(PWA_I18N)) Object.assign(I18N[
 
 for (const [language, messages] of Object.entries(THEME_I18N)) Object.assign(I18N[language], messages);
 for (const [language, messages] of Object.entries(TIME_FORMAT_I18N)) Object.assign(I18N[language], messages);
+for (const [language, messages] of Object.entries(MIGRATION_I18N)) Object.assign(I18N[language], messages);
 
 const PAGES = ["overview", "projects", "quota", "conversations", "settings"];
 for (const [language, messages] of Object.entries(PRICING_I18N)) Object.assign(I18N[language], messages);
@@ -315,6 +316,21 @@ const state = {
 };
 
 const $ = (selector) => document.querySelector(selector);
+let migrationRequests = 0;
+function migrationChanged(active) {
+  migrationRequests += active ? 1 : -1;
+  const dialog = $('#migrationDialog');
+  if (!dialog) return;
+  if (migrationRequests > 0) {
+    $('#migrationTitle').textContent = t('migration.title');
+    $('#migrationCopy').textContent = t('migration.copy');
+    dialog.oncancel = (event) => event.preventDefault();
+    if (!dialog.open) dialog.showModal();
+  } else if (dialog.open) dialog.close();
+}
+function fetchDashboardUsage(url, options) {
+  return fetchUsage(url, options, { onMigration: migrationChanged });
+}
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const locale = () => LOCALE_TAGS[state.language] || LOCALE_TAGS.fr;
 const clockOptions = (options = {}) => ({ ...options, ...timeFormatOptions(state.timeFormat) });
@@ -1664,7 +1680,7 @@ async function loadQuotaData(force, source, signal) {
   const parameters = new URLSearchParams({ source });
   if (force) parameters.set("refresh", "1");
   const previousMetadata = quotaMetadataResponses.get(source);
-  const metadataResponse = await fetchUsage(`/api/quota?${parameters}`, { signal, cache: "no-store", headers: !force && previousMetadata?.etag ? { "If-None-Match": previousMetadata.etag } : {} });
+  const metadataResponse = await fetchDashboardUsage(`/api/quota?${parameters}`, { signal, cache: "no-store", headers: !force && previousMetadata?.etag ? { "If-None-Match": previousMetadata.etag } : {} });
   const metadata = metadataResponse.status === 304 && previousMetadata ? previousMetadata.data : await readUsageResponse(metadataResponse);
   if (signal.aborted) return;
   quotaMetadataResponses.set(source, { data: metadata, etag: metadataResponse.headers.get("etag") || previousMetadata?.etag });
@@ -1689,7 +1705,7 @@ async function loadQuotaData(force, source, signal) {
   parameters.delete("refresh");
   parameters.set("detail", "1");
   if (reset) parameters.set("period", reset);
-  const response = await fetchUsage(`/api/quota?${parameters}`, { signal, cache: "no-store", headers: !force && cached?.etag ? { "If-None-Match": cached.etag } : {} });
+  const response = await fetchDashboardUsage(`/api/quota?${parameters}`, { signal, cache: "no-store", headers: !force && cached?.etag ? { "If-None-Match": cached.etag } : {} });
   const data = response.status === 304 && cached ? cached.data : await readUsageResponse(response);
   if (signal.aborted) return;
   // A reset timestamp may be corrected between the metadata and detail reads.
@@ -1726,7 +1742,7 @@ async function loadData(force = false, silent = false) {
         const cached = pageCache.get(key);
         const parameters = new URLSearchParams({ source, query: JSON.stringify(pageQuery()) });
         if (force) parameters.set("refresh", "1");
-        const response = await fetchUsage(`/api/page?${parameters}`, { signal: controller.signal, headers: !force && cached?.etag ? {"If-None-Match":cached.etag} : {} });
+        const response = await fetchDashboardUsage(`/api/page?${parameters}`, { signal: controller.signal, headers: !force && cached?.etag ? {"If-None-Match":cached.etag} : {} });
         if (controller.signal.aborted) return;
         const data = response.status === 304 && cached ? cached.data : await readUsageResponse(response);
         if (controller.signal.aborted) return;
@@ -1786,7 +1802,7 @@ function schedulePageLoad() {
 async function loadPageExtras(view, id = null, signal) {
   try {
     const params = new URLSearchParams({source:state.dataMode, query:JSON.stringify(pageQuery(view,id))});
-    const response = await fetchUsage(`/api/page?${params}`, {signal});
+    const response = await fetchDashboardUsage(`/api/page?${params}`, {signal});
     return await readUsageResponse(response);
   } catch { if (!signal?.aborted) toast(t("load.errorToast")); return null; }
 }

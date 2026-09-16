@@ -3,8 +3,10 @@
 export async function fetchUsage(
   url,
   options = {},
-  { fetchImpl = fetch, maxRetries = 60, delayMs = 500 } = {},
+  { fetchImpl = fetch, maxRetries = 60, delayMs = 500, onMigration = () => {} } = {},
 ) {
+  let migrating = false;
+  try {
   for (let attempt = 0; ; attempt++) {
     options.signal?.throwIfAborted();
     const response = await fetchImpl(url, options);
@@ -16,6 +18,7 @@ export async function fetchUsage(
       return response;
     }
     if (details.code !== "storage_migrating") return response;
+    if (!migrating) { migrating = true; onMigration(true); }
     await new Promise((resolve, reject) => {
       const abort = () => {
         clearTimeout(timer);
@@ -28,5 +31,8 @@ export async function fetchUsage(
       if (options.signal?.aborted) abort();
       else options.signal?.addEventListener("abort", abort, { once: true });
     });
+  }
+  } finally {
+    if (migrating) onMigration(false);
   }
 }

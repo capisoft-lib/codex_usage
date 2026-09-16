@@ -390,6 +390,14 @@
     </form>
   </dialog>
 
+  <dialog id="migrationDialog" aria-labelledby="migrationTitle" aria-describedby="migrationCopy">
+    <div class="migration-content" role="status" aria-live="polite">
+      <h2 id="migrationTitle" data-i18n="migration.title">Mise à niveau des données en cours</h2>
+      <p id="migrationCopy" class="dialog-copy" data-i18n="migration.copy">Votre historique est préparé pour accélérer les prochaines consultations. Cette opération peut prendre quelques minutes au premier accès. Le tableau de bord s’affichera automatiquement.</p>
+      <progress aria-labelledby="migrationTitle"></progress>
+    </div>
+  </dialog>
+
   <aside id="pwaInstallToast" class="pwa-install-toast" aria-labelledby="pwaInstallToastTitle" hidden>
     <img class="pwa-install-toast-icon" src="./icon-192.png" alt="" aria-hidden="true">
     <div class="pwa-install-toast-copy">

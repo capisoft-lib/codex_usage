@@ -1276,3 +1276,6 @@ dialog::backdrop { background: #000b; backdrop-filter: blur(3px); }
 }
 .pricing-diagnostic strong { font-size: 13px; }
 .pricing-diagnostic small { display: block; line-height: 1.5; }
+.migration-content { padding: 28px; max-width: 480px; }
+.migration-content h2 { margin-top: 0; }
+.migration-content progress { width: 100%; accent-color: var(--accent); }

@@ -35,7 +35,7 @@ function dashboard({ mode = "centralized", view = "overview", data = { generated
     renderQuotaNav() {}, renderFreshness() {}, escapeHtml: String,
     render: () => renders.push(state.data.generatedAt), toast() {}, t: (key) => key,
   });
-  context.fetchUsage = (url, options) => fetchUsage(url, options, {fetchImpl:context.fetch,delayMs:0});
+  context.fetchDashboardUsage = (url, options) => fetchUsage(url, options, {fetchImpl:context.fetch,delayMs:0});
   vm.runInContext(`${constants}\n${loading}\n${polling}`, context);
   const flush = () => new Promise((resolve) => setImmediate(resolve));
   return {
