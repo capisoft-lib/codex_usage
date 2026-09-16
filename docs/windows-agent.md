@@ -48,6 +48,18 @@ The installer performs one synchronous enrollment and synchronization before cre
 
 Use `-Alias "Nom lisible"` only on the first association. Otherwise the Windows hostname is used. Privacy remains `hash` with titles excluded by default; the explicit alternatives are `-ProjectMode basename|full` and `-IncludeTitles`.
 
+## Show Codex conversation titles
+
+To replace `Conversation <hash>` with the titles available in the local Codex index, update the installed supervisor:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\Install-CodexUsageMesh.ps1 -Action Update -IncludeTitles
+```
+
+Reuse any custom `-TaskName`, `-InstallDirectory`, `-StatePath`, `-NodePath`, and `-ProjectMode` arguments from your installation. The update restarts the supervised agent and sends titles to its associated hub, including titles for existing conversations. Refresh the dashboard after synchronization completes.
+
+Keep `-IncludeTitles` on later installer updates: omitting it restores the default of excluding titles. This option applies to this machine only.
+
 ## Task and recovery behavior
 
 `CodexUsageMesh` has three triggers:
