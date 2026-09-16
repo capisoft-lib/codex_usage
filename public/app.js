@@ -1,3 +1,5 @@
+import { conversationTitle } from "./conversation-title.js";
+import { fetchUsage } from './storage-fetch.js';
 import { weeklyQuotaPeriods, shortQuotaDisplay, quotaCountdownText, normalizeTimeFormat, timeFormatOptions } from "./quota-display.js";
 import { quotaMetadata } from "./quota-data.js";
 import { sameQuotaReset } from "./quota-periods.js";
@@ -5,7 +7,7 @@ import { codexCreditsOfCalls as rawCreditsOfCalls, fastMultiplierFor, usageProfi
 import { apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 import { PRICING_CATALOG } from "./pricing-catalog.js";
 import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryMarkup, pricingDiagnosticsMarkup } from "./pricing-ui.js";
-import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, GROUP_I18N, resolveLanguage } from "./translations.js";
+import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, GROUP_I18N, MIGRATION_I18N, resolveLanguage } from "./translations.js";
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp as rawLatestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { buildQuotaForecast, estimateQuotaCapacityCredits, interpolateForecastPercent, weeklyForecastTicks } from "./quota-forecast.js";
@@ -259,6 +261,7 @@ for (const [language, messages] of Object.entries(PWA_I18N)) Object.assign(I18N[
 
 for (const [language, messages] of Object.entries(THEME_I18N)) Object.assign(I18N[language], messages);
 for (const [language, messages] of Object.entries(TIME_FORMAT_I18N)) Object.assign(I18N[language], messages);
+for (const [language, messages] of Object.entries(MIGRATION_I18N)) Object.assign(I18N[language], messages);
 
 for (const [language, messages] of Object.entries(GROUP_I18N)) Object.assign(I18N[language], messages);
 function loadProjectGroups() {
@@ -310,7 +313,7 @@ function saveProjectGroups(groups) {
   renderGroupEditor();
 }
 function renderGroupEditor() {
-  const rawProjects = state.data?.pageData?.projectCatalog || (() => {
+  const rawProjects = state.data?.pageData?.projectCatalog || projectCatalogCache.get(state.dataMode)?.projects || (() => {
     const originals = new Map();
     for (const session of (state.data?.pageOnly ? [] : state.data?.sessions) || []) { const p = projectIdentity(session, t("projects.unknown")); originals.set(p.key, p); }
     return [...originals.values()];
@@ -322,7 +325,7 @@ function renderGroupEditor() {
   if (signature === groupEditorSignature) return;
   const automaticOptionsOpen = $("#groupEditor details")?.open;
   const draftName = $("#groupName")?.value;
-  const draftMembers = $$("#groupForm input[name=member]:checked").map(input => input.value);
+  const draftMembers = $$("#groupForm input[name=member]:checked").flatMap(input => JSON.parse(input.dataset.members || "[]"));
   const preserveDraft = Boolean(groupEditorSignature && editingGroup === JSON.parse(groupEditorSignature).at(-1));
   groupEditorSignature = signature;
   const current = state.projectGroups.find(g => g.id === editingGroup);
@@ -333,12 +336,12 @@ function renderGroupEditor() {
     <details><summary>${t("groups.autoOptions")}</summary><label class="folder-filter-option"><input id="automaticGrouping" type="checkbox" ${state.automaticGrouping ? "checked" : ""}><span>${t("groups.autoEnable")}</span></label><p class="dialog-copy">${t("groups.autoCopy")}</p><ul>${detectedGroups.map(g=>`<li>${escapeHtml(g.name)}<small> ${escapeHtml(g.members.join(" + "))}</small></li>`).join("") || `<li>${t("groups.autoNone")}</li>`}</ul></details>
     <div class="group-list">${state.projectGroups.map(g => `<article class="group-item"><div><strong>${escapeHtml(g.name)}</strong><p>${g.members.length} ${escapeHtml(t("nav.projects"))}</p></div><button type="button" class="primary-button" data-edit-group="${escapeHtml(g.id)}">${t("groups.edit")}</button><button type="button" class="primary-button" data-remove-group="${escapeHtml(g.id)}">${t("groups.remove")}</button></article>`).join('') || `<p>${t("groups.empty")}</p>`}</div>
     <form id="groupForm"><h3>${escapeHtml(current?.name || t("groups.new"))}</h3><label for="groupName">${t("groups.name")}</label><input id="groupName" maxlength="120" required value="${escapeHtml(current?.name || '')}">
-    <fieldset><legend>${t("groups.members")}</legend><div class="group-options">${[...available.values()].sort((a,b) => a.name.localeCompare(b.name)).map(p => `<label class="folder-filter-option"><input type="checkbox" name="member" value="${escapeHtml(p.key)}" ${(p.members || [p.key]).some(key=>current?.members.includes(key)) ? 'checked' : ''} ${(p.members || [p.key]).some(key=>occupied.has(key)) ? 'disabled' : ''}><span>${escapeHtml(p.name)}<small>${escapeHtml(p.key)}</small></span></label>`).join('')}</div></fieldset>
+    <fieldset><legend>${t("groups.members")}</legend><div class="group-options">${[...available.values()].sort((a,b) => a.name.localeCompare(b.name)).map(p => `<label class="folder-filter-option"><input type="checkbox" name="member" data-members="${escapeHtml(JSON.stringify(p.members || [p.key]))}" value="${escapeHtml(p.key)}" ${(p.members || [p.key]).some(key=>current?.members.includes(key)) ? 'checked' : ''} ${(p.members || [p.key]).some(key=>occupied.has(key)) ? 'disabled' : ''}><span>${escapeHtml(p.name)}<small>${escapeHtml(p.key)}</small></span></label>`).join('')}</div></fieldset>
     <div class="group-actions"><button class="primary-button" type="submit">${t("groups.save")}</button><button class="primary-button" id="cancelGroup" type="button">${t("groups.cancel")}</button></div></form><p id="groupStatus" role="status">${catalogReady ? "" : escapeHtml(t("load.loading"))}</p>`;
   $("#groupEditor details").open = Boolean(automaticOptionsOpen);
   if (preserveDraft) {
     $("#groupName").value = draftName || "";
-    $$("#groupForm input[name=member]").forEach(input => { input.checked = draftMembers.includes(input.value); });
+    $$("#groupForm input[name=member]").forEach(input => { input.checked = JSON.parse(input.dataset.members || "[]").some(key => draftMembers.includes(key)); });
   }
   $("#automaticGrouping").onchange = event => {
     const enabled = event.target.checked;
@@ -405,7 +408,7 @@ const state = {
   usageThreshold: 0,
   page: 1,
   pageSize: 25,
-  sortKey: "tokens",
+  sortKey: "lastCall",
   sortDirection: "desc",
   language: preferredLanguage(),
   timeFormat: loadTimeFormat(),
@@ -416,6 +419,21 @@ const state = {
 };
 
 const $ = (selector) => document.querySelector(selector);
+let migrationRequests = 0;
+function migrationChanged(active) {
+  migrationRequests += active ? 1 : -1;
+  const dialog = $('#migrationDialog');
+  if (!dialog) return;
+  if (migrationRequests > 0) {
+    $('#migrationTitle').textContent = t('migration.title');
+    $('#migrationCopy').textContent = t('migration.copy');
+    dialog.oncancel = (event) => event.preventDefault();
+    if (!dialog.open) dialog.showModal();
+  } else if (dialog.open) dialog.close();
+}
+function fetchDashboardUsage(url, options) {
+  return fetchUsage(url, options, { onMigration: migrationChanged });
+}
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const locale = () => LOCALE_TAGS[state.language] || LOCALE_TAGS.fr;
 const clockOptions = (options = {}) => ({ ...options, ...timeFormatOptions(state.timeFormat) });
@@ -691,7 +709,7 @@ function formatDuration(ms) {
   return t("duration.minutes", { m: minutes, s: seconds % 60 });
 }
 
-function sessionTitle(session) { return session.title === "Conversation sans titre" ? t("conversation.untitled") : session.title; }
+function sessionTitle(session) { return conversationTitle(session); }
 function projectName(session) { return projectIdentity(session, t("projects.unknown"), effectiveProjectGroups()).name; }
 
 function projectGroups(sessions) {
@@ -768,6 +786,49 @@ function modelGroups(calls) {
   return [...groups.values()]
     .map((group) => ({ ...group, cost: costOfCalls(group.calls), tokens: sumUsage(group.calls).totalTokens }))
     .sort((left, right) => right.cost.cost - left.cost.cost);
+}
+
+const loadingRegions = new Map();
+function setPageLoading(active) {
+  for (const [element, {overlay, wrapper}] of loadingRegions) {
+    overlay.remove(); element.removeAttribute('aria-busy'); wrapper.classList.remove('region-loading'); wrapper.classList.remove('metric-loading');
+  }
+  loadingRegions.clear();
+  if (!active) return;
+  if (state.view === 'overview') {
+    if (!$('#costSummary')?.children.length) renderCostSummary([]);
+    if (!$('#kpis')?.children.length) renderKpis([],[],sumUsage([]));
+  }
+  const selectors = {
+    overview: ['#costSummary .cost-value','#costSummary .cost-coverage','#costSummary .cost-part strong','#kpis .kpi-value','#costChart','#overviewProjects','#recentConversations'],
+    projects: ['#projectList','#projectDetail'],
+    conversations: ['#conversationRows'],
+    quota: ['#quotaHero','#quotaKpis','#quotaChart','#quotaForecastSummary','#quotaForecastChart'],
+    settings: ['#settingsNodes'],
+  };
+  for (const element of (selectors[state.view] || []).flatMap(selector => $$(selector))) {
+    if (!element) continue;
+    const table = element.tagName === 'TBODY';
+    const metric = element.matches('.cost-value,.cost-coverage,.cost-part strong,.kpi-value');
+    let wrapper = metric ? element : table ? element.closest('.table-wrap') : element.parentElement;
+    if (!table && !metric && !wrapper.classList.contains('data-region')) {
+      wrapper = document.createElement('div'); wrapper.className = 'data-region';
+      element.before(wrapper); wrapper.append(element);
+    }
+    const overlay = document.createElement(table ? 'tr' : 'div'); overlay.className = table ? 'region-loader-row' : 'region-loader';
+    let content = overlay;
+    if (table) {
+      const cell = document.createElement('td'); cell.colSpan = element.closest('table').querySelectorAll('thead th').length;
+      content = document.createElement('div'); content.className = 'region-loader'; cell.append(content); overlay.append(cell);
+    }
+    content.setAttribute('role','status');
+    const spinner = document.createElement('span'); spinner.className = 'page-loader-spinner'; spinner.setAttribute('aria-hidden','true');
+    const label = document.createElement('span'); label.textContent = t(state.dataMode === 'centralized' ? 'load.loadingCentralized' : 'load.loading');
+    content.append(spinner,label);
+    element.setAttribute('aria-busy','true'); wrapper.classList.add(metric ? 'metric-loading' : 'region-loading');
+    (table ? element : wrapper).append(overlay);
+    loadingRegions.set(element,{overlay,wrapper});
+  }
 }
 
 function render() {
@@ -1769,7 +1830,7 @@ async function loadQuotaData(force, source, signal) {
   const parameters = new URLSearchParams({ source });
   if (force) parameters.set("refresh", "1");
   const previousMetadata = quotaMetadataResponses.get(source);
-  const metadataResponse = await fetch(`/api/quota?${parameters}`, { signal, cache: "no-store", headers: !force && previousMetadata?.etag ? { "If-None-Match": previousMetadata.etag } : {} });
+  const metadataResponse = await fetchDashboardUsage(`/api/quota?${parameters}`, { signal, cache: "no-store", headers: !force && previousMetadata?.etag ? { "If-None-Match": previousMetadata.etag } : {} });
   const metadata = metadataResponse.status === 304 && previousMetadata ? previousMetadata.data : await readUsageResponse(metadataResponse);
   if (signal.aborted) return;
   quotaMetadataResponses.set(source, { data: metadata, etag: metadataResponse.headers.get("etag") || previousMetadata?.etag });
@@ -1794,7 +1855,7 @@ async function loadQuotaData(force, source, signal) {
   parameters.delete("refresh");
   parameters.set("detail", "1");
   if (reset) parameters.set("period", reset);
-  const response = await fetch(`/api/quota?${parameters}`, { signal, cache: "no-store", headers: !force && cached?.etag ? { "If-None-Match": cached.etag } : {} });
+  const response = await fetchDashboardUsage(`/api/quota?${parameters}`, { signal, cache: "no-store", headers: !force && cached?.etag ? { "If-None-Match": cached.etag } : {} });
   const data = response.status === 304 && cached ? cached.data : await readUsageResponse(response);
   if (signal.aborted) return;
   // A reset timestamp may be corrected between the metadata and detail reads.
@@ -1825,6 +1886,7 @@ async function loadData(force = false, silent = false) {
   const controller = new AbortController();
   dataController = controller;
   dataRequestKey = key;
+  if (!state.data) setPageLoading(true);
 
   if (!silent) $("#refreshButton").classList.add("loading");
   dataRequest = (async () => {
@@ -1834,7 +1896,7 @@ async function loadData(force = false, silent = false) {
         const cached = pageCache.get(key);
         const parameters = new URLSearchParams({ source, query: JSON.stringify(pageQuery()) });
         if (force) parameters.set("refresh", "1");
-        const response = await fetch(`/api/page?${parameters}`, { signal: controller.signal, headers: !force && cached?.etag ? {"If-None-Match":cached.etag} : {} });
+        const response = await fetchDashboardUsage(`/api/page?${parameters}`, { signal: controller.signal, headers: !force && cached?.etag ? {"If-None-Match":cached.etag} : {} });
         if (controller.signal.aborted) return;
         const data = response.status === 304 && cached ? cached.data : await readUsageResponse(response);
         if (controller.signal.aborted) return;
@@ -1859,6 +1921,7 @@ async function loadData(force = false, silent = false) {
       }
     } finally {
       if (dataController === controller) {
+        setPageLoading(false);
         $("#refreshButton").classList.remove("loading");
         dataRequest = null;
         dataRequestKey = null;
@@ -1891,13 +1954,15 @@ function pageRequestKey() { return `${state.dataMode}:${JSON.stringify(pageQuery
 function schedulePageLoad() {
   clearTimeout(pageLoadTimer);
   dataController?.abort();
+  dataController = null; dataRequest = null; dataRequestKey = null;
+  setPageLoading(true);
   $("#freshness").textContent = t("quota.loading");
   pageLoadTimer = setTimeout(()=>void loadData(false,true),180);
 }
 async function loadPageExtras(view, id = null, signal) {
   try {
     const params = new URLSearchParams({source:state.dataMode, query:JSON.stringify(pageQuery(view,id))});
-    const response = await fetch(`/api/page?${params}`, {signal});
+    const response = await fetchDashboardUsage(`/api/page?${params}`, {signal});
     return await readUsageResponse(response);
   } catch { if (!signal?.aborted) toast(t("load.errorToast")); return null; }
 }
@@ -2061,7 +2126,7 @@ $("#resetTableFilters").addEventListener("click", () => {
   state.node = "all";
   state.folders.clear();
   state.usageThreshold = 0;
-  state.sortKey = "tokens";
+  state.sortKey = "lastCall";
   state.sortDirection = "desc";
   state.page = 1;
   $("#searchInput").value = "";
@@ -2186,7 +2251,7 @@ function showPage(page, { updateHash = true } = {}) {
   }
   if (state.data) render();
   else { syncPageChrome(); renderFreshness(); }
-  if (switchedPage || !state.data) void loadData(false, true);
+  if (switchedPage || !state.data) { setPageLoading(true); void loadData(false, true); }
 }
 
 window.addEventListener("hashchange", () => {

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -32,7 +32,7 @@ test("serves a memory snapshot and only analyzes changed usage", async () => {
   await store.refresh(true);
   assert.equal(analyses, 3);
 
-  const persisted = JSON.parse(await readFile(snapshotPath, "utf8"));
+  const persisted = store.repository.loadUsage();
   assert.equal(persisted.fingerprint, "two");
   assert.equal(persisted.data.generatedAt, "2026-08-11T00:00:03.000Z");
 });

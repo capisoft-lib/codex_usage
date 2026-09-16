@@ -115,7 +115,7 @@
       </div>
     </header>
 
-    <main>
+    <main id="pageContent">
       <section class="page" data-page="overview">
         <div class="hero-status">
           <div class="privacy-pill mobile-privacy"><span></span> <span class="privacy-copy" data-i18n="hero.privacy">Données locales uniquement</span></div>
@@ -391,6 +391,14 @@
       <button id="exportPricing" type="button" class="secondary-button" data-i18n="dated.export">Exporter le calcul</button>
       <div class="dialog-actions"><button id="resetPricing" type="button" class="secondary-button" data-i18n="pricing.reset">Valeurs par défaut</button><button id="savePricing" value="default" class="primary-button" data-i18n="pricing.save">Enregistrer</button></div>
     </form>
+  </dialog>
+
+  <dialog id="migrationDialog" aria-labelledby="migrationTitle" aria-describedby="migrationCopy">
+    <div class="migration-content" role="status" aria-live="polite">
+      <h2 id="migrationTitle" data-i18n="migration.title">Mise à niveau des données en cours</h2>
+      <p id="migrationCopy" class="dialog-copy" data-i18n="migration.copy">Votre historique est préparé pour accélérer les prochaines consultations. Cette opération peut prendre quelques minutes au premier accès. Le tableau de bord s’affichera automatiquement.</p>
+      <progress aria-labelledby="migrationTitle"></progress>
+    </div>
   </dialog>
 
   <aside id="pwaInstallToast" class="pwa-install-toast" aria-labelledby="pwaInstallToastTitle" hidden>

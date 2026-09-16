@@ -20,6 +20,7 @@ if (options.once) {
   const data = await collector.refresh();
   await collector.meshAgent.sync(data);
   collector.stop();
+  await collector.close();
   console.log(cliText("oneShotComplete", collector.meshAgent.status().alias));
   process.exit(0);
 }
@@ -28,8 +29,9 @@ collector.start({ unrefTimer: false });
 await collector.refresh();
 console.log(cliText("agentActive", collector.meshAgent.status().alias));
 
-function shutdown() {
+async function shutdown() {
   collector.stop();
+  await collector.close();
   process.exit(0);
 }
 

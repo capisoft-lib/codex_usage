@@ -3,6 +3,19 @@ import assert from 'node:assert/strict';
 import { createPageData } from '../public/page-data.js';
 import { apiCostOfCalls, mergeApiPricing } from '../public/api-pricing.js';
 import { codexCreditsOfCalls } from '../public/usage-pricing.js';
+import { conversationTitle } from '../public/conversation-title.js';
+
+test('untitled archived sessions show and search by the legacy identifier in every view', () => {
+  const session = {id:'node:archived',sourceSessionId:'archived',title:'Conversation sans titre',calls:[{timestamp:'2026-09-15T12:00:00Z',model:'gpt-test',usage:{inputTokens:1,totalTokens:1}}]};
+  const expected = conversationTitle(session);
+  for (const view of ['overview','conversations','detail','pricing']) {
+    const builder = createPageData({}, {view,search:expected,start:'2026-09-15',end:'2026-09-16'});
+    builder.add(session);
+    const result = builder.finish();
+    assert.equal(result.sessions[0].title, expected);
+  }
+  assert.equal(session.title, 'Conversation sans titre');
+});
 
 const calls = Array.from({length:80},(_,i)=>({timestamp:`2026-09-15T${String(i%24).padStart(2,'0')}:00:00.000Z`,model:i%2?'gpt-6-astra':'gpt-5.6-sol',serviceTier:i%3?'default':'priority',effort:'high',usage:{inputTokens:500000+i,cachedInputTokens:400000,outputTokens:1000,totalTokens:501000+i}}));
 const sessions = calls.map((call,i)=>({id:`s${i}`,title:`Conversation ${i}`,cwd:`/project${i%4}`,projectName:`Project ${i%4}`,models:[call.model],nodeId:'a',nodeAlias:'A',startedAt:call.timestamp,calls:[call,{...call,timestamp:'2025-01-01T00:00:00Z'}],turns:[{startedAt:call.timestamp,model:call.model,durationMs:1200}]}));

@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   try {
     const viewer = requireViewer(request);
     const hubUrl = publicMeshIngressUrl();
-    const raw = randomBytes(16).toString("hex").toUpperCase();
+    const raw = Array.from(randomBytes(16), value => value.toString(16).padStart(2,'0')).join('').toUpperCase();
     const code = raw.match(/.{4}/g)!.join("-");
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000).toISOString();

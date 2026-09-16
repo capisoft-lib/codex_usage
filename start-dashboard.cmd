@@ -4,15 +4,15 @@ cd /d "%~dp0"
 
 where node >nul 2>nul
 if errorlevel 1 (
-  echo Node.js 20 ou plus recent est requis.
+  echo Node.js 22.13 ou plus recent est requis.
   echo https://nodejs.org/
   pause
   exit /b 1
 )
 
-node -e "if (Number(process.versions.node.split('.')[0]) < 20) process.exit(1)"
+node -e "const [major,minor]=process.versions.node.split('.').map(Number); if (major<22 || (major===22 && minor<13)) process.exit(1)"
 if errorlevel 1 (
-  echo Cette version de Node.js est trop ancienne. Installez Node.js 20 ou plus recent.
+  echo Cette version de Node.js est trop ancienne. Installez Node.js 22.13 ou plus recent.
   pause
   exit /b 1
 )

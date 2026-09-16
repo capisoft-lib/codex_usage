@@ -1,6 +1,7 @@
 import { requireViewer } from "../../../lib/auth";
 import { json } from "../../../lib/mesh";
 import { aggregateUsageForOwner } from "../../../lib/usage";
+import { StorageMigrationPending } from '../../../lib/session-reader';
 
 export async function GET(request: Request) {
   try {
@@ -9,6 +10,7 @@ export async function GET(request: Request) {
     return json(await aggregateUsageForOwner(requireViewer(request).id));
   } catch (error) {
     if (error instanceof Response) return error;
+    if (error instanceof StorageMigrationPending) return json({error:error.message,code:error.code},503);
     return json({ error: "Lecture centralisée impossible." }, 500);
   }
 }

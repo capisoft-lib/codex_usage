@@ -12,6 +12,7 @@ coverage/
 dist/
 sites-hub/public/dashboard/
 .cache/
+.wrangler/
 .codex/
 .codex-remote-attachments/
 auth.json
@@ -29,6 +30,7 @@ usage-snapshot*.json
 *.sqlite
 *.sqlite-*
 *.db
+*.tsbuildinfo
 
 # Private keys and common credential exports.
 *.pem

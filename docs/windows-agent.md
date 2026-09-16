@@ -7,7 +7,7 @@ The installer operates only on the local scheduled task and local files. It neve
 ## Prerequisites
 
 - Windows 10 or Windows 11;
-- Node.js 20 or newer available to the current user;
+- Node.js 22.13 or newer available to the current user;
 - this repository checked out locally;
 - the same Windows user that owns the local Codex session data;
 - either an existing `.cache\mesh-agent.json` association or a fresh one-time association code.
@@ -47,6 +47,18 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\Instal
 The installer performs one synchronous enrollment and synchronization before creating the supervised task. The one-time code appears only in that initial process invocation; it is not written to the task, launcher, state, or logs. Later starts load the hub URL and Ed25519 identity from the state file.
 
 Use `-Alias "Nom lisible"` only on the first association. Otherwise the Windows hostname is used. Privacy remains `hash` with titles excluded by default; the explicit alternatives are `-ProjectMode basename|full` and `-IncludeTitles`.
+
+## Show Codex conversation titles
+
+To replace `Conversation <hash>` with the titles available in the local Codex index, update the installed supervisor:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\Install-CodexUsageMesh.ps1 -Action Update -IncludeTitles
+```
+
+Reuse any custom `-TaskName`, `-InstallDirectory`, `-StatePath`, `-NodePath`, and `-ProjectMode` arguments from your installation. The update restarts the supervised agent and sends titles to its associated hub, including titles for existing conversations. Refresh the dashboard after synchronization completes.
+
+Keep `-IncludeTitles` on later installer updates: omitting it restores the default of excluding titles. This option applies to this machine only.
 
 ## Task and recovery behavior
 

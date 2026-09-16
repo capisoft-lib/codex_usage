@@ -9,7 +9,7 @@
     "test": "node --test smoke.test.mjs"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.13.0"
   },
   "devDependencies": {
     "electron": "44.1.1",

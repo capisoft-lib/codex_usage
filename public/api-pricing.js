@@ -76,7 +76,9 @@ export function apiCostOfCalls(calls = [], pricing = mergeApiPricing()) {
     const price = pricing.mode === "custom" ? apiPriceFor(pricing, call.model, call.effort) : rate.standard;
     if (writes > 0 && (!rate?.cacheWriteMultiplier || price.input === null)) { omit("unsupported-cache-write"); continue; }
     if ((fresh && price.input === null) || (cached && price.cached === null) || (output && price.output === null)) { omit("unsupported-token-type"); continue; }
-    const longContext = Boolean(rate?.longContextThreshold && input > rate.longContextThreshold);
+    // SQL summary groups contain summed counters but a per-call context band.
+    // This internal marker is never part of the public/Mesh event contract.
+    const longContext = Boolean(rate?.longContextThreshold && (call._contextInputTokens ?? input) > rate.longContextThreshold);
     const tier = call.serviceTier || "default";
     const fast = tier === "priority" || tier === "fast";
     if (!["default", "standard", "priority", "fast"].includes(tier)) { omit("unsupported-tier"); continue; }

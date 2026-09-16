@@ -38,7 +38,9 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
     for(let i=0;i<501;i++) insertSession.run("a",String(i).padStart(4,"0")+"-old",JSON.stringify({startedAt:"2020-01-01",models:["old-model"],cwd:"old-project",calls:[{...value,timestamp:"2020-01-01T00:00:00Z"}],turns:[]}));
     for (const node of ["b", "c"]) insertSession.run(node, "excluded", JSON.stringify({ calls: [value] }));
     database.exec(await readFile(new URL("../drizzle/0005_wise_anthem.sql", import.meta.url), "utf8"));
-    const prefix = `import { readSessionSlices } from ${JSON.stringify(new URL("../lib/session-reader.ts", import.meta.url).href)};\nimport { normalizeQuotaPeriods, matchesQuotaEtag } from ${JSON.stringify(new URL("../../public/quota-periods.js", import.meta.url).href)};\nconst db = () => globalThis[${JSON.stringify(globalsKey)}];\n`;
+    database.exec("ALTER TABLE mesh_nodes ADD last_payload_hash TEXT");
+    database.exec(await readFile(new URL("../drizzle/0006_relational_usage.sql", import.meta.url), "utf8"));
+    const prefix = `import { readSessionSlices, readFilters, migrateLegacySessions, StorageMigrationPending } from ${JSON.stringify(new URL("../lib/session-reader.ts", import.meta.url).href)};\nimport { normalizeQuotaPeriods, matchesQuotaEtag } from ${JSON.stringify(new URL("../../public/quota-periods.js", import.meta.url).href)};\nconst db = () => globalThis[${JSON.stringify(globalsKey)}];\n`;
     const usage = await load("../lib/usage.ts", prefix);
     globalThis[`${globalsKey}Metadata`] = usage.quotaMetadataForOwner;
     const route = await load("../app/api/page/route.ts", prefix + `
@@ -58,10 +60,12 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
     assert.ok(!JSON.stringify(catalogue).includes('excluded'));
     assert.equal(sessionQueries,0, 'Catalogue must not read or aggregate calls');
     const query={view:"overview",start,end:now};
+    assert.equal((await route.GET(request(query))).status,503);
+    assert.equal((await route.GET(request(query))).status,503);
     const response=await route.GET(request(query));assert.equal(response.status,200);
-    const data=await response.json();assert.equal(data.pageData.totals.count,501);assert.equal(data.sessions.length,6);assert.equal(sessionQueries,2);assert.equal(materializedRows,501);
+    const data=await response.json();assert.equal(data.pageData.totals.count,501);assert.equal(data.sessions.length,6);assert.equal(sessionQueries,4);assert.equal(materializedRows,501);
     assert.ok(data.sessions.every(s=>s.calls.length===0 && s.turns.length===0));
-    const unchanged=await route.GET(request(query,{"If-None-Match":`W/${response.headers.get("etag")}`}));assert.equal(unchanged.status,304);assert.equal(sessionQueries,2);
+    const unchanged=await route.GET(request(query,{"If-None-Match":`W/${response.headers.get("etag")}`}));assert.equal(unchanged.status,304);assert.equal(sessionQueries,4);
     const list=await (await route.GET(request({...query,view:"conversations",page:2,pageSize:20}))).json();
     assert.equal(list.sessions.length,20);assert.equal(list.pageData.total,501);assert.equal(list.pageData.page,2);assert.ok(list.pageData.filters.models.includes("old-model"));
     const detail=await (await route.GET(request({...query,view:"detail",id:"a:0001"}))).json();assert.equal(detail.sessions.length,1);assert.equal(detail.sessions[0].calls.length,1);

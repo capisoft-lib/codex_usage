@@ -4,6 +4,7 @@ import test from "node:test";
 import vm from "node:vm";
 import { weeklyQuotaPeriods } from "../public/quota-display.js";
 import { sameQuotaReset } from "../public/quota-periods.js";
+import { fetchUsage } from '../public/storage-fetch.js';
 
 const source = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 const constants = source.slice(source.indexOf("const POLL_INTERVAL_MS"), source.indexOf("const CUSTOM_RANGE_KEY"));
@@ -30,10 +31,11 @@ function dashboard({ mode = "centralized", view = "overview", data = { generated
     setInterval: (callback, interval) => timers.push({ callback, interval, next: now + interval }),
     $: () => ({ classList: { add() {}, remove() {} }, textContent: "" }),
     loadUsageCache: () => null, saveUsageCache() {},
-    populateNodes() {}, populateModels() {}, populateFolders() {}, syncQuotaClock() {},
+    populateNodes() {}, populateModels() {}, populateFolders() {}, syncQuotaClock() {}, setPageLoading() {},
     renderQuotaNav() {}, renderFreshness() {}, escapeHtml: String,
     render: () => renders.push(state.data.generatedAt), toast() {}, t: (key) => key,
   });
+  context.fetchDashboardUsage = (url, options) => fetchUsage(url, options, {fetchImpl:context.fetch,delayMs:0});
   vm.runInContext(`${constants}\n${loading}\n${polling}`, context);
   const flush = () => new Promise((resolve) => setImmediate(resolve));
   return {
