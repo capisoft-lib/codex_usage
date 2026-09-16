@@ -1,3 +1,4 @@
+import { DASHBOARD_ASSETS } from "../../scripts/dashboard-assets.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -58,7 +59,8 @@ test("packages the local dashboard as the hosted centralized interface", async (
   assert.match(app, /\/api\/page/);
   assert.doesNotMatch(app, /\/api\/centralized-usage/);
   assert.equal(manifest.version, 1);
-  assert.equal(Object.keys(manifest.assets).length, 31);
+  assert.equal(Object.keys(manifest.assets).length, DASHBOARD_ASSETS.length);
+  assert.ok(manifest.assets["conversation-title.js"]);
   assert.ok(manifest.assets['storage-fetch.js']);
   assert.ok(manifest.assets["quota-periods.js"]);
   assert.ok(manifest.assets["quota-data.js"]);

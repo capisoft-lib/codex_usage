@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { conversationTitle } from "../public/conversation-title.js";
 import { toPublicUsage } from "./public-usage.mjs";
 import { canonicalJson, sha256 } from "./mesh-protocol.mjs";
 
@@ -24,7 +25,7 @@ export function sanitizeUsageForMesh(data, options = {}) {
   const publicData = toPublicUsage(data);
   const sessions = publicData.sessions.map((session) => ({
     ...session,
-    title: includeTitles ? session.title : `Conversation ${sha256(session.id).slice(0, 8)}`,
+    title: includeTitles ? conversationTitle(session) : `Conversation ${sha256(session.id).slice(0, 8)}`,
     cwd: projectValue(session.cwd, projectMode, projectSalt),
   }));
   return {
