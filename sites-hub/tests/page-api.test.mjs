@@ -14,6 +14,7 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
     const statement = database.prepare(sql);
     return { bind(...values) { return {
       first: async () => statement.get(...values),
+      run: async () => ({meta:statement.run(...values)}),
       all: async () => { const results=statement.all(...values); if(sql.includes("AS snapshot_json")) materializedRows+=results.length; return {results}; },
     }; } };
   } };
@@ -36,6 +37,7 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
     for (let i = 0; i < 501; i++) insertSession.run("a", String(i).padStart(4, "0"), JSON.stringify({ startedAt: "2020-01-01", title: "never-return-this-title", calls: [{ ...value, timestamp: "2020-01-01T00:00:00Z" }, value], turns: [{ private: "omit" }] }));
     for(let i=0;i<501;i++) insertSession.run("a",String(i).padStart(4,"0")+"-old",JSON.stringify({startedAt:"2020-01-01",models:["old-model"],cwd:"old-project",calls:[{...value,timestamp:"2020-01-01T00:00:00Z"}],turns:[]}));
     for (const node of ["b", "c"]) insertSession.run(node, "excluded", JSON.stringify({ calls: [value] }));
+    database.exec(await readFile(new URL("../drizzle/0005_wise_anthem.sql", import.meta.url), "utf8"));
     const prefix = `import { readSessionSlices } from ${JSON.stringify(new URL("../lib/session-reader.ts", import.meta.url).href)};\nimport { normalizeQuotaPeriods, matchesQuotaEtag } from ${JSON.stringify(new URL("../../public/quota-periods.js", import.meta.url).href)};\nconst db = () => globalThis[${JSON.stringify(globalsKey)}];\n`;
     const usage = await load("../lib/usage.ts", prefix);
     globalThis[`${globalsKey}Metadata`] = usage.quotaMetadataForOwner;
@@ -60,6 +62,15 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
       const blocked=await (await route.GET(request({...query,view:"detail",id}))).json();assert.equal(blocked.sessions.length,0);
     }
     assert.equal((await route.GET(request({view:"invalid"}))).status,400);
+    // Date bounds must track edits and new snapshots, including malformed dates.
+    database.prepare("UPDATE mesh_sessions SET snapshot_json=? WHERE node_id='a' AND session_id='0001'").run(JSON.stringify({calls:[{...value,timestamp:'2020-01-01'}, {...value,timestamp:'invalid'}]}));
+    const indexed=database.prepare("SELECT first_call_day,last_call_day,invalid_call_dates FROM mesh_sessions WHERE node_id='a' AND session_id='0001'").get();
+    assert.equal(indexed.first_call_day,indexed.last_call_day);assert.equal(indexed.invalid_call_dates,1);
+    const updated=await (await route.GET(request({...query,view:'detail',id:'a:0001'}))).json();assert.equal(updated.sessions.length,0);
+    database.prepare("INSERT INTO mesh_sessions(node_id,session_id,snapshot_json) VALUES('a','new',?)").run(JSON.stringify({calls:[value]}));
+    assert.equal(database.prepare("SELECT invalid_call_dates FROM mesh_sessions WHERE session_id='new'").get().invalid_call_dates,0);
+    const plan=database.prepare("EXPLAIN QUERY PLAN SELECT session_id FROM mesh_sessions WHERE node_id=? AND last_call_day>=julianday(?) AND first_call_day<=julianday(?)").all('a',start,now);
+    assert.ok(plan.some(row=>row.detail.includes('USING INDEX mesh_sessions_node_call_range')));
   } finally {
     database.close();
     delete globalThis[globalsKey];

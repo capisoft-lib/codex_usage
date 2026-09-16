@@ -13,6 +13,7 @@ test("quota API filters calls in SQLite, isolates owners, paginates and validate
     const statement = database.prepare(sql);
     return { bind(...values) { return {
       first: async () => statement.get(...values),
+      run: async () => ({meta:statement.run(...values)}),
       all: async () => ({ results: statement.all(...values) }),
     }; } };
   } };
@@ -34,6 +35,7 @@ test("quota API filters calls in SQLite, isolates owners, paginates and validate
     const insertSession = database.prepare("INSERT INTO mesh_sessions VALUES (?, ?, ?)");
     for (let i = 0; i < 501; i++) insertSession.run("a", String(i).padStart(4, "0"), JSON.stringify({ startedAt: "2020-01-01", title: "never-return-this-title", calls: [{ ...value, timestamp: "2020-01-01T00:00:00Z" }, value], turns: [{ private: "omit" }] }));
     for (const node of ["b", "c"]) insertSession.run(node, "excluded", JSON.stringify({ calls: [value] }));
+    database.exec(await readFile(new URL("../drizzle/0005_wise_anthem.sql", import.meta.url), "utf8"));
     const prefix = `import { readSessionSlices } from ${JSON.stringify(new URL("../lib/session-reader.ts", import.meta.url).href)};\nimport { normalizeQuotaPeriods, matchesQuotaEtag } from ${JSON.stringify(new URL("../../public/quota-periods.js", import.meta.url).href)};\nconst db = () => globalThis[${JSON.stringify(globalsKey)}];\n`;
     const usage = await load("../lib/usage.ts", prefix);
     globalThis[`${globalsKey}Metadata`] = usage.quotaMetadataForOwner;
