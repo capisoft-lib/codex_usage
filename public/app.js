@@ -789,7 +789,7 @@ function modelGroups(calls) {
 }
 
 const loadingRegions = new Map();
-function setPageLoading(active) {
+function setPageLoading(active, error = null) {
   for (const [element, {overlay, wrapper}] of loadingRegions) {
     overlay.remove(); element.removeAttribute('aria-busy'); wrapper.classList.remove('region-loading'); wrapper.classList.remove('metric-loading');
   }
@@ -821,9 +821,10 @@ function setPageLoading(active) {
       const cell = document.createElement('td'); cell.colSpan = element.closest('table').querySelectorAll('thead th').length;
       content = document.createElement('div'); content.className = 'region-loader'; cell.append(content); overlay.append(cell);
     }
-    content.setAttribute('role','status');
+    content.setAttribute('role', error ? 'alert' : 'status');
     const spinner = document.createElement('span'); spinner.className = 'page-loader-spinner'; spinner.setAttribute('aria-hidden','true');
-    const label = document.createElement('span'); label.textContent = t(state.dataMode === 'centralized' ? 'load.loadingCentralized' : 'load.loading');
+    spinner.hidden = Boolean(error);
+    const label = document.createElement('span'); label.textContent = error || t(state.dataMode === 'centralized' ? 'load.loadingCentralized' : 'load.loading');
     content.append(spinner,label);
     element.setAttribute('aria-busy','true'); wrapper.classList.add(metric ? 'metric-loading' : 'region-loading');
     (table ? element : wrapper).append(overlay);
@@ -1886,7 +1887,9 @@ async function loadData(force = false, silent = false) {
   const controller = new AbortController();
   dataController = controller;
   dataRequestKey = key;
-  if (!state.data) setPageLoading(true);
+  const missingPage = !quotaView && (!state.data || (state.data.pageOnly && state.data.requestKey !== key));
+  let pageError = null;
+  if (!state.data || missingPage) setPageLoading(true);
 
   if (!silent) $("#refreshButton").classList.add("loading");
   dataRequest = (async () => {
@@ -1902,26 +1905,27 @@ async function loadData(force = false, silent = false) {
         if (controller.signal.aborted) return;
         data.requestKey = key;
         if (data.pageData?.view === "conversations") { state.page = data.pageData.page; data.requestKey = pageRequestKey(); }
-        pageCache.delete(key); pageCache.set(key, {data, etag:response.headers?.get("etag") || cached?.etag});
+        pageCache.delete(key); pageCache.set(key, {data, etag:response.headers?.get("etag") || (response.status === 304 ? cached?.etag : null)});
         while (pageCache.size > 4) pageCache.delete(pageCache.keys().next().value);
         applyUsageData(data);
       }
       if (force && !controller.signal.aborted) toast(t(source === "centralized" ? "refresh.doneCentralized" : "refresh.done"));
     } catch (error) {
       if (controller.signal.aborted) return;
+      if (missingPage) pageError = t("load.error", { error: error.message });
       if (quotaView && state.data?.quotaOnly && !state.data.quotaDetail) {
         $("#quotaChart").innerHTML = `<p role="alert">${escapeHtml(t("load.error", { error: error.message }))}</p>`;
       }
       if (state.view === "project-groups") {
         $("#groupStatus").textContent = t("load.error", { error: error.message });
       }
-      if (!silent || !state.data || state.view === "project-groups") {
+      if (!silent || !state.data || missingPage || state.view === "project-groups") {
         $("#freshness").textContent = t("load.error", { error: error.message });
         toast(t("load.errorToast"));
       }
     } finally {
       if (dataController === controller) {
-        setPageLoading(false);
+        setPageLoading(Boolean(pageError), pageError);
         $("#refreshButton").classList.remove("loading");
         dataRequest = null;
         dataRequestKey = null;

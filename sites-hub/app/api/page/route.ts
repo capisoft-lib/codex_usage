@@ -48,7 +48,12 @@ export async function GET(request: Request) {
         const filters=await readFilters(db(),owner);
         for(const cwd of filters.folders) builder.add({cwd,models:filters.models,calls:[],turns:[]});
       }
-      if((await quotaMetadataForOwner(owner)).revision !== metadata.revision) return json({error:'Les données ont changé pendant la lecture. Réessayez.'},409);
+      // Ingestion and quota updates can advance the revision during a long
+      // history read. The completed summaries remain useful, but must never
+      // be cached as an exact representation of the starting revision.
+      if((await quotaMetadataForOwner(owner)).revision !== metadata.revision) {
+        return Response.json(builder.finish(), {headers: {'Cache-Control':'private, no-store', Vary:headers.Vary}});
+      }
     }
     return Response.json(builder.finish(),{headers});
   } catch(error) {

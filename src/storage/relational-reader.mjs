@@ -124,6 +124,9 @@ export async function readSessionSlices(
     : `json_patch(s.snapshot_json,json_object('models',json(${models}),'calls',json(${calls}),'turns',json(${turns})))`;
   let cursorNode = "",
     cursorSession = "";
+  // Summary pages transfer compact aggregates, so use fewer D1 round trips.
+  // Raw detail/export reads keep the smaller memory-bounded batches.
+  const batchSize = options.aggregate ? 1024 : 128;
   for (;;) {
     const values = model ? (callsOnly ? [model] : [model, model]) : [];
     values.push(owner, cursorNode, cursorSession);
@@ -153,16 +156,19 @@ export async function readSessionSlices(
     }
     const result = await database
       .prepare(
-        `SELECT s.node_id,s.session_id,${projection} AS snapshot_json
+        `WITH page AS MATERIALIZED (
+      SELECT s.node_id,s.session_id,s.snapshot_json
       FROM mesh_sessions s JOIN mesh_nodes n ON n.id=s.node_id
       WHERE n.owner_id=? AND n.revoked_at IS NULL AND (s.node_id,s.session_id)>(?,?)${where}
-      ORDER BY s.node_id,s.session_id LIMIT 128`,
+      ORDER BY s.node_id,s.session_id LIMIT ${batchSize})
+      SELECT s.node_id,s.session_id,${projection} AS snapshot_json FROM page s
+      ORDER BY s.node_id,s.session_id`,
       )
-      .bind(...values)
+      .bind(...(model ? [...values.slice(callsOnly ? 1 : 2), ...values.slice(0, callsOnly ? 1 : 2)] : values))
       .all();
     const rows = result.results || [];
     for (const row of rows) await consume(row);
-    if (rows.length < 128) break;
+    if (rows.length < batchSize) break;
     cursorNode = rows.at(-1).node_id;
     cursorSession = rows.at(-1).session_id;
   }
