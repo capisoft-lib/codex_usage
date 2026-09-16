@@ -290,3 +290,9 @@ export const TIME_FORMAT_I18N = Object.fromEntries(Object.entries(TIME_FORMAT_LA
   language,
   Object.fromEntries(["title", "copy", "label", "system", "twelve", "twentyFour"].map((key, index) => [`timeFormat.${key}`, labels[index]])),
 ]));
+
+const GROUP_MESSAGES = {
+  en: { "groups.title": "Project groups", "groups.copy": "Combine projects in the dashboard. These settings are saved in this browser only. Removing a group restores the original projects without changing source data.", "groups.name": "Group name", "groups.members": "Projects to combine (at least two)", "groups.save": "Save group", "groups.cancel": "Cancel", "groups.edit": "Edit", "groups.remove": "Ungroup", "groups.empty": "No custom groups yet.", "groups.error": "Choose a name and at least two available projects.", "groups.storage": "Unable to save in this browser. No changes were applied.", "groups.new": "New group", "groups.missing": "Unavailable in this source" },
+  fr: { "groups.title": "Regroupements de projets", "groups.copy": "Réunissez des projets dans le tableau de bord. Ces réglages sont enregistrés uniquement dans ce navigateur. Dissocier un groupe restaure les projets d’origine sans modifier les données sources.", "groups.name": "Nom du groupe", "groups.members": "Projets à réunir (au moins deux)", "groups.save": "Enregistrer le groupe", "groups.cancel": "Annuler", "groups.edit": "Modifier", "groups.remove": "Dissocier", "groups.empty": "Aucun groupe personnalisé pour le moment.", "groups.error": "Choisissez un nom et au moins deux projets disponibles.", "groups.storage": "Impossible d’enregistrer dans ce navigateur. Aucune modification appliquée.", "groups.new": "Nouveau groupe", "groups.missing": "Indisponible dans cette source" }
+};
+export const GROUP_I18N = Object.fromEntries(["fr", "en", "de", ...Object.keys(ADDITIONAL_I18N)].map(language => [language, GROUP_MESSAGES[language] || GROUP_MESSAGES.en]));

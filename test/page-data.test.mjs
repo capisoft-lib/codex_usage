@@ -38,3 +38,29 @@ test('settings return no sessions; project details and pricing load explicitly',
   assert.ok(projects.pageData.projects.filter(p=>p.key!=='name:project 1').every(p=>!p.sessions.length));
   const report=build({view:'pricing'});assert.equal(report.sessions.flatMap(s=>s.calls).length,80);
 });
+
+
+test('custom groups combine accounting, models and paths and can be reverted', () => {
+  const projectGroups = [{id:'combined',name:'Combined',members:['name:project 0','name:project 1']}];
+  const original = build({view:'projects'}).pageData;
+  const grouped = build({view:'projects',projectGroups,project:'group:combined'}).pageData;
+  assert.equal(grouped.projectCount,3);
+  const stable = value => JSON.parse(JSON.stringify(value, (key, value) => key === "asOf" ? undefined : value));
+  assert.deepEqual(stable(grouped.totals),stable(original.totals));
+  const group = grouped.projects.find(p=>p.key==='group:combined');
+  assert.equal(group.sessionCount,40);
+  assert.deepEqual(group.paths.sort(),['/project0','/project1']);
+  assert.equal(group.summary.count,40);
+  assert.equal(group.models.length,2);
+  assert.equal(group.sessions.length,6);
+  assert.equal(build({view:'conversations',projectGroups,folders:group.paths}).pageData.total,40);
+  assert.ok(build({view:'conversations',projectGroups,folders:group.paths}).sessions.every(s=>s.tableProject==='Combined'));
+  assert.deepEqual(stable(build({view:'projects',projectGroups:[]}).pageData),stable(original));
+});
+
+test('rejects overlapping or malformed custom groups', () => {
+  const group = {id:'one',name:'Combined',members:['name:project 0','name:project 1']};
+  assert.throws(()=>build({view:'projects',projectGroups:[group,{...group,id:'two'}]}));
+  assert.throws(()=>build({view:'projects',projectGroups:[{...group,name:' '}]}));
+  assert.throws(()=>build({view:'projects',projectGroups:[{...group,members:['name:project 0']}]}));
+});

@@ -5,11 +5,11 @@ import { codexCreditsOfCalls as rawCreditsOfCalls, fastMultiplierFor, usageProfi
 import { apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 import { PRICING_CATALOG } from "./pricing-catalog.js";
 import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryMarkup, pricingDiagnosticsMarkup } from "./pricing-ui.js";
-import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, resolveLanguage } from "./translations.js";
+import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, GROUP_I18N, resolveLanguage } from "./translations.js";
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp as rawLatestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { buildQuotaForecast, estimateQuotaCapacityCredits, interpolateForecastPercent, weeklyForecastTicks } from "./quota-forecast.js";
-import { OVERVIEW_PROJECT_LIMIT, projectIdentity } from "./project-identity.js";
+import { OVERVIEW_PROJECT_LIMIT, projectIdentity, normalizeProjectGroups } from "./project-identity.js";
 
 // Summary arrays keep the renderer shared with the quota/detail paths.
 function summaryCalls(summary) { const calls = []; calls.summary = summary; return calls; }
@@ -260,9 +260,59 @@ for (const [language, messages] of Object.entries(PWA_I18N)) Object.assign(I18N[
 for (const [language, messages] of Object.entries(THEME_I18N)) Object.assign(I18N[language], messages);
 for (const [language, messages] of Object.entries(TIME_FORMAT_I18N)) Object.assign(I18N[language], messages);
 
-const PAGES = ["overview", "projects", "quota", "conversations", "settings"];
+for (const [language, messages] of Object.entries(GROUP_I18N)) Object.assign(I18N[language], messages);
+function loadProjectGroups() {
+  try { return normalizeProjectGroups(JSON.parse(localStorage.getItem("codex-usage-project-groups") || "[]")); }
+  catch { return []; }
+}
+let editingGroup = null, groupEditorSignature = null;
+function saveProjectGroups(groups) {
+  try {
+    const normalized = normalizeProjectGroups(groups);
+    localStorage.setItem("codex-usage-project-groups", JSON.stringify(normalized));
+    state.projectGroups = normalized;
+  } catch {
+    $("#groupStatus").textContent = t("groups.storage");
+    return;
+  }
+  state.selectedProject = null;
+  editingGroup = null;
+  groupEditorSignature = null;
+  renderGroupEditor();
+}
+function renderGroupEditor() {
+  const projects = state.data?.pageData?.projects || (() => {
+    const originals = new Map();
+    for (const session of state.data?.sessions || []) { const p = projectIdentity(session, t("projects.unknown")); originals.set(p.key, p); }
+    return [...originals.values()];
+  })();
+  const signature = JSON.stringify([projects.map(p => [p.key,p.name]), state.projectGroups, state.language, editingGroup]);
+  if (signature === groupEditorSignature) return;
+  groupEditorSignature = signature;
+  const current = state.projectGroups.find(g => g.id === editingGroup);
+  const occupied = new Set(state.projectGroups.filter(g => g.id !== editingGroup).flatMap(g => g.members));
+  const available = new Map(projects.map(p => [p.key, p]));
+  for (const key of current?.members || []) if (!available.has(key)) available.set(key, {key, name: t("groups.missing")});
+  $("#groupEditor").innerHTML = `<p class="dialog-copy">${escapeHtml(t("groups.copy"))}</p>
+    <div class="group-list">${state.projectGroups.map(g => `<article class="group-item"><div><strong>${escapeHtml(g.name)}</strong><p>${g.members.length} ${escapeHtml(t("nav.projects"))}</p></div><button type="button" class="primary-button" data-edit-group="${escapeHtml(g.id)}">${t("groups.edit")}</button><button type="button" class="primary-button" data-remove-group="${escapeHtml(g.id)}">${t("groups.remove")}</button></article>`).join('') || `<p>${t("groups.empty")}</p>`}</div>
+    <form id="groupForm"><h3>${escapeHtml(current?.name || t("groups.new"))}</h3><label for="groupName">${t("groups.name")}</label><input id="groupName" maxlength="120" required value="${escapeHtml(current?.name || '')}">
+    <fieldset><legend>${t("groups.members")}</legend><div class="group-options">${[...available.values()].sort((a,b) => a.name.localeCompare(b.name)).map(p => `<label class="folder-filter-option"><input type="checkbox" name="member" value="${escapeHtml(p.key)}" ${current?.members.includes(p.key) ? 'checked' : ''} ${occupied.has(p.key) ? 'disabled' : ''}><span>${escapeHtml(p.name)}<small>${escapeHtml(p.key)}</small></span></label>`).join('')}</div></fieldset>
+    <div class="group-actions"><button class="primary-button" type="submit">${t("groups.save")}</button><button class="primary-button" id="cancelGroup" type="button">${t("groups.cancel")}</button></div></form><p id="groupStatus" role="status"></p>`;
+  $$("[data-edit-group]").forEach(b => b.onclick = () => { editingGroup = b.dataset.editGroup; renderGroupEditor(); $("#groupName").focus(); });
+  $$("[data-remove-group]").forEach(b => b.onclick = () => saveProjectGroups(state.projectGroups.filter(g => g.id !== b.dataset.removeGroup)));
+  $("#cancelGroup").onclick = () => { editingGroup = null; groupEditorSignature = null; renderGroupEditor(); };
+  $("#groupForm").onsubmit = event => {
+    event.preventDefault();
+    const name = $("#groupName").value.trim(), members = [...new FormData(event.currentTarget).getAll('member')];
+    if (!name || members.length < 2) { $("#groupStatus").textContent = t("groups.error"); return; }
+    saveProjectGroups([...state.projectGroups.filter(g => g.id !== editingGroup), {id: editingGroup || crypto.randomUUID(), name, members}]);
+  };
+}
+
+const PAGES = ["project-groups", "overview", "projects", "quota", "conversations", "settings"];
 for (const [language, messages] of Object.entries(PRICING_I18N)) Object.assign(I18N[language], messages);
 const PAGE_TITLE_KEYS = {
+  "project-groups": "groups.title",
   overview: "hero.title",
   projects: "projects.title",
   quota: "kpi.weeklyQuota",
@@ -287,6 +337,7 @@ function loadTimeFormat() {
 }
 
 const state = {
+  projectGroups: loadProjectGroups(),
   data: null,
   dataMode: loadDataMode(),
   view: loadView(),
@@ -590,13 +641,13 @@ function formatDuration(ms) {
 }
 
 function sessionTitle(session) { return session.title === "Conversation sans titre" ? t("conversation.untitled") : session.title; }
-function projectName(session) { return projectIdentity(session, t("projects.unknown")).name; }
+function projectName(session) { return projectIdentity(session, t("projects.unknown"), state.projectGroups).name; }
 
 function projectGroups(sessions) {
   if (state.data?.pageData?.projects) return state.data.pageData.projects;
   const groups = new Map();
   for (const session of sessions) {
-    const identity = projectIdentity(session, t("projects.unknown"));
+    const identity = projectIdentity(session, t("projects.unknown"), state.projectGroups);
     const group = groups.get(identity.key) || { ...identity, paths: new Set(), sessions: [], calls: [] };
     group.paths.add(session.cwd || "");
     group.sessions.push(session);
@@ -684,6 +735,7 @@ function render() {
   else if (state.view === "quota") renderQuotaPage();
   else if (state.view === "conversations") renderTable(scopedSessions());
   else if (state.view === "settings") renderSettingsNodes();
+  else if (state.view === "project-groups") renderGroupEditor();
   renderFreshness();
 }
 
@@ -1522,6 +1574,8 @@ function renderFreshness() {
       start: range.start.toLocaleString(locale(), options),
       end: range.resetsAt ? range.resetsAt.toLocaleString(locale(), options) : t("period.now"),
     });
+  } else if (state.view === "project-groups") {
+    $("#periodLabel").textContent = t("period.all");
   } else if (state.view === "settings") {
     $("#periodLabel").textContent = t("nav.settings");
   } else if (state.period === "custom") {
@@ -1768,7 +1822,7 @@ function pageQuery(view = state.view, id = null) {
     const last = buckets.at(-1);
     if (!fixedEnd && last && last.end.getTime() <= requestNow.getTime() + 1) last.end = new Date(requestNow.getTime() + 60000);
   }
-  return { view, id, start:range.start?.toISOString() || null, end:fixedEnd ? range.end?.toISOString() : null,
+  return { view: view === "project-groups" ? "projects" : view, id, projectGroups: view === "project-groups" ? [] : state.projectGroups, start:view === "project-groups" ? null : range.start?.toISOString() || null, end:view === "project-groups" ? null : fixedEnd ? range.end?.toISOString() : null,
     node:view === "detail" && state.view !== "conversations" ? "all" : state.node, model:view === "detail" && state.view !== "conversations" ? "all" : state.model, folders:view === "detail" && state.view !== "conversations" ? [] : [...state.folders].sort(), search:state.query, usageThreshold:state.usageThreshold,
     page:state.page, pageSize:state.pageSize, sortKey:state.sortKey, sortDirection:state.sortDirection,
     project:state.selectedProject?.key, locale:locale(), unknownProject:t("projects.unknown"), untitled:t("conversation.untitled"), localNode:t("node.local"),

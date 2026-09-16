@@ -601,3 +601,8 @@ PowerShell:
 $env:PORT = "8080"
 npm start
 ```
+
+
+### Custom project groups
+
+Open **Projects → Project groups** (also available from Settings) to combine two or more projects under a custom name. Edit a group to rename it or change its members; **Ungroup** restores the original projects. Groups affect project totals, model breakdowns and conversation labels without modifying source sessions. The editor lists projects across all dates. Each project can belong to one custom group. Preferences are saved in this browser only and are not synchronized between browsers or devices.

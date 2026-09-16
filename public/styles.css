@@ -1276,3 +1276,17 @@ dialog::backdrop { background: #000b; backdrop-filter: blur(3px); }
 }
 .pricing-diagnostic strong { font-size: 13px; }
 .pricing-diagnostic small { display: block; line-height: 1.5; }
+
+/* Reversible project grouping editor. */
+.group-list { display: grid; gap: 12px; margin-block: 20px; }
+.group-item, .group-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.group-item > div { flex: 1; min-width: 160px; overflow-wrap: anywhere; }
+#groupForm { display: grid; gap: 16px; }
+#groupName { padding: 12px; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 8px; width: 100%; }
+#groupForm fieldset { min-width: 0; border: 1px solid currentColor; border-radius: 8px; }
+.group-options { max-height: 420px; overflow: auto; }
+.group-options small { display: block; opacity: .65; overflow-wrap: anywhere; }
+.group-options label:has(input:disabled) { opacity: .45; }
+
+body[data-page="project-groups"] .periods { display: none; }
+.group-options .folder-filter-option span { white-space: normal; overflow-wrap: anywhere; }
