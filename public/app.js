@@ -688,23 +688,27 @@ function modelGroups(calls) {
 const loadingRegions = new Map();
 function setPageLoading(active) {
   for (const [element, {overlay, wrapper}] of loadingRegions) {
-    overlay.remove(); element.removeAttribute('aria-busy'); wrapper.classList.remove('region-loading');
+    overlay.remove(); element.removeAttribute('aria-busy'); wrapper.classList.remove('region-loading'); wrapper.classList.remove('metric-loading');
   }
   loadingRegions.clear();
   if (!active) return;
+  if (state.view === 'overview') {
+    if (!$('#costSummary')?.children.length) renderCostSummary([]);
+    if (!$('#kpis')?.children.length) renderKpis([],[],sumUsage([]));
+  }
   const selectors = {
-    overview: ['#costSummary','#kpis','#costChart','#overviewProjects','#recentConversations'],
+    overview: ['#costSummary .cost-value','#costSummary .cost-coverage','#costSummary .cost-part strong','#kpis .kpi-value','#costChart','#overviewProjects','#recentConversations'],
     projects: ['#projectList','#projectDetail'],
     conversations: ['#conversationRows'],
     quota: ['#quotaHero','#quotaKpis','#quotaChart','#quotaForecastSummary','#quotaForecastChart'],
     settings: ['#settingsNodes'],
   };
-  for (const selector of selectors[state.view] || []) {
-    const element = $(selector);
+  for (const element of (selectors[state.view] || []).flatMap(selector => $$(selector))) {
     if (!element) continue;
     const table = element.tagName === 'TBODY';
-    let wrapper = table ? element.closest('.table-wrap') : element.parentElement;
-    if (!table && !wrapper.classList.contains('data-region')) {
+    const metric = element.matches('.cost-value,.cost-coverage,.cost-part strong,.kpi-value');
+    let wrapper = metric ? element : table ? element.closest('.table-wrap') : element.parentElement;
+    if (!table && !metric && !wrapper.classList.contains('data-region')) {
       wrapper = document.createElement('div'); wrapper.className = 'data-region';
       element.before(wrapper); wrapper.append(element);
     }
@@ -718,7 +722,7 @@ function setPageLoading(active) {
     const spinner = document.createElement('span'); spinner.className = 'page-loader-spinner'; spinner.setAttribute('aria-hidden','true');
     const label = document.createElement('span'); label.textContent = t(state.dataMode === 'centralized' ? 'load.loadingCentralized' : 'load.loading');
     content.append(spinner,label);
-    element.setAttribute('aria-busy','true'); wrapper.classList.add('region-loading');
+    element.setAttribute('aria-busy','true'); wrapper.classList.add(metric ? 'metric-loading' : 'region-loading');
     (table ? element : wrapper).append(overlay);
     loadingRegions.set(element,{overlay,wrapper});
   }
