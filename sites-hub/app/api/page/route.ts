@@ -1,3 +1,4 @@
+import { readSessionSlices } from '../../../lib/session-reader';
 import { requireViewer } from '../../../lib/auth';
 import { json } from '../../../lib/mesh';
 import { db } from '../../../lib/db';
@@ -12,7 +13,9 @@ export async function GET(request: Request) {
     if ((params.get('source') || 'centralized') !== 'centralized') return json({error:'Source invalide.'},400);
     const raw = params.get('query') || '';
     if (raw.length > 64000) return json({error:'Requête trop longue.'},400);
-    const metadata = await quotaMetadataForOwner(owner);
+    let parsed;
+    try { parsed=JSON.parse(raw); } catch { return json({error:'Filtres invalides.'},400); }
+    const metadata = await quotaMetadataForOwner(owner, parsed?.view === 'overview' && Date.parse(parsed.start) === 0);
     let builder;
     try { builder = createPageData(metadata, raw); } catch { return json({error:'Filtres invalides.'},400); }
     const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(metadata.revision + raw));
@@ -22,27 +25,12 @@ export async function GET(request: Request) {
     const q = builder.query;
     const nodes = new Map(metadata.nodes.filter(n=>!n.revokedAt).map(n=>[n.id,n]));
     if(q.view !== 'settings') {
-      let nodeCursor='', sessionCursor='';
-      while(true) {
-        // Extract the selected time range in SQLite, before transferring JSON
-        // into the Worker. Pagination bounds peak memory during aggregation.
-        const rows = await db().prepare(`SELECT s.node_id, s.session_id,
-          json_set(s.snapshot_json, '$.calls', json((SELECT json_group_array(json(c.value)) FROM json_each(s.snapshot_json,'$.calls') c
-            WHERE julianday(json_extract(c.value,'$.timestamp')) BETWEEN julianday(?) AND julianday(?))),
-            '$.turns', json((SELECT json_group_array(json(t.value)) FROM json_each(s.snapshot_json,'$.turns') t
-            WHERE julianday(json_extract(t.value,'$.startedAt')) BETWEEN julianday(?) AND julianday(?)))) AS snapshot_json
-          FROM mesh_sessions s JOIN mesh_nodes n ON n.id=s.node_id
-          WHERE n.owner_id=? AND n.revoked_at IS NULL AND (s.node_id,s.session_id) > (?,?)
-            AND (? = '' OR s.node_id || ':' || s.session_id = ?)
-          ORDER BY s.node_id,s.session_id LIMIT 500`)
-          .bind(Number.isFinite(q.start)?new Date(q.start).toISOString():'0001-01-01',Number.isFinite(q.end)?new Date(q.end).toISOString():'9999-12-31',
-            Number.isFinite(q.start)?new Date(q.start).toISOString():'0001-01-01',Number.isFinite(q.end)?new Date(q.end).toISOString():'9999-12-31',owner,nodeCursor,sessionCursor,q.id||'',q.id||'')
-          .all<{node_id:string;session_id:string;snapshot_json:string}>();
-        for(const row of rows.results || []) {
-          builder.add({...JSON.parse(row.snapshot_json),id:`${row.node_id}:${row.session_id}`,sourceSessionId:row.session_id,nodeId:row.node_id,nodeAlias:nodes.get(row.node_id)?.alias});
-          nodeCursor=row.node_id;sessionCursor=row.session_id;
-        }
-        if((rows.results || []).length < 500) break;
+      await readSessionSlices(db(),owner,Number.isFinite(q.start)?new Date(q.start).toISOString():'0001-01-01',Number.isFinite(q.end)?new Date(q.end).toISOString():'9999-12-31',false,q.id || null,row=>{
+        builder.add({...JSON.parse(row.snapshot_json),id:`${row.node_id}:${row.session_id}`,sourceSessionId:row.session_id,nodeId:row.node_id,nodeAlias:nodes.get(row.node_id)?.alias});
+      });
+      if(q.view === 'conversations') {
+        const filters=await db().prepare("SELECT DISTINCT json_extract(s.snapshot_json,'$.cwd') AS cwd,json_extract(s.snapshot_json,'$.models') AS models_json FROM mesh_sessions s JOIN mesh_nodes n ON n.id=s.node_id WHERE n.owner_id=? AND n.revoked_at IS NULL").bind(owner).all<{cwd:string;models_json:string|null}>();
+        for(const row of filters.results || []) builder.add({cwd:row.cwd,models:JSON.parse(row.models_json || '[]'),calls:[],turns:[]});
       }
       if((await quotaMetadataForOwner(owner)).revision !== metadata.revision) return json({error:'Les données ont changé pendant la lecture. Réessayez.'},409);
     }

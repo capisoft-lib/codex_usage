@@ -4,12 +4,12 @@ import { normalizeQuotaPeriods } from "../public/dashboard/quota-periods.js";
 type NodeRow = { id: string; alias: string; enrolled_at: string; last_seen: string | null; revoked_at: string | null; privacy_json: string; short_quota_json: string | null; quota_json: string | null; quota_history_json: string | null; analyzer_version: number; last_generated_at: string | null };
 type SessionRow = { node_id: string; snapshot_json: string };
 
-export async function quotaMetadataForOwner(ownerId: string) {
+export async function quotaMetadataForOwner(ownerId: string, includeFirstSession = false) {
   const database = db();
   const nodeResult = await database.prepare("SELECT id, alias, enrolled_at, last_seen, revoked_at, privacy_json, short_quota_json, quota_json, quota_history_json, analyzer_version, last_generated_at FROM mesh_nodes WHERE owner_id = ? ORDER BY alias").bind(ownerId).all<NodeRow>();
   const nodes = nodeResult.results || [];
   const active = nodes.filter((node) => !node.revoked_at);
-  const count = await database.prepare("SELECT COUNT(*) AS total, MIN(json_extract(s.snapshot_json, '$.startedAt')) AS first_session_at FROM mesh_sessions s JOIN mesh_nodes n ON n.id = s.node_id WHERE n.owner_id = ? AND n.revoked_at IS NULL").bind(ownerId).first<{ total: number; first_session_at: string | null }>();
+  const count = await database.prepare(`SELECT COUNT(*) AS total${includeFirstSession ? ", MIN(json_extract(s.snapshot_json, '$.startedAt')) AS first_session_at" : ""} FROM mesh_sessions s JOIN mesh_nodes n ON n.id = s.node_id WHERE n.owner_id = ? AND n.revoked_at IS NULL`).bind(ownerId).first<{ total: number; first_session_at: string | null }>();
   const quotas = active.filter((node) => node.quota_json).map((node) => ({ ...JSON.parse(node.quota_json!), nodeId: node.id, nodeAlias: node.alias, receivedAt: node.last_seen }));
   quotas.sort((a, b) => String(b.observedAt || b.receivedAt).localeCompare(String(a.observedAt || a.receivedAt)));
   const shortQuotas = active.filter((node) => node.short_quota_json).map((node) => ({ ...JSON.parse(node.short_quota_json!), nodeId: node.id, nodeAlias: node.alias, receivedAt: node.last_seen }));
@@ -37,7 +37,7 @@ export async function quotaMetadataForOwner(ownerId: string) {
     errorCount: 0,
   };
   // Signed reads update last_seen, but do not change usage. They must not invalidate it.
-  const content = JSON.stringify(metadata, (key, value) => ["lastSeen", "receivedAt"].includes(key) ? undefined : value);
+  const content = JSON.stringify(metadata, (key, value) => ["lastSeen", "receivedAt", "firstSessionAt"].includes(key) ? undefined : value);
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(content));
   const revision = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   return { ...metadata, revision };
