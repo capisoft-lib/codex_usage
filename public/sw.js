@@ -1,8 +1,9 @@
-const CACHE_NAME = "codex-usage-shell-v7";
+const CACHE_NAME = "codex-usage-shell-v8";
 const SHELL_ASSETS = [
   "./api-pricing.js",
   "./app.js",
   "./page-data.js",
+  "./storage-fetch.js",
   "./date-range.js",
   "./icon-180.png",
   "./icon-192.png",

@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       statements.push(database.prepare("DELETE FROM mesh_sessions WHERE node_id = ? AND session_id = ? AND EXISTS (SELECT 1 FROM mesh_nodes WHERE id = ? AND last_sequence = ? AND last_payload_hash = ?)").bind(envelope.nodeId, id, envelope.nodeId, envelope.sequence, envelope.payloadHash));
     }
     for (const session of payload.upserts) {
-      statements.push(database.prepare("INSERT INTO mesh_sessions (node_id, session_id, snapshot_json, updated_at) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM mesh_nodes WHERE id = ? AND last_sequence = ? AND last_payload_hash = ?) ON CONFLICT(node_id, session_id) DO UPDATE SET snapshot_json = excluded.snapshot_json, updated_at = excluded.updated_at")
+      statements.push(database.prepare("INSERT INTO mesh_sessions (node_id, session_id, snapshot_json, updated_at, relational_version) SELECT ?, ?, ?, ?, 2 WHERE EXISTS (SELECT 1 FROM mesh_nodes WHERE id = ? AND last_sequence = ? AND last_payload_hash = ?) ON CONFLICT(node_id, session_id) DO UPDATE SET snapshot_json = excluded.snapshot_json, updated_at = excluded.updated_at, relational_version = 2")
         .bind(envelope.nodeId, String(session.id), JSON.stringify(session), String(session.updatedAt || payload.generatedAt), envelope.nodeId, envelope.sequence, envelope.payloadHash));
     }
     const results = await database.batch(statements);

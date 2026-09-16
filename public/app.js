@@ -1,3 +1,4 @@
+import { fetchUsage } from './storage-fetch.js';
 import { weeklyQuotaPeriods, shortQuotaDisplay, quotaCountdownText, normalizeTimeFormat, timeFormatOptions } from "./quota-display.js";
 import { quotaMetadata } from "./quota-data.js";
 import { sameQuotaReset } from "./quota-periods.js";
@@ -1663,7 +1664,7 @@ async function loadQuotaData(force, source, signal) {
   const parameters = new URLSearchParams({ source });
   if (force) parameters.set("refresh", "1");
   const previousMetadata = quotaMetadataResponses.get(source);
-  const metadataResponse = await fetch(`/api/quota?${parameters}`, { signal, cache: "no-store", headers: !force && previousMetadata?.etag ? { "If-None-Match": previousMetadata.etag } : {} });
+  const metadataResponse = await fetchUsage(`/api/quota?${parameters}`, { signal, cache: "no-store", headers: !force && previousMetadata?.etag ? { "If-None-Match": previousMetadata.etag } : {} });
   const metadata = metadataResponse.status === 304 && previousMetadata ? previousMetadata.data : await readUsageResponse(metadataResponse);
   if (signal.aborted) return;
   quotaMetadataResponses.set(source, { data: metadata, etag: metadataResponse.headers.get("etag") || previousMetadata?.etag });
@@ -1688,7 +1689,7 @@ async function loadQuotaData(force, source, signal) {
   parameters.delete("refresh");
   parameters.set("detail", "1");
   if (reset) parameters.set("period", reset);
-  const response = await fetch(`/api/quota?${parameters}`, { signal, cache: "no-store", headers: !force && cached?.etag ? { "If-None-Match": cached.etag } : {} });
+  const response = await fetchUsage(`/api/quota?${parameters}`, { signal, cache: "no-store", headers: !force && cached?.etag ? { "If-None-Match": cached.etag } : {} });
   const data = response.status === 304 && cached ? cached.data : await readUsageResponse(response);
   if (signal.aborted) return;
   // A reset timestamp may be corrected between the metadata and detail reads.
@@ -1725,7 +1726,7 @@ async function loadData(force = false, silent = false) {
         const cached = pageCache.get(key);
         const parameters = new URLSearchParams({ source, query: JSON.stringify(pageQuery()) });
         if (force) parameters.set("refresh", "1");
-        const response = await fetch(`/api/page?${parameters}`, { signal: controller.signal, headers: !force && cached?.etag ? {"If-None-Match":cached.etag} : {} });
+        const response = await fetchUsage(`/api/page?${parameters}`, { signal: controller.signal, headers: !force && cached?.etag ? {"If-None-Match":cached.etag} : {} });
         if (controller.signal.aborted) return;
         const data = response.status === 304 && cached ? cached.data : await readUsageResponse(response);
         if (controller.signal.aborted) return;
@@ -1785,7 +1786,7 @@ function schedulePageLoad() {
 async function loadPageExtras(view, id = null, signal) {
   try {
     const params = new URLSearchParams({source:state.dataMode, query:JSON.stringify(pageQuery(view,id))});
-    const response = await fetch(`/api/page?${params}`, {signal});
+    const response = await fetchUsage(`/api/page?${params}`, {signal});
     return await readUsageResponse(response);
   } catch { if (!signal?.aborted) toast(t("load.errorToast")); return null; }
 }

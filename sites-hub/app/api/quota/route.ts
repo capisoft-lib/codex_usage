@@ -1,4 +1,4 @@
-import { readSessionSlices } from '../../../lib/session-reader';
+import { readSessionSlices, StorageMigrationPending } from '../../../lib/session-reader';
 import { requireViewer } from "../../../lib/auth";
 import { json } from "../../../lib/mesh";
 import { quotaMetadataForOwner } from "../../../lib/usage";
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     if (parameters.get("detail") !== "1") return Response.json(metadata, { headers });
     // D1 extracts only relevant calls, in bounded pages. No titles, turns or full
     // session snapshots are materialized in the Worker's 128 MB memory budget.
-    await readSessionSlices(db(),owner,new Date(detail.from).toISOString(),new Date(detail.to).toISOString(),true,null,row=>{
+    await readSessionSlices(db(),owner,new Date(detail.from).toISOString(),new Date(detail.to).toISOString(),true,null,(row: {node_id:string;snapshot_json:string})=>{
       for (const call of JSON.parse(row.snapshot_json).calls) {
         detail.add({timestamp:call.timestamp,model:call.model,effort:call.effort,serviceTier:call.serviceTier,usage:call.usage},row.node_id);
       }
@@ -29,6 +29,7 @@ export async function GET(request: Request) {
     return Response.json(detail.finish(), { headers });
   } catch (error) {
     if (error instanceof Response) return error;
+    if (error instanceof StorageMigrationPending) return json({error:error.message,code:error.code},503);
     return json({ error: "Lecture du quota impossible." }, 500);
   }
 }

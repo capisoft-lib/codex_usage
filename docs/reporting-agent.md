@@ -18,7 +18,7 @@ Both modes use the same collector, privacy filter, signing identity, enrollment,
 Each machine needs:
 
 - Codex session data under its local Codex directory;
-- Node.js 20 or newer, or Docker;
+- Node.js 22.13 or newer, or Docker;
 - network access to the public Mesh ingress over HTTPS when the private Sites hub is used;
 - a one-time association command created by the hub owner;
 - a persistent writable location for the agent state file.

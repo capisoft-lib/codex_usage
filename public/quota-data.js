@@ -10,6 +10,7 @@ export function quotaMetadata(data) {
   return { ...metadata, sessions: [], sessionCount: data.sessionCount ?? sessions?.length ?? 0, quotaOnly: true };
 }
 
+/** @param {object} data @param {string|null} reset @param {Date} now */
 export function createQuotaDetail(data, reset = null, now = new Date()) {
   const periods = weeklyQuotaPeriods(data, now);
   const quota = periods.find((period) => sameQuotaReset(period.resetsAt, reset)) || periods[0] || null;
@@ -31,6 +32,7 @@ export function createQuotaDetail(data, reset = null, now = new Date()) {
     from: Math.min(forecastStart, ...calibration.map((period) => period.start)),
     to: Math.max(end, ...calibration.map((period) => period.end)),
     reset: quota?.resetsAt || null,
+    /** @param {object} call @param {string|null} nodeId */
     add(call, nodeId = null) {
       const time = Date.parse(call.timestamp);
       if (time >= start && time < end) calls.push(call);

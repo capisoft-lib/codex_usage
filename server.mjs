@@ -12,6 +12,8 @@ import { MeshHubStore } from "./src/mesh-hub-store.mjs";
 import { serializePublicUsage, toPublicUsage } from "./src/public-usage.mjs";
 import { createUsageCollector } from "./src/usage-collector.mjs";
 import { cliText } from "./src/cli-locale.mjs";
+import { readSessionSlices, readFilters } from './src/storage/relational-reader.mjs';
+import { LOCAL_OWNER } from './src/storage/local-repository.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = process.env.DASHBOARD_ASSETS_PATH || path.join(root, "dist", "dashboard");
@@ -33,7 +35,7 @@ const mime = {
 
 if (!["local", "hub"].includes(dashboardMode)) throw new Error("DASHBOARD_MODE doit valoir local ou hub.");
 
-const meshHub = dashboardMode === "hub" ? new MeshHubStore({ storePath: meshHubPath }) : null;
+const meshHub = dashboardMode === "hub" ? new MeshHubStore({ storePath: meshHubPath, databasePath: process.env.MESH_DATABASE_PATH || undefined }) : null;
 if (meshHub) await meshHub.load();
 const usageCollector = dashboardMode === "local" ? await createUsageCollector({ root }) : null;
 
@@ -143,17 +145,36 @@ async function routeApi(request, response, url) {
     const raw = url.searchParams.get("query") || "";
     if (raw.length > 64000) { sendJson(response, 400, { error: "Requête trop longue." }); return true; }
     const force = url.searchParams.get("refresh") === "1";
-    const data = dashboardMode === "hub" ? meshHub.aggregate() : source === "centralized"
-      ? await usageCollector.centralizedUsage(force) : await usageCollector.store.getUsage(force);
+    const database = meshHub?.database || (source === 'local' ? usageCollector.store.database : null);
+    if (!meshHub && source === 'local') await usageCollector.store.getUsage(force);
+    const data = meshHub ? meshHub.metadata() : source === "centralized"
+      ? await usageCollector.centralizedUsage(force) : usageCollector.store.repository.metadata();
     const metadata = pageMetadata(data);
     const safeMetadata = { ...toPublicUsage(metadata), sessionCount: metadata.sessionCount, firstSessionAt: metadata.firstSessionAt };
     let builder;
     try { builder = createPageData(safeMetadata, raw); } catch { sendJson(response, 400, { error: "Filtres invalides." }); return true; }
-    const etag = `"${createHash("sha256").update(JSON.stringify([data.generatedAt, data.analyzerVersion, raw])).digest("hex")}"`;
+    const etag = `"${createHash("sha256").update(JSON.stringify([data.generatedAt, data.analyzerVersion, data.revision, raw])).digest("hex")}"`;
     response.setHeader("ETag", etag);
     response.setHeader("Cache-Control", "private, no-cache");
     if (matchesQuotaEtag(request.headers["if-none-match"], etag)) { send(response, 304, ""); return true; }
-    if (builder.query.view !== "settings") for (const session of data.sessions) builder.add(toPublicUsage({ sessions: [session] }).sessions[0]);
+    if (builder.query.view !== "settings") {
+      if (database) {
+        const q = builder.query;
+        const nodes = new Map((data.nodes || []).map(node => [node.id,node]));
+        await readSessionSlices(database,LOCAL_OWNER,Number.isFinite(q.start)?new Date(q.start).toISOString():'0001-01-01',Number.isFinite(q.end)?new Date(q.end).toISOString():'9999-12-31',false,meshHub?q.id:null,row => {
+          let session = JSON.parse(row.snapshot_json);
+          if(meshHub) session = {...session,id:`${row.node_id}:${row.session_id}`,sourceSessionId:row.session_id,nodeId:row.node_id,nodeAlias:nodes.get(row.node_id)?.alias};
+          builder.add({...toPublicUsage({sessions:[session]}).sessions[0],calls:session.calls,turns:session.turns});
+        },false,{...(['conversations','detail','pricing'].includes(q.view)?{model:q.model,node:meshHub?q.node:null,folders:q.folders}:{}),sessionId:meshHub?null:q.id,aggregate:!['detail','pricing'].includes(q.view),buckets:q.buckets});
+        if(q.view==='conversations') {
+          const filters = await readFilters(database,LOCAL_OWNER);
+          for(const cwd of filters.folders) builder.add({cwd,models:filters.models,calls:[],turns:[]});
+        }
+      } else for (const session of data.sessions) builder.add(toPublicUsage({ sessions: [session] }).sessions[0]);
+    }
+    if(database && (meshHub?meshHub.metadata():usageCollector.store.repository.metadata()).revision !== data.revision) {
+      sendJson(response,409,{error:'Les données ont changé pendant la lecture. Réessayez.'});return true;
+    }
     sendJson(response, 200, { ...builder.finish(), revision: etag });
     return true;
   }
@@ -173,26 +194,34 @@ async function routeApi(request, response, url) {
       return true;
     }
     const force = url.searchParams.get("refresh") === "1";
-    const data = dashboardMode === "hub" ? meshHub.aggregate() : source === "centralized"
-      ? await usageCollector.centralizedUsage(force) : await usageCollector.store.getUsage(force);
+    const database = meshHub?.database || (source === 'local' ? usageCollector.store.database : null);
+    if (!meshHub && source === 'local') await usageCollector.store.getUsage(force);
+    const data = meshHub ? meshHub.metadata() : source === "centralized"
+      ? await usageCollector.centralizedUsage(force) : usageCollector.store.repository.metadata();
     const metadata = quotaMetadata(data);
     // Keep the existing public privacy contract, including for raw local snapshots.
     const { toPublicUsage } = await import("./src/public-usage.mjs");
     const safe = { ...toPublicUsage(metadata), sessionCount: metadata.sessionCount, quotaOnly: true };
     safe.weeklyQuotaHistory = normalizeQuotaPeriods(safe);
     safe.weeklyQuota = safe.weeklyQuotaHistory[0] || safe.weeklyQuota;
-    const revision = createHash("sha256").update(JSON.stringify(safe)).digest("hex");
+    const revision = createHash("sha256").update(JSON.stringify([safe,data.revision])).digest("hex");
     safe.revision = revision;
     const etag = `"${revision}:${url.searchParams.get("period") || "current"}"`;
     response.setHeader("ETag", etag);
     if (!force && matchesQuotaEtag(request.headers["if-none-match"], etag)) { send(response, 304, ""); return true; }
     if (url.searchParams.get("detail") !== "1") { sendJson(response, 200, safe); return true; }
     const detail = createQuotaDetail(safe, url.searchParams.get("period"));
-    for (const session of data.sessions || []) for (const call of session.calls || []) {
+    if (database) await readSessionSlices(database,LOCAL_OWNER,new Date(detail.from).toISOString(),new Date(detail.to).toISOString(),true,null,row => {
+      for(const call of JSON.parse(row.snapshot_json).calls) detail.add(call,meshHub?row.node_id:null);
+    },true);
+    else for (const session of data.sessions || []) for (const call of session.calls || []) {
       const time = Date.parse(call.timestamp);
       if (!Number.isFinite(time) || (time >= detail.from && time <= detail.to)) {
         detail.add({ timestamp: call.timestamp, model: call.model, effort: call.effort, serviceTier: call.serviceTier, usage: call.usage }, session.nodeId);
       }
+    }
+    if(database && (meshHub?meshHub.metadata():usageCollector.store.repository.metadata()).revision !== data.revision) {
+      sendJson(response,409,{error:'Les données ont changé pendant la lecture. Réessayez.'});return true;
     }
     sendJson(response, 200, detail.finish());
     return true;
@@ -280,7 +309,10 @@ server.listen(port, host, () => {
 
 function shutdown() {
   usageCollector?.stop();
-  server.close(() => process.exit(0));
+  server.close(async () => {
+    try { await usageCollector?.close(); meshHub?.close(); process.exit(0); }
+    catch (error) { console.error(error.message); process.exit(1); }
+  });
 }
 
 process.on("SIGINT", shutdown);

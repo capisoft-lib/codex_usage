@@ -36,7 +36,9 @@ test("quota API filters calls in SQLite, isolates owners, paginates and validate
     for (let i = 0; i < 501; i++) insertSession.run("a", String(i).padStart(4, "0"), JSON.stringify({ startedAt: "2020-01-01", title: "never-return-this-title", calls: [{ ...value, timestamp: "2020-01-01T00:00:00Z" }, value], turns: [{ private: "omit" }] }));
     for (const node of ["b", "c"]) insertSession.run(node, "excluded", JSON.stringify({ calls: [value] }));
     database.exec(await readFile(new URL("../drizzle/0005_wise_anthem.sql", import.meta.url), "utf8"));
-    const prefix = `import { readSessionSlices } from ${JSON.stringify(new URL("../lib/session-reader.ts", import.meta.url).href)};\nimport { normalizeQuotaPeriods, matchesQuotaEtag } from ${JSON.stringify(new URL("../../public/quota-periods.js", import.meta.url).href)};\nconst db = () => globalThis[${JSON.stringify(globalsKey)}];\n`;
+    database.exec("ALTER TABLE mesh_nodes ADD last_payload_hash TEXT");
+    database.exec(await readFile(new URL("../drizzle/0006_relational_usage.sql", import.meta.url), "utf8"));
+    const prefix = `import { readSessionSlices, readFilters, migrateLegacySessions, StorageMigrationPending } from ${JSON.stringify(new URL("../lib/session-reader.ts", import.meta.url).href)};\nimport { normalizeQuotaPeriods, matchesQuotaEtag } from ${JSON.stringify(new URL("../../public/quota-periods.js", import.meta.url).href)};\nconst db = () => globalThis[${JSON.stringify(globalsKey)}];\n`;
     const usage = await load("../lib/usage.ts", prefix);
     globalThis[`${globalsKey}Metadata`] = usage.quotaMetadataForOwner;
     const route = await load("../app/api/quota/route.ts", prefix + `
@@ -51,17 +53,18 @@ test("quota API filters calls in SQLite, isolates owners, paginates and validate
     assert.equal(metadata.sessionCount, 501);
     assert.deepEqual(metadata.sessions, []);
     assert.equal(sessionQueries, 0);
+    assert.equal((await route.GET(request("?detail=1"))).status,503);
     const response = await route.GET(request("?detail=1"));
     assert.equal(response.status, 200);
     const data = await response.json();
-    assert.equal(sessionQueries, 2);
+    assert.equal(sessionQueries, 4);
     assert.equal(data.sessions[0].calls.length, 501);
     assert.ok(data.sessions[0].calls.every((call) => call.timestamp === now));
     assert.ok(!JSON.stringify(data).includes("never-return"));
     database.prepare("UPDATE mesh_nodes SET last_seen = ? WHERE id = 'a'").run(new Date(Date.now() + 60000).toISOString());
     const unchanged = await route.GET(request("?detail=1", { "If-None-Match": `W/${response.headers.get("etag")}` }));
     assert.equal(unchanged.status, 304);
-    assert.equal(sessionQueries, 2);
+    assert.equal(sessionQueries, 4);
     database.prepare("UPDATE mesh_nodes SET last_generated_at = ? WHERE id = 'a'").run(new Date(Date.now() + 60000).toISOString());
     const changed = await route.GET(request("", { "If-None-Match": metadataResponse.headers.get("etag") }));
     assert.equal(changed.status, 200);

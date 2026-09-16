@@ -1,4 +1,4 @@
-import { readSessionSlices } from '../../../lib/session-reader';
+import { readSessionSlices, readFilters, StorageMigrationPending } from '../../../lib/session-reader';
 import { requireViewer } from '../../../lib/auth';
 import { json } from '../../../lib/mesh';
 import { db } from '../../../lib/db';
@@ -25,18 +25,19 @@ export async function GET(request: Request) {
     const q = builder.query;
     const nodes = new Map(metadata.nodes.filter(n=>!n.revokedAt).map(n=>[n.id,n]));
     if(q.view !== 'settings') {
-      await readSessionSlices(db(),owner,Number.isFinite(q.start)?new Date(q.start).toISOString():'0001-01-01',Number.isFinite(q.end)?new Date(q.end).toISOString():'9999-12-31',false,q.id || null,row=>{
+      await readSessionSlices(db(),owner,Number.isFinite(q.start)?new Date(q.start).toISOString():'0001-01-01',Number.isFinite(q.end)?new Date(q.end).toISOString():'9999-12-31',false,q.id || null,(row: {node_id:string;session_id:string;snapshot_json:string})=>{
         builder.add({...JSON.parse(row.snapshot_json),id:`${row.node_id}:${row.session_id}`,sourceSessionId:row.session_id,nodeId:row.node_id,nodeAlias:nodes.get(row.node_id)?.alias});
-      });
+      },false,{...(['conversations','detail','pricing'].includes(q.view)?{model:q.model,node:q.node,folders:q.folders}:{}),aggregate:!['detail','pricing'].includes(q.view),buckets:q.buckets});
       if(q.view === 'conversations') {
-        const filters=await db().prepare("SELECT DISTINCT json_extract(s.snapshot_json,'$.cwd') AS cwd,json_extract(s.snapshot_json,'$.models') AS models_json FROM mesh_sessions s JOIN mesh_nodes n ON n.id=s.node_id WHERE n.owner_id=? AND n.revoked_at IS NULL").bind(owner).all<{cwd:string;models_json:string|null}>();
-        for(const row of filters.results || []) builder.add({cwd:row.cwd,models:JSON.parse(row.models_json || '[]'),calls:[],turns:[]});
+        const filters=await readFilters(db(),owner);
+        for(const cwd of filters.folders) builder.add({cwd,models:filters.models,calls:[],turns:[]});
       }
       if((await quotaMetadataForOwner(owner)).revision !== metadata.revision) return json({error:'Les données ont changé pendant la lecture. Réessayez.'},409);
     }
     return Response.json(builder.finish(),{headers});
   } catch(error) {
     if(error instanceof Response) return error;
+    if(error instanceof StorageMigrationPending) return json({error:error.message,code:error.code},503);
     return json({error:'Lecture de la page impossible.'},500);
   }
 }
