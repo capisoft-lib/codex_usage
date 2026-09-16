@@ -685,10 +685,43 @@ function modelGroups(calls) {
     .sort((left, right) => right.cost.cost - left.cost.cost);
 }
 
+const loadingRegions = new Map();
 function setPageLoading(active) {
-  $('#pageLoader').hidden = !active;
-  $('#pageContent').setAttribute('aria-busy', String(active));
-  $('#pageLoaderLabel').textContent = t(state.dataMode === 'centralized' ? 'load.loadingCentralized' : 'load.loading');
+  for (const [element, {overlay, wrapper}] of loadingRegions) {
+    overlay.remove(); element.removeAttribute('aria-busy'); wrapper.classList.remove('region-loading');
+  }
+  loadingRegions.clear();
+  if (!active) return;
+  const selectors = {
+    overview: ['#costSummary','#kpis','#costChart','#overviewProjects','#recentConversations'],
+    projects: ['#projectList','#projectDetail'],
+    conversations: ['#conversationRows'],
+    quota: ['#quotaHero','#quotaKpis','#quotaChart','#quotaForecastSummary','#quotaForecastChart'],
+    settings: ['#settingsNodes'],
+  };
+  for (const selector of selectors[state.view] || []) {
+    const element = $(selector);
+    if (!element) continue;
+    const table = element.tagName === 'TBODY';
+    let wrapper = table ? element.closest('.table-wrap') : element.parentElement;
+    if (!table && !wrapper.classList.contains('data-region')) {
+      wrapper = document.createElement('div'); wrapper.className = 'data-region';
+      element.before(wrapper); wrapper.append(element);
+    }
+    const overlay = document.createElement(table ? 'tr' : 'div'); overlay.className = table ? 'region-loader-row' : 'region-loader';
+    let content = overlay;
+    if (table) {
+      const cell = document.createElement('td'); cell.colSpan = element.closest('table').querySelectorAll('thead th').length;
+      content = document.createElement('div'); content.className = 'region-loader'; cell.append(content); overlay.append(cell);
+    }
+    content.setAttribute('role','status');
+    const spinner = document.createElement('span'); spinner.className = 'page-loader-spinner'; spinner.setAttribute('aria-hidden','true');
+    const label = document.createElement('span'); label.textContent = t(state.dataMode === 'centralized' ? 'load.loadingCentralized' : 'load.loading');
+    content.append(spinner,label);
+    element.setAttribute('aria-busy','true'); wrapper.classList.add('region-loading');
+    (table ? element : wrapper).append(overlay);
+    loadingRegions.set(element,{overlay,wrapper});
+  }
 }
 
 function render() {
@@ -1802,9 +1835,10 @@ function pageQuery(view = state.view, id = null) {
 }
 function pageRequestKey() { return `${state.dataMode}:${JSON.stringify(pageQuery())}`; }
 function schedulePageLoad() {
-  setPageLoading(true);
   clearTimeout(pageLoadTimer);
   dataController?.abort();
+  dataController = null; dataRequest = null; dataRequestKey = null;
+  setPageLoading(true);
   $("#freshness").textContent = t("quota.loading");
   pageLoadTimer = setTimeout(()=>void loadData(false,true),180);
 }

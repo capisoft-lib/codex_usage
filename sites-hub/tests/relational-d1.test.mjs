@@ -96,6 +96,12 @@ test("real workerd D1 supports relational migrations, atomic ingest and grouped 
       (await db.prepare("SELECT COUNT(*) n FROM usage_calls").first()).n,
       1001,
     );
+    await db.prepare("INSERT INTO mesh_sessions(node_id,session_id,snapshot_json,relational_version) VALUES('n','old',?,2)").bind(JSON.stringify({calls:Array.from({length:1000},()=>({...call,timestamp:'2025-06-10T12:00:00Z'})),turns:[]})).run();
+    const historical=[];
+    await readSessionSlices(db,'owner','2025-01-01','2026-09-16',false,null,row=>historical.push(JSON.parse(row.snapshot_json)),false,{aggregate:true});
+    assert.equal((await db.prepare("SELECT COUNT(*) n FROM usage_daily_rollups").first()).n,1);
+    assert.equal(historical.reduce((sum,s)=>sum+s.calls.reduce((n,c)=>n+c._count,0),0),2001);
+    assert.equal((await db.prepare("SELECT dirty FROM usage_rollup_days WHERE session_id='old'").first()).dirty,0);
   } finally {
     await mf.dispose();
   }

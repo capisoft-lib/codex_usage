@@ -1,4 +1,5 @@
 import { PRICING_CATALOG } from "../../public/pricing-catalog.js";
+import { DAY_MS, prepareDailyRollups, eligibleRollupDay } from './daily-rollups.mjs';
 // Shared D1/SQLite queries. JSON is only the transport format; all event filters
 // use relational columns and indexes rather than parsing complete snapshots.
 export class StorageMigrationPending extends Error {
@@ -80,24 +81,43 @@ export async function readSessionSlices(
     ? `CASE ${boundaries.map((value, i) => `WHEN c.timestamp_ms<${value} THEN ${i * 2} WHEN c.timestamp_ms=${value} THEN ${i * 2 + 1}`).join(" ")} ELSE ${boundaries.length * 2} END`
     : "(0+0)";
   const invalid = `c.input_tokens<0 OR c.cached_input_tokens<0 OR c.output_tokens<0 OR coalesce(c.cache_write_input_tokens,0)<0 OR c.cached_input_tokens+coalesce(c.cache_write_input_tokens,0)>c.input_tokens`;
-  const groupBy = `date(c.timestamp_ms/1000,'unixepoch'),c.model,c.effort,c.service_tier,
+  const dailyGroupBy = `date(c.timestamp_ms/1000,'unixepoch'),c.model,c.effort,c.service_tier,
     ${thresholds.map((value) => `(c.input_tokens>${value}),`).join("")}
     (c.cache_write_input_tokens IS NULL),(coalesce(c.cache_write_input_tokens,0)>0),
     (c.input_tokens>c.cached_input_tokens),(c.input_tokens-c.cached_input_tokens-coalesce(c.cache_write_input_tokens,0)>0),(c.output_tokens>0),
-    CASE WHEN ${invalid} THEN c.ordinal ELSE -1 END,${segment}`;
+    CASE WHEN ${invalid} THEN c.ordinal ELSE -1 END`;
+  const groupBy = `${dailyGroupBy},${segment}`;
   const aggregateUsage = `json_patch(json_object('inputTokens',AVG(c.input_tokens),'cachedInputTokens',AVG(c.cached_input_tokens),
     'outputTokens',AVG(c.output_tokens),'reasoningOutputTokens',AVG(c.reasoning_output_tokens),'totalTokens',AVG(c.total_tokens)),
     CASE WHEN c.cache_write_input_tokens IS NULL THEN '{}' ELSE json_object('cacheWriteInputTokens',AVG(c.cache_write_input_tokens)) END)`;
   const groupedCall = `json_object('_count',COUNT(*),'timestamp',MAX(c.timestamp),'model',c.model,'effort',c.effort,'serviceTier',c.service_tier,'usage',json(${aggregateUsage}),
     '_totals',json(${aggregateUsage.replaceAll("AVG(", "SUM(")}))`;
-  const calls = `(SELECT json_group_array(json(value)) FROM (SELECT ${options.aggregate ? groupedCall : call} AS value FROM usage_calls c
-    WHERE c.node_id=s.node_id AND c.session_id=s.session_id AND ${range}
-    ${model ? "AND c.model=?" : ""} ${options.aggregate ? `GROUP BY ${groupBy} ORDER BY MIN(c.ordinal)` : "ORDER BY c.ordinal"}))`;
   const groupedTurn = `json_object('_count',COUNT(*),'startedAt',MAX(t.started_at),'model',t.model,'durationMs',SUM(t.duration_ms))`;
-  const turns = `(SELECT json_group_array(json(value)) FROM (SELECT ${options.aggregate ? groupedTurn : turn} AS value FROM usage_turns t
+  const now = new Date();
+  const cutoff = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+  const useRollups = options.aggregate && !includeInvalid && options.rollups !== false && database.batch && lower < cutoff && upper-lower >= 28*DAY_MS;
+  const signature = `v1_${thresholds.join('_')}`;
+  let eligible = '';
+  if (useRollups) {
+    if (options.prepareCache !== false) await prepareDailyRollups(database, owner, cutoff, signature, { call: groupedCall, turn: groupedTurn, group: dailyGroupBy });
+    eligible = eligibleRollupDay(lower,upper,cutoff,boundaries,signature);
+  }
+  if (options.prepareOnly) return;
+  const rawSource = (table,alias,index) => useRollups ? `usage_rollup_days rd CROSS JOIN ${table} ${alias} INDEXED BY ${index}` : `${table} ${alias}`;
+  const rawOnly = (alias,time) => useRollups ? `AND rd.node_id=s.node_id AND rd.session_id=s.session_id
+    AND rd.day_ms>=${Math.floor(lower/DAY_MS)*DAY_MS} AND rd.day_ms<=${Math.floor(upper/DAY_MS)*DAY_MS}
+    AND NOT (${eligible.replaceAll('d.','rd.')}) AND ${time}>=rd.day_ms AND ${time}<rd.day_ms+86400000` : '';
+  const cached = kind => useRollups ? `SELECT r.value,r.ordinal AS sort_ordinal FROM usage_daily_rollups r JOIN usage_rollup_days d
+    ON d.node_id=r.node_id AND d.session_id=r.session_id AND d.day_ms=r.day_ms
+    WHERE r.node_id=s.node_id AND r.session_id=s.session_id AND r.kind='${kind}' AND ${eligible}
+    ${model ? `AND r.model='${model.replaceAll("'", "''")}'` : ''} UNION ALL ` : '';
+  const calls = `(SELECT json_group_array(json(value)) FROM (${cached('call')}SELECT ${options.aggregate ? groupedCall : call} AS value,${options.aggregate ? 'MIN(c.ordinal)' : 'c.ordinal'} AS sort_ordinal FROM ${rawSource('usage_calls','c','usage_calls_session_time')}
+    WHERE c.node_id=s.node_id AND c.session_id=s.session_id AND ${range}
+    ${rawOnly('c','c.timestamp_ms')} ${model ? "AND c.model=?" : ""} ${options.aggregate ? `GROUP BY ${groupBy}` : ''} ORDER BY sort_ordinal))`;
+  const turns = `(SELECT json_group_array(json(value)) FROM (${cached('turn')}SELECT ${options.aggregate ? groupedTurn : turn} AS value,${options.aggregate ? 'MIN(t.ordinal)' : 't.ordinal'} AS sort_ordinal FROM ${rawSource('usage_turns','t','usage_turns_session_time')}
     WHERE t.node_id=s.node_id AND t.session_id=s.session_id
     AND (t.started_ms BETWEEN ${lower} AND ${upper}${includeInvalid ? " OR t.started_ms IS NULL" : ""})
-    ${model ? "AND t.model=?" : ""} ${options.aggregate ? "GROUP BY t.model" : "ORDER BY t.ordinal"}))`;
+    ${rawOnly('t','t.started_ms')} ${model ? "AND t.model=?" : ""} ${options.aggregate ? "GROUP BY t.model" : ''} ORDER BY sort_ordinal))`;
   const models = `(SELECT json_group_array(model) FROM usage_session_models m WHERE m.node_id=s.node_id AND m.session_id=s.session_id)`;
   const projection = callsOnly
     ? `json_object('calls',json(${calls}))`

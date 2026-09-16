@@ -56,6 +56,16 @@ The new writer uses a transient `relational_version=2` inside its atomic write. 
 
 After data compaction, rolling back to an old application requires restoring a matching database backup; the old reader cannot reconstruct removed JSON arrays. Keep a backup before the first deployment. Do not rewrite applied migration files. The trigger-generation script is a source-authoring helper for migration 0006, not an operational migration command.
 
+## Historical aggregates
+
+Migration `0008` adds a durable daily aggregate cache. Summary reads covering at least 28 days use it for complete UTC days in finished UTC months. Calls remain available for details, pricing exports and short zooms. Any day touched by a graph boundary or a partial range is read from detailed rows, preserving local-time month boundaries and inclusive endpoints.
+
+The cache retains session identity, model, effort, tier, pricing date, context bands, cache evidence, token sums and event counts. Prices remain dynamic. Each request prepares up to 25 pending days in one atomic batch; days not yet prepared use the existing detailed query, so the first visits can still be slower. Automatic page polling continues preparation even when an unchanged response returns HTTP 304. Subsequent reads reuse the durable cache. There is no global history lock or partial result.
+
+Database triggers mark only affected days dirty when calls or turns are inserted, corrected, moved or deleted. The next summary request rebuilds those days. Unchanged history stays cached, and session deletion cascades to the cache. A grouping signature protects against changed pricing-context thresholds. Raw fallback remains available during preparation.
+
+Run `node scripts/benchmark-rollups.mjs` for a synthetic 200,000-call comparison with exact result checks. On Node 24, one local measurement was 487 ms without the cache versus 23 ms warm, with 309 ms of initial preparation. This is not a production D1 latency claim.
+
 ## Backups
 
 For local SQLite, use SQLite's backup facilities or `VACUUM INTO` to take a consistent live backup. Alternatively, stop all processes using the database, then copy it after clean shutdown. Do not copy only the main file while a writer is active: recent commits may still be in its `-wal` file. Retain the original JSON import until the migration has been validated, but remember that it does not contain subsequent writes.

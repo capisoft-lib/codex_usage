@@ -153,19 +153,22 @@ async function routeApi(request, response, url) {
     const safeMetadata = { ...toPublicUsage(metadata), sessionCount: metadata.sessionCount, firstSessionAt: metadata.firstSessionAt };
     let builder;
     try { builder = createPageData(safeMetadata, raw); } catch { sendJson(response, 400, { error: "Filtres invalides." }); return true; }
+    const q = builder.query;
+    if (database && !['settings','detail','pricing'].includes(q.view) && q.end-q.start >= 28*86400000) {
+      await readSessionSlices(database,LOCAL_OWNER,Number.isFinite(q.start)?new Date(q.start).toISOString():'0001-01-01',Number.isFinite(q.end)?new Date(q.end).toISOString():'9999-12-31',false,null,()=>{},false,{aggregate:true,prepareOnly:true});
+    }
     const etag = `"${createHash("sha256").update(JSON.stringify([data.generatedAt, data.analyzerVersion, data.revision, raw])).digest("hex")}"`;
     response.setHeader("ETag", etag);
     response.setHeader("Cache-Control", "private, no-cache");
     if (matchesQuotaEtag(request.headers["if-none-match"], etag)) { send(response, 304, ""); return true; }
     if (builder.query.view !== "settings") {
       if (database) {
-        const q = builder.query;
         const nodes = new Map((data.nodes || []).map(node => [node.id,node]));
         await readSessionSlices(database,LOCAL_OWNER,Number.isFinite(q.start)?new Date(q.start).toISOString():'0001-01-01',Number.isFinite(q.end)?new Date(q.end).toISOString():'9999-12-31',false,meshHub?q.id:null,row => {
           let session = JSON.parse(row.snapshot_json);
           if(meshHub) session = {...session,id:`${row.node_id}:${row.session_id}`,sourceSessionId:row.session_id,nodeId:row.node_id,nodeAlias:nodes.get(row.node_id)?.alias};
           builder.add({...toPublicUsage({sessions:[session]}).sessions[0],calls:session.calls,turns:session.turns});
-        },false,{...(['conversations','detail','pricing'].includes(q.view)?{model:q.model,node:meshHub?q.node:null,folders:q.folders}:{}),sessionId:meshHub?null:q.id,aggregate:!['detail','pricing'].includes(q.view),buckets:q.buckets});
+        },false,{...(['conversations','detail','pricing'].includes(q.view)?{model:q.model,node:meshHub?q.node:null,folders:q.folders}:{}),sessionId:meshHub?null:q.id,aggregate:!['detail','pricing'].includes(q.view),buckets:q.buckets,prepareCache:false});
         if(q.view==='conversations') {
           const filters = await readFilters(database,LOCAL_OWNER);
           for(const cwd of filters.folders) builder.add({cwd,models:filters.models,calls:[],turns:[]});

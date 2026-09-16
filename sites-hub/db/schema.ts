@@ -91,3 +91,20 @@ export const preferences = sqliteTable("dashboard_preferences", {
   ownerId: text("owner_id").primaryKey(),
   theme: text("theme").notNull(),
 });
+
+export const rollupDays = sqliteTable('usage_rollup_days', {
+  nodeId: text('node_id').notNull(), sessionId: text('session_id').notNull(), dayMs: real('day_ms').notNull(),
+  dirty: integer('dirty').notNull().default(1), signature: text('signature').notNull().default(''),
+}, table => [
+  primaryKey({ columns: [table.nodeId, table.sessionId, table.dayMs] }),
+  foreignKey({ columns: [table.nodeId, table.sessionId], foreignColumns: [sessions.nodeId, sessions.sessionId] }).onDelete('cascade'),
+  index('usage_rollup_pending').on(table.dirty, table.nodeId, table.dayMs),
+]);
+
+export const dailyRollups = sqliteTable('usage_daily_rollups', {
+  nodeId: text('node_id').notNull(), sessionId: text('session_id').notNull(), dayMs: real('day_ms').notNull(),
+  kind: text('kind').notNull(), ordinal: integer('ordinal').notNull(), model: text('model').notNull(), value: text('value').notNull(),
+}, table => [
+  primaryKey({ columns: [table.nodeId, table.sessionId, table.dayMs, table.kind, table.ordinal] }),
+  foreignKey({ columns: [table.nodeId, table.sessionId, table.dayMs], foreignColumns: [rollupDays.nodeId, rollupDays.sessionId, rollupDays.dayMs] }).onDelete('cascade'),
+]);

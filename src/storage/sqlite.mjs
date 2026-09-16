@@ -63,9 +63,11 @@ export function transaction(raw, work) {
 // D1-compatible read interface. Transactions remain explicit on the native side.
 export function d1Adapter(raw) {
   return {
+    batch: async (statements) => transaction(raw, () => statements.map(statement => statement.execute())),
     prepare(sql) {
       const statement = raw.prepare(sql);
       const bound = (values) => ({
+        execute: () => ({ meta: statement.run(...values) }),
         bind: (...args) => bound(args),
         all: async () => ({ results: statement.all(...values) }),
         first: async () => statement.get(...values) ?? null,
