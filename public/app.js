@@ -1252,9 +1252,9 @@ function renderSettingsNodes() {
   target.innerHTML = `<div class="node-list">${nodes.map((node) => `<article class="node-row"><span class="node-pill">${escapeHtml(node.alias)}</span></article>`).join("")}</div>`;
 }
 
-function bucketsFor(calls, period = state.period, now = new Date(), range = dateRange(now)) {
+function bucketsFor(calls, period = state.period, now = new Date(), range = null) {
   if (period === "quota-hourly") return hourlyBucketsFor(calls, weeklyRange());
-  if (period === "custom" || period === "weeklyQuota" || period === "week") return customBucketsFor(calls, period === "week" ? weeklyRange(now) : range);
+  if (period === "custom" || period === "weeklyQuota" || period === "week") return customBucketsFor(calls, period === "week" ? weeklyRange(now) : (range || dateRange(now)));
   if (period === "12m" || period === "all") return monthlyChartBuckets(calls, period, locale(), now);
   const byHour = period === "today";
   const count = byHour ? 24 : period === "7d" ? 7 : 30;

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 1.5.2 — 2026-09-16
+
+- Load dashboard summaries for the requested page and period, with conversation pagination and on-demand details and pricing reports.
+- Index session call dates in Sites and read bounded batches in parallel to avoid scanning unrelated historical snapshots on each visit. Existing snapshots are indexed on first use; subsequent updates maintain the index automatically.
+- Preserve quota periods and chart selections across refreshes, merge equivalent reset timestamps, and exclude Spark observations from the standard Codex quota history.
+- Keep conditional requests, owner isolation and revoked-machine filtering, and cancel stale page requests during navigation.
+- Fix server module packaging for Docker and avoid unnecessary date-range evaluation when rendering standard chart periods.
+
+Docker: `capitaine/codex-usage-dashboard:1.5.2` and `:latest` (Linux AMD64 and ARM64). Recreate containers with their existing configuration and storage volumes. Update reporting agents separately for Spark quota filtering.
 ## 1.5.1 — 2026-09-07
 
 - Restored quota projections when credit calibration is blocked by unpriced calls, using time-weighted measured quota changes as a fallback. The projection explicitly reports percentage-per-hour/day rates rather than inventing credit amounts.

@@ -1,8 +1,8 @@
 import { miniPreferences } from "./src/desktop-options.mjs";
-import { createPageData, pageMetadata } from "./public/page-data.js";
+import { createPageData, pageMetadata } from "./dist/dashboard/page-data.js";
 import { timingSafeEqual, createHash } from "node:crypto";
-import { createQuotaDetail, quotaMetadata } from "./public/quota-data.js";
-import { matchesQuotaEtag, normalizeQuotaPeriods } from "./public/quota-periods.js";
+import { createQuotaDetail, quotaMetadata } from "./dist/dashboard/quota-data.js";
+import { matchesQuotaEtag, normalizeQuotaPeriods } from "./dist/dashboard/quota-periods.js";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
