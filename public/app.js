@@ -9,7 +9,7 @@ import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, GROUP_I18N,
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp as rawLatestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { buildQuotaForecast, estimateQuotaCapacityCredits, interpolateForecastPercent, weeklyForecastTicks } from "./quota-forecast.js";
-import { OVERVIEW_PROJECT_LIMIT, projectIdentity, normalizeProjectGroups } from "./project-identity.js";
+import { OVERVIEW_PROJECT_LIMIT, projectIdentity, normalizeProjectGroups, automaticProjectGroups, collapseProjectCatalog } from "./project-identity.js";
 
 // Summary arrays keep the renderer shared with the quota/detail paths.
 function summaryCalls(summary) { const calls = []; calls.summary = summary; return calls; }
@@ -265,6 +265,35 @@ function loadProjectGroups() {
   try { return normalizeProjectGroups(JSON.parse(localStorage.getItem("codex-usage-project-groups") || "[]")); }
   catch { return []; }
 }
+function loadAutomaticGrouping() {
+  try { return localStorage.getItem("codex-usage-auto-project-groups") !== "false"; } catch { return true; }
+}
+const projectCatalogCache = new Map(), projectCatalogRequests = new Map();
+function automaticGroups(catalog = projectCatalogCache.get(state.dataMode)?.projects || []) {
+  return state.automaticGrouping ? automaticProjectGroups(catalog, state.projectGroups) : [];
+}
+function effectiveProjectGroups() { return [...state.projectGroups, ...automaticGroups()]; }
+async function ensureProjectCatalog(source) {
+  const cached = projectCatalogCache.get(source);
+  if (cached && Date.now() - cached.at < 60000) return true;
+  if (!projectCatalogRequests.has(source)) {
+    const request = (async () => {
+      try {
+        const query = {view:"project-groups", unknownProject:t("projects.unknown")};
+        const response = await fetch(`/api/page?${new URLSearchParams({source,query:JSON.stringify(query)})}`, {signal:AbortSignal.timeout(15000)});
+        const data = await readUsageResponse(response);
+        projectCatalogCache.set(source, {projects:data.pageData.projectCatalog, at:Date.now()});
+        return true;
+      } catch (error) {
+        $("#freshness").textContent = t("load.error", {error:error.message});
+        setPageLoading(false);
+        return false;
+      } finally { projectCatalogRequests.delete(source); }
+    })();
+    projectCatalogRequests.set(source, request);
+  }
+  return projectCatalogRequests.get(source);
+}
 let editingGroup = null, groupEditorSignature = null;
 function saveProjectGroups(groups) {
   try {
@@ -281,14 +310,17 @@ function saveProjectGroups(groups) {
   renderGroupEditor();
 }
 function renderGroupEditor() {
-  const projects = state.data?.pageData?.projectCatalog || (() => {
+  const rawProjects = state.data?.pageData?.projectCatalog || (() => {
     const originals = new Map();
     for (const session of (state.data?.pageOnly ? [] : state.data?.sessions) || []) { const p = projectIdentity(session, t("projects.unknown")); originals.set(p.key, p); }
     return [...originals.values()];
   })();
+  const detectedGroups = automaticProjectGroups(rawProjects, state.projectGroups);
+  const projects = collapseProjectCatalog(rawProjects, state.automaticGrouping ? detectedGroups : []);
   const catalogReady = state.data?.pageData?.view === "project-groups" || (state.data && !state.data.pageOnly);
-  const signature = JSON.stringify([Boolean(catalogReady), projects.map(p => [p.key,p.name]), state.projectGroups, state.language, editingGroup]);
+  const signature = JSON.stringify([state.automaticGrouping, Boolean(catalogReady), projects.map(p => [p.key,p.name]), state.projectGroups, state.language, editingGroup]);
   if (signature === groupEditorSignature) return;
+  const automaticOptionsOpen = $("#groupEditor details")?.open;
   const draftName = $("#groupName")?.value;
   const draftMembers = $$("#groupForm input[name=member]:checked").map(input => input.value);
   const preserveDraft = Boolean(groupEditorSignature && editingGroup === JSON.parse(groupEditorSignature).at(-1));
@@ -298,20 +330,30 @@ function renderGroupEditor() {
   const available = new Map(projects.map(p => [p.key, p]));
   for (const key of current?.members || []) if (!available.has(key)) available.set(key, {key, name: t("groups.missing")});
   $("#groupEditor").innerHTML = `<p class="dialog-copy">${escapeHtml(t("groups.copy"))}</p>
+    <details><summary>${t("groups.autoOptions")}</summary><label class="folder-filter-option"><input id="automaticGrouping" type="checkbox" ${state.automaticGrouping ? "checked" : ""}><span>${t("groups.autoEnable")}</span></label><p class="dialog-copy">${t("groups.autoCopy")}</p><ul>${detectedGroups.map(g=>`<li>${escapeHtml(g.name)}<small> ${escapeHtml(g.members.join(" + "))}</small></li>`).join("") || `<li>${t("groups.autoNone")}</li>`}</ul></details>
     <div class="group-list">${state.projectGroups.map(g => `<article class="group-item"><div><strong>${escapeHtml(g.name)}</strong><p>${g.members.length} ${escapeHtml(t("nav.projects"))}</p></div><button type="button" class="primary-button" data-edit-group="${escapeHtml(g.id)}">${t("groups.edit")}</button><button type="button" class="primary-button" data-remove-group="${escapeHtml(g.id)}">${t("groups.remove")}</button></article>`).join('') || `<p>${t("groups.empty")}</p>`}</div>
     <form id="groupForm"><h3>${escapeHtml(current?.name || t("groups.new"))}</h3><label for="groupName">${t("groups.name")}</label><input id="groupName" maxlength="120" required value="${escapeHtml(current?.name || '')}">
-    <fieldset><legend>${t("groups.members")}</legend><div class="group-options">${[...available.values()].sort((a,b) => a.name.localeCompare(b.name)).map(p => `<label class="folder-filter-option"><input type="checkbox" name="member" value="${escapeHtml(p.key)}" ${current?.members.includes(p.key) ? 'checked' : ''} ${occupied.has(p.key) ? 'disabled' : ''}><span>${escapeHtml(p.name)}<small>${escapeHtml(p.key)}</small></span></label>`).join('')}</div></fieldset>
+    <fieldset><legend>${t("groups.members")}</legend><div class="group-options">${[...available.values()].sort((a,b) => a.name.localeCompare(b.name)).map(p => `<label class="folder-filter-option"><input type="checkbox" name="member" value="${escapeHtml(p.key)}" ${(p.members || [p.key]).some(key=>current?.members.includes(key)) ? 'checked' : ''} ${(p.members || [p.key]).some(key=>occupied.has(key)) ? 'disabled' : ''}><span>${escapeHtml(p.name)}<small>${escapeHtml(p.key)}</small></span></label>`).join('')}</div></fieldset>
     <div class="group-actions"><button class="primary-button" type="submit">${t("groups.save")}</button><button class="primary-button" id="cancelGroup" type="button">${t("groups.cancel")}</button></div></form><p id="groupStatus" role="status">${catalogReady ? "" : escapeHtml(t("load.loading"))}</p>`;
+  $("#groupEditor details").open = Boolean(automaticOptionsOpen);
   if (preserveDraft) {
     $("#groupName").value = draftName || "";
     $$("#groupForm input[name=member]").forEach(input => { input.checked = draftMembers.includes(input.value); });
   }
+  $("#automaticGrouping").onchange = event => {
+    const enabled = event.target.checked;
+    try { localStorage.setItem("codex-usage-auto-project-groups", String(enabled)); }
+    catch { event.target.checked = state.automaticGrouping; $("#groupStatus").textContent = t("groups.storage"); return; }
+    state.automaticGrouping = enabled;
+    state.selectedProject = null;
+    renderGroupEditor();
+  };
   $$("[data-edit-group]").forEach(b => b.onclick = () => { editingGroup = b.dataset.editGroup; renderGroupEditor(); $("#groupName").focus(); });
   $$("[data-remove-group]").forEach(b => b.onclick = () => saveProjectGroups(state.projectGroups.filter(g => g.id !== b.dataset.removeGroup)));
   $("#cancelGroup").onclick = () => { editingGroup = null; groupEditorSignature = null; renderGroupEditor(); };
   $("#groupForm").onsubmit = event => {
     event.preventDefault();
-    const name = $("#groupName").value.trim(), members = [...new FormData(event.currentTarget).getAll('member')];
+    const name = $("#groupName").value.trim(), members = [...new Set([...new FormData(event.currentTarget).getAll('member')].flatMap(key => available.get(key)?.members || [key]))];
     if (!name || members.length < 2) { $("#groupStatus").textContent = t("groups.error"); return; }
     saveProjectGroups([...state.projectGroups.filter(g => g.id !== editingGroup), {id: editingGroup || crypto.randomUUID(), name, members}]);
   };
@@ -346,6 +388,7 @@ function loadTimeFormat() {
 
 const state = {
   projectGroups: loadProjectGroups(),
+  automaticGrouping: loadAutomaticGrouping(),
   data: null,
   dataMode: loadDataMode(),
   view: loadView(),
@@ -649,13 +692,13 @@ function formatDuration(ms) {
 }
 
 function sessionTitle(session) { return session.title === "Conversation sans titre" ? t("conversation.untitled") : session.title; }
-function projectName(session) { return projectIdentity(session, t("projects.unknown"), state.projectGroups).name; }
+function projectName(session) { return projectIdentity(session, t("projects.unknown"), effectiveProjectGroups()).name; }
 
 function projectGroups(sessions) {
   if (state.data?.pageData?.projects) return state.data.pageData.projects;
   const groups = new Map();
   for (const session of sessions) {
-    const identity = projectIdentity(session, t("projects.unknown"), state.projectGroups);
+    const identity = projectIdentity(session, t("projects.unknown"), effectiveProjectGroups());
     const group = groups.get(identity.key) || { ...identity, paths: new Set(), sessions: [], calls: [] };
     group.paths.add(session.cwd || "");
     group.sessions.push(session);
@@ -1691,6 +1734,7 @@ function savePricing() {
 }
 
 function applyUsageData(data) {
+  if (data.pageData?.projectCatalog) projectCatalogCache.set(state.dataMode, {projects:data.pageData.projectCatalog, at:Date.now()});
   const changed = (state.data?.revision || state.data?.generatedAt) !== (data.revision || data.generatedAt) || state.data?.quotaOnly !== data.quotaOnly || state.data?.requestKey !== data.requestKey;
   state.data = hydratePage(data);
   if (!changed) return;
@@ -1768,6 +1812,9 @@ async function loadQuotaData(force, source, signal) {
 }
 
 async function loadData(force = false, silent = false) {
+  if (state.automaticGrouping && !["project-groups", "settings", "quota"].includes(state.view)) {
+    if (!(await ensureProjectCatalog(state.dataMode))) return;
+  }
   clearTimeout(pageLoadTimer);
   const quotaView = state.view === "quota";
   const source = state.dataMode;
@@ -1833,7 +1880,7 @@ function pageQuery(view = state.view, id = null) {
     const last = buckets.at(-1);
     if (!fixedEnd && last && last.end.getTime() <= requestNow.getTime() + 1) last.end = new Date(requestNow.getTime() + 60000);
   }
-  return { view, id, projectGroups: view === "project-groups" ? [] : state.projectGroups, start:view === "project-groups" ? null : range.start?.toISOString() || null, end:view === "project-groups" ? null : fixedEnd ? range.end?.toISOString() : null,
+  return { view, id, projectGroups: view === "project-groups" ? [] : effectiveProjectGroups(), start:view === "project-groups" ? null : range.start?.toISOString() || null, end:view === "project-groups" ? null : fixedEnd ? range.end?.toISOString() : null,
     node:view === "detail" && state.view !== "conversations" ? "all" : state.node, model:view === "detail" && state.view !== "conversations" ? "all" : state.model, folders:view === "detail" && state.view !== "conversations" ? [] : [...state.folders].sort(), search:state.query, usageThreshold:state.usageThreshold,
     page:state.page, pageSize:state.pageSize, sortKey:state.sortKey, sortDirection:state.sortDirection,
     project:state.selectedProject?.key, locale:locale(), unknownProject:t("projects.unknown"), untitled:t("conversation.untitled"), localNode:t("node.local"),

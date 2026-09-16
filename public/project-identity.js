@@ -46,3 +46,38 @@ export function projectIdentity(session, unknownLabel = 'No project', groups = [
   const group = groups.find(group => group.members.includes(original.key));
   return group ? { key: `group:${group.id}`, name: group.name, githubUrl: null } : original;
 }
+
+
+// Only join a name-only identity to one unambiguous repository. Explicit
+// memberships take priority and repositories are never merged with each other.
+export function automaticProjectGroups(catalog, manualGroups = []) {
+  const repositories = new Map();
+  const reserved = new Set(manualGroups.flatMap(g => g.members));
+  for (const project of catalog) {
+    if (!project.key.startsWith('github:')) continue;
+    const name = normalizedName(project.name);
+    if (!repositories.has(name)) repositories.set(name, new Map());
+    repositories.get(name).set(project.key, project);
+  }
+  const result = [];
+  for (const project of catalog) {
+    if (!project.key.startsWith('name:') || reserved.has(project.key)) continue;
+    const candidates = repositories.get(normalizedName(project.name));
+    if (candidates?.size !== 1) continue;
+    const repository = [...candidates.values()][0];
+    if (reserved.has(repository.key)) continue;
+    result.push({id:`automatic:${repository.key}`, name:repository.name, members:[project.key,repository.key]});
+  }
+  return result.sort((a,b)=>a.id.localeCompare(b.id));
+}
+
+export function collapseProjectCatalog(catalog, automaticGroups) {
+  const aliases = new Map(automaticGroups.flatMap(g => g.members.map(key => [key,g])));
+  const result = new Map();
+  for (const project of catalog) {
+    const group = aliases.get(project.key);
+    const key = group ? group.members.find(member=>member.startsWith('github:')) : project.key;
+    if (!result.has(key)) result.set(key, {...project, key, name:group?.name || project.name, members:group?.members || [project.key]});
+  }
+  return [...result.values()];
+}
