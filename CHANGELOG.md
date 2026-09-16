@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 1.5.3 — 2026-09-16
+
+- Store usage in relational SQLite/D1 tables and cache historical daily aggregates while preserving pricing boundaries and persistent container data.
+- Fix Today-to-All failures during concurrent synchronization and keep old-period figures hidden when the requested data cannot be loaded.
+- Reduce history database round trips with larger aggregate batches, select pages before aggregation, and read independent metadata concurrently.
+- Add reversible custom project groups and automatic grouping of unambiguous duplicates.
+- Show loading indicators per data region, restore legacy identifiers for untitled conversations, and default conversation sorting to the latest call.
+- Add an explicit reporting-agent option to synchronize conversation titles.
+
+Docker: `capitaine/codex-usage-dashboard:1.5.3` and `:latest` (Linux AMD64 and ARM64). Recreate containers with their existing configuration and storage volumes.
+
 ## 1.5.2 — 2026-09-16
 
 - Load dashboard summaries for the requested page and period, with conversation pagination and on-demand details and pricing reports.
