@@ -147,7 +147,7 @@ export class MeshAgent {
     return result;
   }
 
-  async sendSigned(pathname, payload) {
+  async sendSigned(pathname, payload, recoverReplay = true) {
     const sequence = this.state.sequence + 1;
     const envelope = createSignedEnvelope({
       nodeId: this.state.nodeId,
@@ -165,8 +165,20 @@ export class MeshAgent {
       headers: this.requestHeaders(),
       body: canonicalJson(envelope),
     });
-    const result = await responseJson(response);
-    return result;
+    try {
+      return await responseJson(response);
+    } catch (error) {
+      const replay = error.status === 409 && (error.code === "mesh_replay"
+        || (!error.code && ["Séquence déjà traitée.", "Séquence Mesh déjà traitée."].includes(error.message)));
+      // A restored or isolated state file can lag a counter advanced by another
+      // instance of this identity. Skip to the clock once, never reset the hub's
+      // replay protection or retry unrelated conflicts. sendSigned persists the
+      // new reservation before transmitting, including if this retry fails.
+      const clockSequence = Date.now();
+      if (!recoverReplay || !replay || clockSequence <= sequence) throw error;
+      this.state.sequence = clockSequence - 1;
+      return this.sendSigned(pathname, payload, false);
+    }
   }
 
   async runSync(data) {
