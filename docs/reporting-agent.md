@@ -207,3 +207,9 @@ Confirm that `MESH_HUB_URL` points to the public ingress and that its `/healthz`
 ### No new data appears
 
 Confirm that the process is still running, the local Codex sources are readable, the hub is reachable, and `/admin` shows a recent machine update. Keep the source directories read-only; do not broaden access to the entire `.codex` directory.
+
+### The hub rejects a sequence as already processed
+
+A restored state file, or another execution context using the same machine identity, can leave the local counter behind the hub. The agent retries a recognized replay rejection once with a counter based on the current time, persisting it before sending. The hub still verifies the signature and rejects any counter that is not newer. Other conflicts and authentication errors are not retried this way.
+
+Keep only one sender for each identity. Stop the supervised agent before running diagnostic signed requests with its state, and use the same execution context and state file. If the retry also fails, check the machine clock and look for another sender; do not reset the hub counter or re-enroll the machine to bypass replay protection.

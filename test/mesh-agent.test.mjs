@@ -205,6 +205,55 @@ test("agent never reuses a reserved sequence after an interrupted request", asyn
   assert.deepEqual(sequences, [1, 2]);
 });
 
+test("agent recovers a stale counter once without weakening hub replay protection", async (t) => {
+  for (const body of [{ error: "Séquence déjà traitée." }, { error: "Séquence Mesh déjà traitée.", code: "mesh_replay" }]) {
+    await t.test(body.code || "Sites legacy response", async () => {
+      const directory = await mkdtemp(path.join(os.tmpdir(), "codex-mesh-replay-"));
+      const requests = [];
+      const floor = Date.now() - 1000;
+      const agent = new MeshAgent({
+        hubUrl: "https://mesh.example", statePath: path.join(directory, "agent.json"),
+        fetchImpl: async (_url, options) => {
+          const envelope = JSON.parse(options.body);
+          requests.push(envelope);
+          const persisted = JSON.parse(await readFile(agent.statePath, "utf8"));
+          assert.equal(persisted.sequence, envelope.sequence, "reserve before every transmission");
+          return envelope.sequence <= floor ? Response.json(body, { status: 409 }) : Response.json({ accepted: true });
+        },
+      });
+      await agent.load(); agent.state.nodeId = "node_test";
+      const payload = { kind: "read", requestVersion: 1 };
+      await agent.sendSigned("/api/mesh/usage", payload);
+      assert.equal(requests.length, 2);
+      assert.equal(requests[0].sequence, 1);
+      assert.ok(requests[1].sequence > floor);
+      assert.deepEqual(requests[1].payload, payload);
+      const { verifySignedEnvelope } = await import("../src/mesh-protocol.mjs");
+      verifySignedEnvelope(requests[1], agent.state.publicKey);
+      const recovered = agent.state.sequence;
+      await agent.sendSigned("/api/mesh/usage", payload);
+      assert.equal(requests[2].sequence, recovered + 1);
+    });
+  }
+});
+
+test("replay recovery is bounded and does not rewind a counter ahead of the clock", async () => {
+  for (const initial of [0, Date.now() + 60_000]) {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "codex-mesh-replay-limit-"));
+    let attempts = 0;
+    const agent = new MeshAgent({
+      hubUrl: "https://mesh.example", statePath: path.join(directory, "agent.json"),
+      fetchImpl: async () => { attempts++; return Response.json({ error: "Séquence déjà traitée." }, { status: 409 }); },
+    });
+    await agent.load(); agent.state.nodeId = "node_test"; agent.state.sequence = initial;
+    await assert.rejects(agent.sendSigned("/api/mesh/usage", { kind: "read", requestVersion: 1 }), /Séquence déjà traitée/);
+    assert.equal(attempts, initial ? 1 : 2);
+    assert.ok(agent.state.sequence > initial);
+    const persisted = JSON.parse(await readFile(agent.statePath, "utf8"));
+    assert.equal(persisted.sequence, agent.state.sequence);
+  }
+});
+
 test("hub rejects unexpected private fields before storing a snapshot", async () => {
   const store = new MeshHubStore();
   const enrollment = await store.createEnrollment();
