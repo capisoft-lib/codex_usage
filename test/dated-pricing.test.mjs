@@ -76,6 +76,41 @@ test("Astra long context starts strictly above 272000 and stacks with API Fast",
   near(apiCostOfCalls(calls).cost, 9.9);
 });
 
+test("GPT-6 Sol and Luna use separate dated API and Codex rates", () => {
+  const usage = { inputTokens: 1_000_000, cachedInputTokens: 400_000, cacheWriteInputTokens: 100_000, outputTokens: 200_000 };
+  const cases = [
+    { model: "gpt-6-sol", apiStandard: 5.66, apiFast: 11.32, cacheWriteCost: 1, creditsStandard: 82, creditsFast: 205 },
+    { model: "gpt-6-luna", apiStandard: 0.283, apiFast: 0.566, cacheWriteCost: 0.05, creditsStandard: 4.1, creditsFast: 10.25 },
+  ];
+  for (const entry of cases) {
+    const callAtRelease = call(entry.model, "2026-09-22T12:00:00Z", usage, "fast");
+    const api = apiCostOfCalls([callAtRelease]);
+    const credits = codexCreditsOfCalls([callAtRelease]);
+    near(api.standardCost, entry.apiStandard);
+    near(api.cost, entry.apiFast);
+    near(api.cacheWriteCost, entry.cacheWriteCost);
+    near(credits.standardCredits, entry.creditsStandard);
+    near(credits.credits, entry.creditsFast);
+    assert.equal(api.unratedCalls, 0);
+    assert.equal(credits.unratedCalls, 0);
+    assert.equal(resolveRate("api", `${entry.model}-2026-09-22`, "2026-09-23").rate.model, entry.model);
+    assert.equal(apiCostOfCalls([call(entry.model, "2026-09-21", usage)]).unratedCalls, 1);
+    assert.equal(codexCreditsOfCalls([call(entry.model, "2026-09-21", usage)]).unratedCalls, 1);
+  }
+});
+
+test("GPT-6 Sol and Luna API long-context prices start strictly above 272000", () => {
+  for (const [model, atBoundary, aboveBoundary] of [
+    ["gpt-6-sol", 0.544, 1.088004],
+    ["gpt-6-luna", 0.0272, 0.0544002],
+  ]) {
+    near(apiCostOfCalls([call(model, "2026-09-23", { inputTokens: 272_000, cachedInputTokens: 0, outputTokens: 0 })]).cost, atBoundary);
+    const result = apiCostOfCalls([call(model, "2026-09-23", { inputTokens: 272_001, cachedInputTokens: 0, outputTokens: 0 })]);
+    near(result.cost, aboveBoundary);
+    assert.equal(result.longContextCalls, 1);
+  }
+});
+
 test("Fast long-context availability is dated independently from the base price", () => {
   const usage = { inputTokens: 300_000, cachedInputTokens: 0, outputTokens: 10_000 };
   assert.equal(apiCostOfCalls([call("gpt-5.6-sol", "2026-08-04", usage, "fast")]).unratedCalls, 1);
@@ -173,6 +208,33 @@ test("the existing collector preserves Astra model, timestamp, counters and serv
     validateSyncPayload({ kind: "sync", snapshotVersion: 1, analyzerVersion: 8, generatedAt: mesh.generatedAt, privacy: mesh.privacy, upserts: mesh.sessions, removals: [] });
     near(apiCostOfCalls([captured]).cost, 3.22);
     near(codexCreditsOfCalls([captured]).credits, 97.5);
+    assert.ok(!JSON.stringify(mesh).includes("C:/private/project"));
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+test("the collector and Mesh preserve GPT-6 Sol and Luna for both price calculators", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "gpt6-pricing-"));
+  try {
+    const file = path.join(dir, "rollout.jsonl");
+    const rows = [
+      { type: "session_meta", timestamp: "2026-09-23T10:00:00Z", payload: { id: "gpt6-fixture", cwd: "C:/private/project", source: "cli" } },
+      { type: "event_msg", timestamp: "2026-09-23T10:00:01Z", payload: { type: "task_started", turn_id: "sol-turn" } },
+      { type: "turn_context", timestamp: "2026-09-23T10:00:02Z", payload: { turn_id: "sol-turn", model: "gpt-6-sol", effort: "medium", service_tier: "fast" } },
+      { type: "event_msg", timestamp: "2026-09-23T10:00:03Z", payload: { type: "token_count", info: { last_token_usage: { input_tokens: 1000, cached_input_tokens: 500, cache_write_input_tokens: 200, output_tokens: 100, total_tokens: 1100 } } } },
+      { type: "event_msg", timestamp: "2026-09-23T10:00:04Z", payload: { type: "task_started", turn_id: "luna-turn" } },
+      { type: "turn_context", timestamp: "2026-09-23T10:00:05Z", payload: { turn_id: "luna-turn", model: "gpt-6-luna", effort: "low", service_tier: "default" } },
+      { type: "event_msg", timestamp: "2026-09-23T10:00:06Z", payload: { type: "token_count", info: { last_token_usage: { input_tokens: 1000, cached_input_tokens: 500, cache_write_input_tokens: 0, output_tokens: 100, total_tokens: 1100 } } } },
+    ];
+    await writeFile(file, rows.map((row) => JSON.stringify(row)).join("\n"));
+    const session = await parseSessionFile(file);
+    const mesh = sanitizeUsageForMesh({ sessions: [session], generatedAt: "2026-09-23T10:01:00Z" }, { projectSalt: "test" });
+    const captured = mesh.sessions[0].calls;
+    assert.deepEqual(captured.map((item) => item.model), ["gpt-6-sol", "gpt-6-luna"]);
+    assert.deepEqual(captured.map((item) => item.serviceTier), ["fast", "default"]);
+    assert.equal(captured[0].usage.cacheWriteInputTokens, 200);
+    assert.equal(apiCostOfCalls(captured).unratedCalls, 0);
+    assert.equal(codexCreditsOfCalls(captured).unratedCalls, 0);
+    validateSyncPayload({ kind: "sync", snapshotVersion: 1, analyzerVersion: mesh.analyzerVersion, generatedAt: mesh.generatedAt, privacy: mesh.privacy, upserts: mesh.sessions, removals: [] });
     assert.ok(!JSON.stringify(mesh).includes("C:/private/project"));
   } finally { await rm(dir, { recursive: true, force: true }); }
 });

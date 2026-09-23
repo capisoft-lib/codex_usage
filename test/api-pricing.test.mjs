@@ -19,6 +19,23 @@ test("recognizes current GPT-5.6 Sol pricing without a fallback", () => {
   });
 });
 
+test("recognizes GPT-6 Sol and Luna API rates and Fast pricing", () => {
+  const pricing = mergeApiPricing();
+  for (const [model, input, cached, output, expectedFastCost] of [
+    ["gpt-6-sol", 2, 0.2, 10, 0.8],
+    ["gpt-6-luna", 0.1, 0.01, 0.5, 0.04],
+  ]) {
+    assert.deepEqual(apiPriceFor(pricing, model), { input, cached, output, exact: true, key: model });
+    assert.equal(apiFastMultiplierFor(pricing, model, "fast"), 2);
+    const result = apiCostOfCalls([{
+      timestamp: "2026-09-23T12:00:00Z", model, serviceTier: "fast",
+      usage: usage(200_000, 0, 0),
+    }], pricing);
+    assert.equal(result.cost, expectedFastCost);
+    assert.equal(result.unratedCalls, 0);
+  }
+});
+
 test("separates fresh, cached, and output cost", () => {
   const result = apiCostOfCalls([{
     timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.6-sol",

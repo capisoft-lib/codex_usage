@@ -1,8 +1,8 @@
 # Dated OpenAI pricing
 
-Research window: **2025-08-07 to 2026-09-05**, covering more than twelve months.
-Catalog: `public/pricing-catalog.js`, version `2026-09-05.1`.
-Last source review: 2026-09-05 (Europe/Paris). Next routine review: 2026-10-05.
+Research window: **2025-08-07 to 2026-09-23**, covering more than twelve months.
+Catalog: `public/pricing-catalog.js`, version `2026-09-23.1`.
+Last source review: 2026-09-23 (Europe/Paris). Next routine review: 2026-10-23.
 
 ## What the dashboard measures
 
@@ -35,6 +35,7 @@ Standard text-token amounts below are USD per million **input / cached input / o
 | 2026-08-05 | GPT-5.6 Fast long context | Requests above 272K input tokens become supported in Fast | [Dated API changelog](https://developers.openai.com/api/docs/changelog) |
 | 2026-08-21 | **Sol promotional price cut** | 4 / 0.40 / 20; credits become 100 / 10 / 500 | [Dated changelog](https://developers.openai.com/api/docs/changelog), [API and credit reduction notice](https://openai.com/index/gpt-5-6/), [credit card](https://learn.chatgpt.com/docs/pricing) |
 | 2026-09-03 | GPT-6 Astra | 10 / 1 / 50; API Fast 2x. Credits: 250 / 25 / 1,250; Codex Fast 2.5x | [Launch date](https://developers.openai.com/api/docs/changelog), [Astra rules](https://developers.openai.com/api/docs/models/gpt-6-astra), [API prices](https://developers.openai.com/api/docs/pricing), [credits](https://learn.chatgpt.com/docs/pricing) |
+| 2026-09-22 | GPT-6 Sol and Luna | API input / cached / output: Sol $2 / $0.20 / $10; Luna $0.10 / $0.01 / $0.50. Codex credits: Sol 50 / 5 / 250; Luna 2.5 / 0.25 / 12.5. API Fast is 2x; Codex Fast is 2.5x. API cache writes cost 1.25x input; Codex has no separate cache-write charge. | [Launch and API price change](https://openai.com/index/introducing-gpt-6-sol-and-luna/), [API rate card](https://developers.openai.com/api/docs/pricing), [Sol model card](https://developers.openai.com/api/docs/models/gpt-6-sol), [Luna model card](https://developers.openai.com/api/docs/models/gpt-6-luna), [Codex credit rates](https://learn.chatgpt.com/docs/pricing), [Codex Fast multiplier](https://learn.chatgpt.com/docs/agent-configuration/speed) |
 
 The changelog also covers image, audio, video, tools and storage products. Examples in this window include the December 2025 image-model release, April 2026 image-model release and June 2026 container billing granularity change. Their counters/units are not present in this dashboard's token observations, so they are not silently mixed into text-token estimates. This is a sourced history for supported text/Codex models, not a claim to reconstruct every OpenAI product's invoices or every account-specific contract.
 
@@ -49,9 +50,9 @@ The changelog also covers image, audio, video, tools and storage products. Examp
 - Historical Fast availability is intentionally conservative. Where only the current API Fast card was verified, the catalog does not invent an earlier start date. GPT-5.5 Priority is supported from its API launch announcement; GPT-5.6 Fast and its long-context eligibility have separate dated gates. Fast long context for GPT-5.4/5.5 has no published applicable price in the reviewed current table.
 - Sol's promotion is guaranteed **at least through November 21**, not necessarily ending then. `promotionMinimumUntil` / `reviewAfter` are review reminders, not price-expiration dates. No automatic restoration to the old rate occurs.
 
-## Astra and accounting boundaries
+## GPT-6 and accounting boundaries
 
-For API Astra, prompts **strictly above 272,000 input tokens** apply 2x to input/cache and 1.5x to output for the whole request. Fast applies another 2x. These API factors are not copied into the credit calculator; its independent published Fast factor is 2.5x.
+For GPT-6 Astra, Sol, and Luna API calls, prompts **strictly above 272,000 input tokens** apply 2x to input/cache and 1.5x to output for the whole request. API Fast applies another 2x. These API factors are not copied into the credit calculator; Codex credits use their own published 2.5x Fast factor.
 
 Input includes cached reads and cache writes, so ordinary fresh input is `inputTokens - cachedInputTokens - cacheWriteInputTokens`. The [official cache cost example](https://developers.openai.com/api/docs/guides/prompt-caching) confirms this accounting. Reasoning output is already part of output tokens and is not charged twice. Invalid/nonfinite counters and cache exceeding input are reported rather than coerced into a plausible amount. A missing published cached rate is `null`, not a free cache price.
 
