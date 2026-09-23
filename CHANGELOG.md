@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.5.4 — 2026-09-23
+
+- Add GPT-6 Sol and GPT-6 Luna API pricing to the current and historical catalogs, preserving dated prices and calculation support.
+- Recover reporting agents from stale replay sequences after synchronization rejection.
+
+Docker: `capitaine/codex-usage-dashboard:1.5.4` and `:latest` (Linux AMD64 and ARM64). Recreate containers with their existing configuration and storage volumes.
+
 ## 1.5.3 — 2026-09-16
 
 - Store usage in relational SQLite/D1 tables and cache historical daily aggregates while preserving pricing boundaries and persistent container data.
