@@ -20,6 +20,23 @@ test("keeps standard calls at the base Codex credit rate", () => {
   assert.equal(result.fastPremiumCredits, 0);
 });
 
+test("applies published GPT-6 Sol and Luna Codex rates and Fast multipliers", () => {
+  const input = { inputTokens: 1_000_000, cachedInputTokens: 0, outputTokens: 0 };
+  for (const [model, standardCredits, fastCredits] of [
+    ["gpt-6-sol", 50, 125],
+    ["gpt-6-luna", 2.5, 6.25],
+  ]) {
+    const standard = codexCreditsOfCalls([{ timestamp: "2026-09-23T12:00:00Z", model, usage: input }]);
+    const fast = codexCreditsOfCalls([{ timestamp: "2026-09-23T12:00:00Z", model, serviceTier: "fast", usage: input }]);
+    assert.equal(creditRateFor(model).input, standardCredits);
+    assert.equal(fastMultiplierFor(model, "fast"), 2.5);
+    assert.equal(standard.credits, standardCredits);
+    assert.equal(fast.credits, fastCredits);
+    assert.equal(standard.unratedCalls, 0);
+    assert.equal(fast.unratedCalls, 0);
+  }
+});
+
 test("supports documented tiers and does not invent rates for unknown models", () => {
   assert.equal(isFastServiceTier("fast"), true);
   assert.equal(isFastServiceTier("priority"), true);

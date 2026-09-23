@@ -1,12 +1,13 @@
 // Public, offline rate history. Evidence and maintenance: docs/pricing-history.md.
 // Day-only announcements use 00:00 UTC; their boundary day remains estimated.
-export const PRICING_CATALOG_VERSION = "2026-09-05.1";
-export const PRICING_VERIFIED_AT = "2026-09-05";
+export const PRICING_CATALOG_VERSION = "2026-09-23.1";
+export const PRICING_VERIFIED_AT = "2026-09-23";
 export const PRICING_RESEARCHED_FROM = "2025-08-07";
-export const PRICING_REVIEW_AFTER = "2026-10-05";
+export const PRICING_REVIEW_AFTER = "2026-10-23";
 export const PRICING_SOURCES = Object.freeze({
   api: "https://developers.openai.com/api/docs/pricing",
   credits: "https://learn.chatgpt.com/docs/pricing",
+  codexChangelog: "https://learn.chatgpt.com/docs/changelog",
   changelog: "https://developers.openai.com/api/docs/changelog",
   speed: "https://learn.chatgpt.com/docs/agent-configuration/speed",
   gpt5: "https://openai.com/index/introducing-gpt-5-for-developers/",
@@ -17,6 +18,9 @@ export const PRICING_SOURCES = Object.freeze({
   gpt56: "https://openai.com/index/gpt-5-6/",
   julyCut: "https://openai.com/index/advancing-the-price-performance-frontier-with-gpt-5-6/",
   astra: "https://developers.openai.com/api/docs/models/gpt-6-astra",
+  gpt6Launch: "https://openai.com/index/introducing-gpt-6-sol-and-luna/",
+  gpt6Sol: "https://developers.openai.com/api/docs/models/gpt-6-sol",
+  gpt6Luna: "https://developers.openai.com/api/docs/models/gpt-6-luna",
 });
 
 const entries = [];
@@ -71,6 +75,12 @@ api("gpt-6-astra", "2026-09-03", [10, 1, 50], {
   ...long, fastMultiplier: 2, fastFrom: "2026-09-03", fastLongContextFrom: "2026-09-03",
   cacheWriteMultiplier: 1.25, sources: ["astra", "api", "changelog"],
 });
+const gpt6Api = {
+  ...long, fastMultiplier: 2, fastFrom: "2026-09-22", fastLongContextFrom: "2026-09-22",
+  cacheWriteMultiplier: 1.25,
+};
+api("gpt-6-sol", "2026-09-22", [2, 0.2, 10], { ...gpt6Api, sources: ["gpt6Launch", "gpt6Sol", "api", "changelog"] });
+api("gpt-6-luna", "2026-09-22", [0.1, 0.01, 0.5], { ...gpt6Api, sources: ["gpt6Launch", "gpt6Luna", "api", "changelog"] });
 
 // Codex credits are independent of API USD. Before our dated observation on
 // August 11 the older token rate cards are not recoverable from these sources.
@@ -87,6 +97,8 @@ for (const [model, values, multiplier] of [
 credits("gpt-5.6-sol", "2026-08-11", [125, 12.5, 750], creditOptions(2.5));
 credits("gpt-5.6-sol", "2026-08-21", [100, 10, 500], { ...creditOptions(2.5), evidence: "documented", sources: ["credits", "gpt56", "speed"], promotionMinimumUntil: "2026-11-21", reviewAfter: "2026-11-21" });
 credits("gpt-6-astra", "2026-09-03", [250, 25, 1250], { fastMultiplier: 2.5, fastFrom: "2026-09-03", sources: ["credits", "speed", "changelog"] });
+credits("gpt-6-sol", "2026-09-22", [50, 5, 250], { fastMultiplier: 2.5, fastFrom: "2026-09-22", sources: ["credits", "speed", "codexChangelog"] });
+credits("gpt-6-luna", "2026-09-22", [2.5, 0.25, 12.5], { fastMultiplier: 2.5, fastFrom: "2026-09-22", sources: ["credits", "speed", "codexChangelog"] });
 
 for (const entry of entries) {
   const next = entries.filter((candidate) => candidate.billing === entry.billing && candidate.model === entry.model && candidate.effectiveFrom > entry.effectiveFrom).sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))[0];
