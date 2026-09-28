@@ -13,7 +13,7 @@ const EMPTY_USAGE = Object.freeze({
   totalTokens: 0,
 });
 
-export const ANALYZER_VERSION = 11;
+export const ANALYZER_VERSION = 12;
 
 function projectNameFromCwd(value) {
   const name = String(value || "").replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop()?.trim();
@@ -232,6 +232,7 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
   let currentTurnId = null;
   let currentModel = "unknown";
   let currentEffort = null;
+  let currentSettingsEffort = null;
   let currentServiceTier = "default";
   let userMessages = 0;
   let assistantMessages = 0;
@@ -273,7 +274,7 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
         const payload = row.payload || {};
         currentTurnId = payload.turn_id || currentTurnId;
         currentModel = payload.model || currentModel;
-        currentEffort = payload.effort || currentEffort;
+        currentEffort = payload.effort || currentSettingsEffort || null;
         currentServiceTier = payload.service_tier || currentServiceTier;
         const turn = turns.get(currentTurnId);
         if (turn) {
@@ -296,9 +297,17 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
       }
 
       if (payload.type === "thread_settings_applied") {
-        currentServiceTier = payload.thread_settings?.service_tier || currentServiceTier;
+        const settings = payload.thread_settings || {};
+        currentServiceTier = settings.service_tier || currentServiceTier;
+        if (Object.hasOwn(settings, "reasoning_effort")) {
+          currentSettingsEffort = settings.reasoning_effort || null;
+          currentEffort = currentSettingsEffort;
+        }
         const turn = currentTurnId ? turns.get(currentTurnId) : null;
-        if (turn && turn.calls === 0) turn.serviceTier = currentServiceTier;
+        if (turn && turn.calls === 0) {
+          turn.serviceTier = currentServiceTier;
+          if (Object.hasOwn(settings, "reasoning_effort")) turn.effort = currentEffort;
+        }
       } else if (payload.type === "task_started") {
         currentTurnId = payload.turn_id || `turn-${turns.size + 1}`;
         if (!turns.has(currentTurnId)) {

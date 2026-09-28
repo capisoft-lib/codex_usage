@@ -76,7 +76,7 @@ test("rebuilds cached quota history without Spark points while retaining token u
   assert.deepEqual(rebuilt.weeklyQuotaHistory[0].observations.map(point => point.usedPercent), [82, 83]);
   assert.equal(rebuilt.sessions[0].modelCalls, 4);
   assert.equal(rebuilt.sessions[0].usage.totalTokens, 440);
-  assert.match(await usageFingerprint({ codexHome }), /^11:/);
+  assert.match(await usageFingerprint({ codexHome }), /^12:/);
 });
 
 test("merges nearby reset observations, retains plan transitions, and ignores unused drifting windows", () => {
@@ -134,6 +134,40 @@ test("parses turns, model calls and duration without message contents", async ()
   assert.equal(JSON.stringify(result).includes("secret"), false);
 });
 
+test("does not carry an earlier turn's effort into a turn that omits it", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "codex-usage-effort-"));
+  const file = path.join(directory, "session.jsonl");
+  const rows = [
+    { timestamp: "2026-09-28T08:00:00.000Z", type: "session_meta", payload: { id: "session-effort" } },
+    { timestamp: "2026-09-28T08:00:01.000Z", type: "turn_context", payload: { turn_id: "turn-1", model: "gpt-6-sol", effort: "high" } },
+    { timestamp: "2026-09-28T08:00:02.000Z", type: "event_msg", payload: { type: "task_started", turn_id: "turn-1" } },
+    { timestamp: "2026-09-28T08:00:03.000Z", type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: 100, output_tokens: 10, total_tokens: 110 } } } },
+    { timestamp: "2026-09-28T08:01:01.000Z", type: "turn_context", payload: { turn_id: "turn-2", model: "gpt-5.6-sol" } },
+    { timestamp: "2026-09-28T08:01:02.000Z", type: "event_msg", payload: { type: "task_started", turn_id: "turn-2" } },
+    { timestamp: "2026-09-28T08:01:03.000Z", type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: 100, output_tokens: 10, total_tokens: 110 } } } },
+  ];
+  await writeFile(file, rows.map(JSON.stringify).join("\n"));
+  const result = await parseSessionFile(file);
+  assert.deepEqual(result.turns.map((turn) => turn.effort), ["high", null]);
+  assert.deepEqual(result.calls.map((call) => call.effort), ["high", null]);
+});
+
+test("recovers effort from applied thread settings when turn context omits it", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "codex-usage-settings-effort-"));
+  const file = path.join(directory, "session.jsonl");
+  const rows = [
+    { timestamp: "2026-09-28T08:00:00.000Z", type: "session_meta", payload: { id: "session-settings-effort" } },
+    { timestamp: "2026-09-28T08:00:01.000Z", type: "turn_context", payload: { turn_id: "turn-1", model: "gpt-5.6-sol" } },
+    { timestamp: "2026-09-28T08:00:02.000Z", type: "event_msg", payload: { type: "thread_settings_applied", thread_settings: { reasoning_effort: "xhigh" } } },
+    { timestamp: "2026-09-28T08:00:03.000Z", type: "event_msg", payload: { type: "task_started", turn_id: "turn-1" } },
+    { timestamp: "2026-09-28T08:00:04.000Z", type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: 100, output_tokens: 10, total_tokens: 110 } } } },
+  ];
+  await writeFile(file, rows.map(JSON.stringify).join("\n"));
+  const result = await parseSessionFile(file);
+  assert.equal(result.turns[0].effort, "xhigh");
+  assert.equal(result.calls[0].effort, "xhigh");
+});
+
 test("canonicalizes only credential-free GitHub repository URLs", () => {
   assert.equal(normalizeGitHubRepositoryUrl("https://TOKEN@GitHub.com/OpenAI/Example.git?ignored=1"), "https://github.com/openai/example");
   assert.equal(normalizeGitHubRepositoryUrl("ssh://git@github.com/OpenAI/Example.git"), "https://github.com/openai/example");
@@ -167,7 +201,7 @@ test("reuses persisted per-file analysis when a session has not changed", async 
 
   const first = await analyzeCodexUsage({ codexHome });
   const second = await analyzeCodexUsage({ codexHome, previousData: first });
-  assert.equal(first.analyzerVersion, 11);
+  assert.equal(first.analyzerVersion, 12);
   assert.equal(second.sessions[0], first.sessions[0]);
   assert.equal(second.sessions[0].fileSize > 0, true);
   assert.equal(Number.isFinite(second.sessions[0].fileModifiedAtMs), true);
@@ -202,7 +236,7 @@ test("supports least-privilege scoped sources without a Codex home mount", async
   const result = await analyzeCodexUsage(options);
   assert.equal(result.sessions[0].title, "Scoped source");
   assert.equal(result.source.mode, "scoped");
-  assert.match(await usageFingerprint(options), /^11:1:/);
+  assert.match(await usageFingerprint(options), /^12:1:/);
 });
 
 test("fingerprints include the analyzer version so persisted snapshots migrate after upgrades", async () => {
@@ -213,7 +247,7 @@ test("fingerprints include the analyzer version so persisted snapshots migrate a
   await mkdir(archivedSessionsPath);
   await writeFile(path.join(sessionsPath, "session.jsonl"), `${JSON.stringify({ type: "session_meta", payload: { id: "versioned" } })}\n`);
   const fingerprint = await usageFingerprint({ sessionsPath, archivedSessionsPath, sessionIndexPath: path.join(root, "missing-index.jsonl") });
-  assert.match(fingerprint, /^11:/);
+  assert.match(fingerprint, /^12:/);
 });
 
 test("rejects a source with no readable session directory", async () => {
