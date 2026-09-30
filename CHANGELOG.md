@@ -8,6 +8,7 @@
 - Separate GPT-6.1 Sol purchased-credit Fast pricing (2x) from included-subscription quota weighting (2.5x) in quota calibration and forecasts.
 - Preserve earlier model rates, historical Fast availability, saved custom prices and original model IDs through collection and Mesh synchronization.
 - Include the previously merged recovery of recorded reasoning effort from thread settings.
+- Patch vulnerable development-tool dependencies (`undici`, `brace-expansion` and `fast-uri`) without changing the deployed application dependency set.
 
 Docker: `capitaine/codex-usage-dashboard:1.5.5` and `:latest` (Linux AMD64 and ARM64). Recreate containers with their existing configuration and storage volumes.
 
