@@ -32,7 +32,8 @@ export function usageProfilesOfCalls(calls = []) {
   return [...profiles.values()].sort((left, right) => right.calls - left.calls || Number(right.fast) - Number(left.fast) || left.model.localeCompare(right.model) || String(left.effort).localeCompare(String(right.effort)));
 }
 
-export function codexCreditsOfCalls(calls = []) {
+// Quota calibration uses subscription consumption; displays/exports use credits.
+export function codexCreditsOfCalls(calls = [], { billing = "credits" } = {}) {
   const result = { credits: 0, standardCredits: 0, fastPremiumCredits: 0, fastCalls: 0, unratedCalls: 0, ratedCalls: 0, estimatedCalls: 0, boundaryCalls: 0, totalCalls: calls.length, catalogVersion: PRICING_CATALOG_VERSION, ratesUsed: {}, usageByRate: {}, unratedReasons: {} };
   const omit = (reason) => { result.unratedCalls += 1; result.unratedReasons[reason] = (result.unratedReasons[reason] || 0) + 1; };
   for (const call of calls) {
@@ -48,7 +49,8 @@ export function codexCreditsOfCalls(calls = []) {
     const tier = call.serviceTier || "default";
     if (!["default", "standard", "priority", "fast"].includes(tier)) { omit("unsupported-tier"); continue; }
     const fast = isFastServiceTier(tier);
-    const multiplier = fast ? rate.fastFrom && resolved.day >= rate.fastFrom ? rate.fastMultiplier : null : 1;
+    const fastMultiplier = billing === "subscription" ? rate.subscriptionFastMultiplier ?? rate.fastMultiplier : rate.fastMultiplier;
+    const multiplier = fast ? rate.fastFrom && resolved.day >= rate.fastFrom ? fastMultiplier : null : 1;
     if (!multiplier) { omit("unsupported-fast"); continue; }
     const standard = ((input - cached) * rate.standard.input + cached * rate.standard.cached + output * rate.standard.output) / 1_000_000;
     result.standardCredits += standard;
