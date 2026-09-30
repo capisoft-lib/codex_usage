@@ -6,7 +6,7 @@
 
 Local Usage turns the Codex session metadata stored on your computer into a fast, privacy-conscious usage dashboard. It can run entirely on one machine, or several machines can send signed, minimized usage snapshots to an optional central dashboard hosted with OpenAI Sites or on your own server.
 
-[**Stable release 1.5.4**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.5.4) · [Docker image 1.5.4](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
+[**Stable release 1.5.5**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.5.5) · [Docker image 1.5.5](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
 
 Setup guides: [deploy the central dashboard with OpenAI Sites](docs/sites-deployment.md) · [deploy the public Mesh ingress](docs/mesh-ingress.md) · [install a reporting agent](docs/reporting-agent.md)
 
@@ -163,7 +163,7 @@ The dashboard image runs as a non-root user with all Linux capabilities removed.
 The public Linux AMD64/ARM64 image is:
 
 ```text
-capitaine/codex-usage-dashboard:1.5.4
+capitaine/codex-usage-dashboard:1.5.5
 ```
 
 The 1.0.2 release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.2`.
@@ -172,7 +172,7 @@ On Windows PowerShell:
 
 ```powershell
 $codexData = Join-Path $env:USERPROFILE ".codex"
-$image = "capitaine/codex-usage-dashboard:1.5.4"
+$image = "capitaine/codex-usage-dashboard:1.5.5"
 
 docker pull $image
 docker volume create codex-usage-dashboard-storage
@@ -196,7 +196,7 @@ docker run -d `
 On macOS or Linux:
 
 ```bash
-IMAGE="capitaine/codex-usage-dashboard:1.5.4"
+IMAGE="capitaine/codex-usage-dashboard:1.5.5"
 
 docker pull "$IMAGE"
 docker volume create codex-usage-dashboard-storage
@@ -488,7 +488,7 @@ The dashboard derives two separate estimates from locally observed model calls. 
 - **Codex credits** use the published ChatGPT Codex rate card. Each call inherits its recorded service tier, and known Fast/Priority calls receive the documented credit multiplier.
 - **API-equivalent cost** estimates what the same calls would have cost through the API. Standard prices, published API Fast rates, and long-context adjustments are applied independently from ChatGPT credit multipliers.
 - Both estimates select the rate applicable at each call's original timestamp from a shared, versioned catalog. Later price cuts do not reduce earlier consumption; late imports retain their historical rate.
-- GPT-6 Astra is supported, including independent API Fast (2x), Codex Fast (2.5x), and API long-context rules.
+- GPT-6 Astra, Sol, Luna and GPT-6.1 Sol are supported with distinct model IDs, dated rates and API long-context rules. Sol 6.1 cached input costs $0.10 or 2.5 Codex credits per million tokens; its Fast purchased-credit billing is 2x and included-subscription quota weighting is 2.5x. Earlier periods retain their recorded factors.
 - Unknown models, dates outside documented coverage and unsupported tiers remain visibly unrated and are excluded from totals. A reference API price is available only in explicitly selected custom simulation.
 - The pricing dialog includes historical/current/custom modes, sourced rate history, catalog verification status and an export of the applied calculation. Legacy custom browser prices are preserved for custom simulation.
 

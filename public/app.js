@@ -1037,7 +1037,7 @@ function renderQuotaPage() {
   const credits = codexCreditsOfCalls(calls);
   const calibrationAt = Date.parse(quota?.peakObservedAt || quota?.observedAt);
   const calibrationCalls = Number.isFinite(calibrationAt) ? calls.filter((call) => Date.parse(call.timestamp) <= calibrationAt) : [];
-  const calibrationCredits = codexCreditsOfCalls(calibrationCalls);
+  const calibrationCredits = codexCreditsOfCalls(calibrationCalls, { billing: "subscription" });
   const observedPercent = Number(quota?.peakUsedPercent ?? quota?.usedPercent);
   const estimatedCapacity = observedPercent > 0 && calibrationCredits.credits > 0 ? calibrationCredits.credits * 100 / observedPercent : null;
   const capacityPartial = calibrationCredits.unratedCalls > 0;
@@ -1074,7 +1074,7 @@ function forecastDateTimeLabel(value) {
 function quotaForecastSamples(quota) {
   const sessions = (state.data?.sessions || []).filter((session) => !quota?.nodeId || session.nodeId === quota.nodeId);
   return sessions.flatMap((session) => session.calls.map((call) => {
-    const priced = codexCreditsOfCalls([call]);
+    const priced = codexCreditsOfCalls([call], { billing: "subscription" });
     return { timestamp: call.timestamp, value: priced.credits, rated: priced.unratedCalls === 0 };
   }));
 }

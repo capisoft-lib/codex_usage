@@ -37,7 +37,7 @@ export function createQuotaDetail(data, reset = null, now = new Date()) {
       const time = Date.parse(call.timestamp);
       if (time >= start && time < end) calls.push(call);
       if (quota?.nodeId && quota.nodeId !== nodeId) return;
-      const priced = codexCreditsOfCalls([call]);
+      const priced = codexCreditsOfCalls([call], { billing: "subscription" });
       const rated = priced.unratedCalls === 0;
       if (!Number.isFinite(time) || (time >= forecastStart && time <= end)) samples.push({ timestamp: call.timestamp, value: priced.credits, rated });
       for (const period of calibration) {

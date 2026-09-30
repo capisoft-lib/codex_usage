@@ -1,8 +1,8 @@
 # Dated OpenAI pricing
 
-Research window: **2025-08-07 to 2026-09-23**, covering more than twelve months.
-Catalog: `public/pricing-catalog.js`, version `2026-09-23.1`.
-Last source review: 2026-09-23 (Europe/Paris). Next routine review: 2026-10-23.
+Research window: **2025-08-07 to 2026-09-30**, covering more than twelve months.
+Catalog: `public/pricing-catalog.js`, version `2026-09-30.1`.
+Last source review: 2026-09-30 (Europe/Paris). Next routine review: 2026-10-30.
 
 ## What the dashboard measures
 
@@ -39,6 +39,14 @@ Standard text-token amounts below are USD per million **input / cached input / o
 
 The changelog also covers image, audio, video, tools and storage products. Examples in this window include the December 2025 image-model release, April 2026 image-model release and June 2026 container billing granularity change. Their counters/units are not present in this dashboard's token observations, so they are not silently mixed into text-token estimates. This is a sourced history for supported text/Codex models, not a claim to reconstruct every OpenAI product's invoices or every account-specific contract.
 
+### GPT-6.1 Sol — September 29, 2026
+
+The [API changelog](https://developers.openai.com/api/docs/changelog) dates `gpt-6.1-sol` to September 29. It is a distinct model, not an alias or a price change for `gpt-6-sol`. The [API card](https://developers.openai.com/api/docs/pricing) and [model card](https://developers.openai.com/api/docs/models/gpt-6.1-sol) give $2 / $0.10 / $10 per million input / cached input / output tokens, with $2.50 cache writes. Above 272K input tokens, the whole request uses 2x input/cache/write and 1.5x output; Fast stacks another 2x.
+
+The [Codex card](https://learn.chatgpt.com/docs/pricing#token-rates) gives 50 / 2.5 / 250 credits per million tokens, without a separate cache-write charge. The [speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed) distinguishes purchased-credit/Enterprise Fast billing (2x) from included-subscription consumption (2.5x). Sol 6.1 credit totals and exports use 2x; quota capacity calibration and forecasts use 2.5x. Earlier model periods retain their previously recorded factors; this addition does not backdate the current distinction across old history. Historical Fast observation gates remain September 23 even when the catalog review date advances.
+
+Rates are reviewed on September 30 and applied from the day-only launch boundary at 00:00 UTC on September 29; launch-day calls remain estimated. The date-suffixed ID is recognized, while undocumented moving aliases, private suffixes and unsupported Batch/Flex/Ultrafast tiers remain unrated.
+
 ## Evidence, precision and missing history
 
 - `documented`: dated announcement plus published amounts/rules. Base periods continue until the next documented change. This cannot prove the absence of an unannounced/account-specific change.
@@ -52,7 +60,7 @@ The changelog also covers image, audio, video, tools and storage products. Examp
 
 ## GPT-6 and accounting boundaries
 
-For GPT-6 Astra, Sol, and Luna API calls, prompts **strictly above 272,000 input tokens** apply 2x to input/cache and 1.5x to output for the whole request. API Fast applies another 2x. These API factors are not copied into the credit calculator; Codex credits use their own published 2.5x Fast factor.
+For GPT-6 Astra, Sol, Luna and GPT-6.1 Sol API calls, prompts **strictly above 272,000 input tokens** apply 2x to input/cache and 1.5x to output for the whole request. API Fast applies another 2x. These API factors are not copied into the credit calculator. Sol 6.1 uses the distinct credit/subscription Fast factors described above; earlier periods retain their recorded factors.
 
 Input includes cached reads and cache writes, so ordinary fresh input is `inputTokens - cachedInputTokens - cacheWriteInputTokens`. The [official cache cost example](https://developers.openai.com/api/docs/guides/prompt-caching) confirms this accounting. Reasoning output is already part of output tokens and is not charged twice. Invalid/nonfinite counters and cache exceeding input are reported rather than coerced into a plausible amount. A missing published cached rate is `null`, not a free cache price.
 
