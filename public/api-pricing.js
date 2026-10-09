@@ -1,4 +1,4 @@
-import { PRICING_CATALOG, PRICING_CATALOG_VERSION, PRICING_VERIFIED_AT, canonicalPricingModel, resolveRate } from "./pricing-catalog.js";
+import { PRICING_CATALOG, PRICING_CATALOG_VERSION, PRICING_VERIFIED_AT, canonicalPricingModel, resolveRate, serviceTierRate, canonicalServiceTier } from "./pricing-catalog.js";
 
 const latest = PRICING_CATALOG.filter((rate) => rate.billing === "api" && !rate.effectiveTo);
 export const DEFAULT_API_PRICING = Object.freeze({
@@ -41,16 +41,16 @@ export function apiPriceFor(pricing, model, effort = null) {
 }
 
 export function apiFastMultiplierFor(pricing, model, serviceTier, timestamp = null) {
-  if (serviceTier !== "priority" && serviceTier !== "fast") return 1;
   const resolved = resolveRate("api", model, timestamp, { mode: timestamp ? pricing.mode : "current", asOf: pricing.asOf || PRICING_VERIFIED_AT });
-  const custom = pricing.mode === "custom" && pricing.fastMultipliers?.[resolved.key];
-  return custom || (resolved.rate?.fastFrom && resolved.day >= resolved.rate.fastFrom ? resolved.rate.fastMultiplier : null);
+  const custom = canonicalServiceTier(serviceTier) === "fast" && pricing.mode === "custom" && pricing.fastMultipliers?.[resolved.key];
+  return custom || serviceTierRate(resolved.rate, serviceTier, resolved.day).multiplier;
 }
 
 export function apiCostOfCalls(calls = [], pricing = mergeApiPricing()) {
   const result = {
     cost: 0, freshInputCost: 0, cachedInputCost: 0, cacheWriteCost: 0, outputCost: 0,
     standardCost: 0, fastPremiumCost: 0, fastCalls: 0, unsupportedFastCalls: 0,
+    ultrafastPremiumCost: 0, ultrafastCalls: 0, discountedCalls: 0, tierAdjustmentCost: 0,
     estimatedCalls: 0, unratedCalls: 0, missingTimestampCalls: 0, boundaryCalls: 0,
     longContextCalls: 0, unobservedCacheWriteCalls: 0, totalCalls: calls.length, ratedCalls: 0,
     catalogVersion: PRICING_CATALOG_VERSION, mode: pricing.mode, asOf: pricing.asOf,
@@ -79,14 +79,12 @@ export function apiCostOfCalls(calls = [], pricing = mergeApiPricing()) {
     // SQL summary groups contain summed counters but a per-call context band.
     // This internal marker is never part of the public/Mesh event contract.
     const longContext = Boolean(rate?.longContextThreshold && (call._contextInputTokens ?? input) > rate.longContextThreshold);
-    const tier = call.serviceTier || "default";
-    const fast = tier === "priority" || tier === "fast";
-    if (!["default", "standard", "priority", "fast"].includes(tier)) { omit("unsupported-tier"); continue; }
-    let multiplier = 1;
-    if (fast) {
-      multiplier = pricing.mode === "custom" ? pricing.fastMultipliers?.[resolved.key] : rate?.fastFrom && resolved.day >= rate.fastFrom ? rate.fastMultiplier : null;
-      if (!multiplier || (longContext && (!rate?.fastLongContextFrom || resolved.day < rate.fastLongContextFrom))) { omit("unsupported-fast"); continue; }
-    }
+    const speed = serviceTierRate(rate, call.serviceTier, resolved.day);
+    const tier = speed.tier;
+    const fast = tier === "fast";
+    const multiplier = fast && pricing.mode === "custom" ? pricing.fastMultipliers?.[resolved.key] : speed.multiplier;
+    if (!multiplier) { omit(speed.reason || "unsupported-fast"); continue; }
+    if (fast && longContext && (!rate?.fastLongContextFrom || resolved.day < rate.fastLongContextFrom)) { omit("unsupported-fast"); continue; }
     const freshCost = fresh * (price.input || 0) * (longContext ? 2 : 1) / 1_000_000;
     const cachedCost = cached * (price.cached || 0) * (longContext ? 2 : 1) / 1_000_000;
     const writeCost = writes * (price.input || 0) * (rate?.cacheWriteMultiplier || 1) * (longContext ? 2 : 1) / 1_000_000;
@@ -98,20 +96,23 @@ export function apiCostOfCalls(calls = [], pricing = mergeApiPricing()) {
     result.outputCost += outputCost * multiplier;
     result.standardCost += standard;
     result.cost += standard * multiplier;
-    result.fastPremiumCost += standard * (multiplier - 1);
+    result.tierAdjustmentCost += standard * (multiplier - 1);
+    if (fast) result.fastPremiumCost += standard * (multiplier - 1);
+    if (tier === "ultrafast") { result.ultrafastCalls += 1; result.ultrafastPremiumCost += standard * (multiplier - 1); }
+    if (tier === "batch" || tier === "flex") result.discountedCalls += 1;
     result.ratedCalls += 1;
     if (fast) result.fastCalls += 1;
     if (longContext) result.longContextCalls += 1;
     const unobservedWrites = Boolean(rate?.cacheWriteMultiplier && input > cached && !Object.hasOwn(usage, "cacheWriteInputTokens"));
     if (unobservedWrites) result.unobservedCacheWriteCalls += 1;
-    const boundary = pricing.mode === "historical" && (resolved.boundaryDay || (fast && [rate.fastFrom, rate.fastLongContextFrom].includes(resolved.day)));
+    const boundary = pricing.mode === "historical" && (resolved.boundaryDay || speed.boundaryDay || (fast && rate.fastLongContextFrom === resolved.day));
     if (boundary) result.boundaryCalls += 1;
     if (pricing.mode === "custom" || rate?.evidence === "reconstructed" || boundary || unobservedWrites) result.estimatedCalls += 1;
     const id = pricing.mode === "custom" ? `custom:${price.key}` : rate.id;
     result.ratesUsed[id] = (result.ratesUsed[id] || 0) + 1;
-    const bucketKey = JSON.stringify([id, fast, longContext, price.input, price.cached, price.output, rate?.cacheWriteMultiplier || 1, multiplier]);
+    const bucketKey = JSON.stringify([id, tier, longContext, price.input, price.cached, price.output, rate?.cacheWriteMultiplier || 1, multiplier]);
     const bucket = result.usageByRate[bucketKey] ||= {
-      rateId: id, calls: 0, freshInputTokens: 0, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 0,
+      rateId: id, serviceTier: tier, calls: 0, freshInputTokens: 0, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 0,
       appliedRates: { input: (price.input || 0) * (longContext ? 2 : 1) * multiplier, cached: (price.cached || 0) * (longContext ? 2 : 1) * multiplier, cacheWrite: (price.input || 0) * (rate?.cacheWriteMultiplier || 1) * (longContext ? 2 : 1) * multiplier, output: (price.output || 0) * (longContext ? 1.5 : 1) * multiplier },
     };
     bucket.calls += 1; bucket.freshInputTokens += fresh; bucket.cachedInputTokens += cached; bucket.cacheWriteInputTokens += writes; bucket.outputTokens += output;

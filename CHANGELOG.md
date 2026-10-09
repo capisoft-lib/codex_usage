@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.6.0 — 2026-10-09
+
+- Add dated Ultrafast pricing for GPT-6 Astra and GPT-6.1 Sol: API and purchased credits use 6x Standard; included-subscription quota calibration uses 8x.
+- Correct the older Fast credit multiplier that conflated purchased credits with subscription consumption: 2x billing versus 2.5x quota weighting. Pre-September 30 speed factors remain explicitly reconstructed; this is a correction, not a new price cut.
+- Support observed Batch/Flex API cards for GPT-6 and GPT-5.6, with conservative October 9 coverage, and keep these tiers unsupported for Codex credits.
+- Add GPT-Rosalind Research with its explicit October 5 API billing boundary and observed credit card, plus the independently priced `chat-latest` API card without mapping it to a moving underlying model.
+- Preserve service tiers through collection, Mesh, relational summaries and calculation exports; distinguish Ultrafast in badges, search, history and premium summaries.
+
+Docker: `capitaine/codex-usage-dashboard:1.6.0` and `:latest` (Linux AMD64 and ARM64). Recreate containers with their existing configuration and storage volumes.
+
 ## 1.5.5 — 2026-09-30
 
 - Add GPT-6.1 Sol as a distinct model with dated API and Codex rates from September 29, including the lower cached-input price, cache writes, Fast and API long-context pricing.

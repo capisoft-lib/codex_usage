@@ -1,6 +1,8 @@
-import { PRICING_CATALOG, PRICING_CATALOG_VERSION, PRICING_VERIFIED_AT, catalogStatus, sourceUrl } from "./pricing-catalog.js";
+import { PRICING_CATALOG, PRICING_CATALOG_VERSION, PRICING_VERIFIED_AT, catalogStatus, sourceUrl, canonicalServiceTier } from "./pricing-catalog.js";
 import { apiCostOfCalls } from "./api-pricing.js";
 import { codexCreditsOfCalls } from "./usage-pricing.js";
+
+const TIER_LABELS = { fr: "Modes de vitesse", en: "Service tiers", de: "Geschwindigkeitsmodi", es: "Modos de velocidad", it: "Modalità di velocità", pt: "Modos de velocidade", ja: "速度モード", ru: "Режимы скорости", zh: "速度模式" };
 
 export const PRICING_I18N = {
   "fr": {
@@ -441,6 +443,7 @@ const REPAIR_MESSAGES = {
 };
 for (const [language, messages] of Object.entries(PRICING_I18N)) {
   Object.assign(messages, REPAIR_MESSAGES.en, REPAIR_MESSAGES[language] || {});
+  messages["dated.tiers"] = TIER_LABELS[language] || TIER_LABELS.en;
 }
 
 export function pricingDiagnostics(calls, pricing) {
@@ -474,7 +477,22 @@ export function pricingDiagnosticsMarkup(t, calls, pricing) {
 export function pricingHistoryMarkup(t, model = "all") {
   const rows = PRICING_CATALOG.filter((rate) => model === "all" || rate.model === model)
     .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || a.model.localeCompare(b.model) || a.billing.localeCompare(b.billing));
-  return `<div class="pricing-history-scroll"><table class="pricing-history-table"><thead><tr><th>${t("pricing.model")}</th><th>${t("dated.period")}</th><th>${t("dated.billing")}</th><th>${t("dated.rates")}</th><th>${t("dated.fast")}</th><th>${t("dated.source")}</th></tr></thead><tbody>${rows.map((rate) => `<tr><th title="${escapeHtml(rate.id)}">${escapeHtml(rate.model)}</th><td>${rate.effectiveFrom}<br>→ ${rate.effectiveTo || t("dated.ongoing")}</td><td>${rate.billing === "api" ? "API · USD" : "Codex · cr"}</td><td>${[rate.standard.input, rate.standard.cached, rate.standard.output].map((value) => value === null ? "—" : value).join(" / ")}${rate.longContextThreshold ? `<small>${t("dated.long")} : ${rate.longContextThreshold.toLocaleString()} · ×2 / ×2 / ×1.5</small>` : ""}</td><td>${rate.fastMultiplier ? `×${rate.fastMultiplier}${rate.subscriptionFastMultiplier ? `<small>${t("nav.quota")} ×${rate.subscriptionFastMultiplier}</small>` : ""}<small>≥ ${rate.fastFrom}</small>` : "—"}</td><td><span>${t("dated." + rate.evidence)}</span><br>${rate.sources.map((source, i) => `<a href="${escapeHtml(sourceUrl(source))}" target="_blank" rel="noopener noreferrer">${t("dated.source")} ${i + 1}</a>`).join(" · ")}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="pricing-history-scroll"><table class="pricing-history-table"><thead><tr><th>${t("pricing.model")}</th><th>${t("dated.period")}</th><th>${t("dated.billing")}</th><th>${t("dated.rates")}</th><th>${t("dated.tiers")}</th><th>${t("dated.source")}</th></tr></thead><tbody>${rows.map((rate) => `<tr><th title="${escapeHtml(rate.id)}">${escapeHtml(rate.model)}</th><td>${rate.effectiveFrom}<br>→ ${rate.effectiveTo || t("dated.ongoing")}</td><td>${rate.billing === "api" ? "API · USD" : "Codex · cr"}</td><td>${[rate.standard.input, rate.standard.cached, rate.standard.output].map((value) => value === null ? "—" : value).join(" / ")}${rate.longContextThreshold ? `<small>${t("dated.long")} : ${rate.longContextThreshold.toLocaleString()} · ×2 / ×2 / ×1.5</small>` : ""}</td><td>${rateTiersMarkup(t, rate)}</td><td><span>${t("dated." + rate.evidence)}</span><br>${rate.sources.map((source, i) => `<a href="${escapeHtml(sourceUrl(source))}" target="_blank" rel="noopener noreferrer">${t("dated.source")} ${i + 1}</a>`).join(" · ")}</td></tr>`).join("")}</tbody></table></div>`;
+}
+
+export function serviceTierBadge(t, tier, multiplier) {
+  const key = canonicalServiceTier(tier);
+  if (key === "standard") return `<span class="standard-badge">${escapeHtml(t("mode.standard"))}</span>`;
+  const label = { fast: "Fast", ultrafast: "Ultrafast", batch: "Batch", flex: "Flex" }[key] || key;
+  return `<span class="fast-badge" title="${escapeHtml(t("kpi.credits"))}">${escapeHtml(label)} · ${multiplier ? `×${multiplier}` : "?"}</span>`;
+}
+
+function rateTiersMarkup(t, rate) {
+  return [
+    rate.fastMultiplier && `Fast ×${rate.fastMultiplier}<small>${rate.billing === "credits" ? `${t("nav.quota")} ×${rate.subscriptionFastMultiplier || rate.fastMultiplier} · ` : ""}≥ ${rate.fastFrom}</small>${rate.fastVerifiedFrom ? `<small>${t("dated.reconstructed")} &lt; ${rate.fastVerifiedFrom}</small>` : ""}`,
+    rate.ultrafastMultiplier && `Ultrafast ×${rate.ultrafastMultiplier}<small>${rate.subscriptionUltrafastMultiplier ? `${t("nav.quota")} ×${rate.subscriptionUltrafastMultiplier} · ` : ""}≥ ${rate.ultrafastFrom}</small>`,
+    rate.batchMultiplier && `Batch / Flex ×${rate.batchMultiplier}<small>≥ ${rate.discountedFrom}</small>`,
+  ].filter(Boolean).join("<br>") || "—";
 }
 
 export function pricingCatalogLabel(t) {

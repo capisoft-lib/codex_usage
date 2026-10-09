@@ -1,6 +1,6 @@
 import { conversationTitle } from './conversation-title.js';
 import { apiCostOfCalls, mergeApiPricing } from './api-pricing.js';
-import { codexCreditsOfCalls, usageProfilesOfCalls } from './usage-pricing.js';
+import { codexCreditsOfCalls, usageProfilesOfCalls, compareUsageProfiles } from './usage-pricing.js';
 import { projectIdentity, normalizeProjectGroups, OVERVIEW_PROJECT_LIMIT } from './project-identity.js';
 
 export function parsePageQuery(value) {
@@ -45,12 +45,12 @@ function summarize(calls, pricing) {
       one.count = count;
       mergeSummary(total, one);
       for (const profile of one.profiles) {
-        const key = JSON.stringify([profile.model,profile.effort,profile.fast,profile.multiplier]);
+        const key = JSON.stringify([profile.model,profile.effort,profile.tier,profile.multiplier]);
         const merged = profiles.get(key) || { ...profile,calls:0 };
         merged.calls += profile.calls * count; profiles.set(key,merged);
       }
     }
-    total.profiles = [...profiles.values()].sort((a,b) => b.calls-a.calls || Number(b.fast)-Number(a.fast) || a.model.localeCompare(b.model) || String(a.effort).localeCompare(String(b.effort)));
+    total.profiles = [...profiles.values()].sort(compareUsageProfiles);
     return total;
   }
   return { cost: compactPrice(apiCostOfCalls(calls, pricing)), credits: compactPrice(codexCreditsOfCalls(calls)), usage: usageOf(calls), profiles: usageProfilesOfCalls(calls), count: calls.length, lastCall: calls.map(c => c.timestamp).sort().at(-1) || null };
@@ -103,7 +103,7 @@ export function createPageData(metadata, query) {
       if (['detail', 'pricing'].includes(q.view)) { rawSessions.push({ ...row, calls, turns }); return; }
       const identity = projectIdentity(row, q.unknownProject || 'No project', q.projectGroups);
       if (q.view === 'conversations') {
-        const profiles = summary.profiles.map(p => `${p.model} ${(q.effortLabels || {})[p.effort] || p.effort || ''} ${p.fast ? 'fast' : 'standard'}`).join(' ');
+        const profiles = summary.profiles.map(p => `${p.model} ${(q.effortLabels || {})[p.effort] || p.effort || ''} ${p.tier}`).join(' ');
         const title = row.title === 'Conversation sans titre' ? q.untitled : row.title;
         const haystack = normalized(`${title} ${row.nodeAlias || q.localNode || ''} ${row.models.join(', ')} ${profiles} ${row.cwd || ''}`, q.locale);
         if (summary.usage.totalTokens < (Number(q.usageThreshold) || 0) || (q.search && !haystack.includes(normalized(q.search, q.locale)))) return;

@@ -6,7 +6,7 @@ import { sameQuotaReset } from "./quota-periods.js";
 import { codexCreditsOfCalls as rawCreditsOfCalls, fastMultiplierFor, usageProfilesOfCalls as rawUsageProfilesOfCalls } from "./usage-pricing.js";
 import { apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 import { PRICING_CATALOG } from "./pricing-catalog.js";
-import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryMarkup, pricingDiagnosticsMarkup } from "./pricing-ui.js";
+import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryMarkup, pricingDiagnosticsMarkup, serviceTierBadge } from "./pricing-ui.js";
 import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, GROUP_I18N, MIGRATION_I18N, resolveLanguage } from "./translations.js";
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp as rawLatestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
@@ -646,7 +646,8 @@ function formatCreditSummary(summary) {
 function creditSummaryMeta(summary) {
   const parts = [];
   if (summary.fastCalls) parts.push(t("kpi.fastUsage", { n: formatInt(summary.fastCalls), premium: formatCredits(summary.fastPremiumCredits) }));
-  else parts.push(t("kpi.standardUsage"));
+  if (summary.ultrafastCalls) parts.push(`Ultrafast · ${t("calls.count", { n: formatInt(summary.ultrafastCalls) })} · +${formatCredits(summary.ultrafastPremiumCredits)}`);
+  if (summary.ratedCalls && !summary.fastCalls && !summary.ultrafastCalls) parts.push(t("kpi.standardUsage"));
   if (summary.unratedCalls) parts.push(t("kpi.unrated", { n: formatInt(summary.unratedCalls) }));
   if (summary.estimatedCalls) parts.push(t("dated.estimated", { n: formatInt(summary.estimatedCalls) }));
   return parts.join(" · ");
@@ -655,7 +656,9 @@ function creditSummaryMeta(summary) {
 function apiCostSummaryMeta(summary, { includeContext = false, includeCoverage = false } = {}) {
   const parts = [t(`dated.${summary.mode || "historical"}`)];
   if (summary.fastCalls) parts.push(t("cost.fastUsage", { n: formatInt(summary.fastCalls), premium: formatCost(summary.fastPremiumCost) }));
-  else parts.push(t("cost.standardTier"));
+  if (summary.ultrafastCalls) parts.push(`Ultrafast · ${t("calls.count", { n: formatInt(summary.ultrafastCalls) })} · +${formatCost(summary.ultrafastPremiumCost)}`);
+  if (summary.discountedCalls) parts.push(`Batch / Flex · ${t("calls.count", { n: formatInt(summary.discountedCalls) })}`);
+  if (summary.ratedCalls && !summary.fastCalls && !summary.ultrafastCalls && !summary.discountedCalls) parts.push(t("cost.standardTier"));
   if (summary.unsupportedFastCalls) parts.push(t("cost.fastUnavailable", { n: formatInt(summary.unsupportedFastCalls) }));
   if (summary.unratedCalls) parts.push(t("dated.unrated", { n: formatInt(summary.unratedCalls) }));
   if (summary.unobservedCacheWriteCalls) parts.push(t("dated.unobservedWrites", { n: formatInt(summary.unobservedCacheWriteCalls) }));
@@ -668,15 +671,6 @@ function apiCostSummaryMeta(summary, { includeContext = false, includeCoverage =
   return parts.join(" · ");
 }
 
-function fastBadge(model, serviceTier) {
-  const multiplier = fastMultiplierFor(model, serviceTier);
-  return fastMultiplierBadge(multiplier);
-}
-
-function fastMultiplierBadge(multiplier) {
-  return multiplier > 1 ? `<span class="fast-badge">${t("fast.badge", { n: multiplier })}</span>` : "";
-}
-
 function effortLabel(effort) {
   const normalized = String(effort || "").toLowerCase();
   if (!normalized) return t("effort.unknown");
@@ -686,9 +680,7 @@ function effortLabel(effort) {
 }
 
 function usageProfileMarkup(profile, { showCalls = true } = {}) {
-  const modeBadge = profile.fast
-    ? profile.multiplier ? fastMultiplierBadge(profile.multiplier) : `<span class="fast-badge" title="${escapeHtml(t("dated.unknown"))}">Fast · ?</span>`
-    : `<span class="standard-badge">${t("mode.standard")}</span>`;
+  const modeBadge = serviceTierBadge(t, profile.tier, profile.multiplier);
   const calls = profile.calls === 1 ? t("calls.one") : t("calls.count", { n: formatInt(profile.calls) });
   return `<div class="usage-profile${profile.fast ? " is-fast" : ""}"><span class="model-pill">${escapeHtml(profile.model)}</span><span class="effort-badge">${escapeHtml(effortLabel(profile.effort))}</span>${modeBadge}${showCalls ? `<span class="profile-calls">${calls}</span>` : ""}</div>`;
 }
@@ -1590,7 +1582,7 @@ function renderTable(sessions) {
     tableLastCall: latestTimestamp(session.calls),
   }));
   const filtered = pagination ? prepared : prepared.filter((session) => {
-    const profileSearch = session.tableProfiles.map((profile) => `${profile.model} ${effortLabel(profile.effort)} ${profile.fast ? "fast" : "standard"}`).join(" ");
+    const profileSearch = session.tableProfiles.map((profile) => `${profile.model} ${effortLabel(profile.effort)} ${profile.tier}`).join(" ");
     const haystack = normalizeSearch(`${sessionTitle(session)} ${session.tableNode} ${session.tableModel} ${profileSearch} ${session.cwd || ""}`);
     return session.usage.totalTokens >= state.usageThreshold && (!query || haystack.includes(query));
   });
@@ -1651,7 +1643,7 @@ async function openDrawer(id) {
   const cost = costOfCalls(session.calls); const credits = codexCreditsOfCalls(session.calls); const usage = session.usage;
   const turns = session.turns.map((turn, index) => {
     const effort = `<span class="effort-badge">${escapeHtml(effortLabel(turn.effort))}</span>`;
-    const mode = fastBadge(turn.model, turn.serviceTier) || `<span class="standard-badge">${t("mode.standard")}</span>`;
+    const mode = serviceTierBadge(t, turn.serviceTier, fastMultiplierFor(turn.model, turn.serviceTier, turn.startedAt));
     const calls = turn.calls === 1 ? t("calls.one") : t("calls.count", { n: turn.calls });
     return `<div class="turn-row"><div class="turn-identity"><strong>#${index + 1}</strong><span class="model-pill">${escapeHtml(turn.model)}</span>${effort}</div><span>${mode}</span><span>${calls}</span><span>${formatDuration(turn.durationMs)}</span></div>`;
   }).join("") || `<p class="drawer-subtitle">${t("detail.noExchange")}</p>`;

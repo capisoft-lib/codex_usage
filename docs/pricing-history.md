@@ -1,8 +1,8 @@
 # Dated OpenAI pricing
 
-Research window: **2025-08-07 to 2026-09-30**, covering more than twelve months.
-Catalog: `public/pricing-catalog.js`, version `2026-09-30.1`.
-Last source review: 2026-09-30 (Europe/Paris). Next routine review: 2026-10-30.
+Research window: **2025-08-07 to 2026-10-09**, covering more than twelve months.
+Catalog: `public/pricing-catalog.js`, version `2026-10-09.1`.
+Last source review: 2026-10-09 (Europe/Paris). Next routine review: 2026-11-09.
 
 ## What the dashboard measures
 
@@ -43,9 +43,23 @@ The changelog also covers image, audio, video, tools and storage products. Examp
 
 The [API changelog](https://developers.openai.com/api/docs/changelog) dates `gpt-6.1-sol` to September 29. It is a distinct model, not an alias or a price change for `gpt-6-sol`. The [API card](https://developers.openai.com/api/docs/pricing) and [model card](https://developers.openai.com/api/docs/models/gpt-6.1-sol) give $2 / $0.10 / $10 per million input / cached input / output tokens, with $2.50 cache writes. Above 272K input tokens, the whole request uses 2x input/cache/write and 1.5x output; Fast stacks another 2x.
 
-The [Codex card](https://learn.chatgpt.com/docs/pricing#token-rates) gives 50 / 2.5 / 250 credits per million tokens, without a separate cache-write charge. The [speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed) distinguishes purchased-credit/Enterprise Fast billing (2x) from included-subscription consumption (2.5x). Sol 6.1 credit totals and exports use 2x; quota capacity calibration and forecasts use 2.5x. Earlier model periods retain their previously recorded factors; this addition does not backdate the current distinction across old history. Historical Fast observation gates remain September 23 even when the catalog review date advances.
+The [Codex card](https://learn.chatgpt.com/docs/pricing#token-rates) gives 50 / 2.5 / 250 credits per million tokens, without a separate cache-write charge. The [speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed) distinguishes purchased-credit/Enterprise Fast billing (2x) from included-subscription consumption (2.5x). Sol 6.1 credit totals and exports use 2x; quota capacity calibration and forecasts use 2.5x. This was initially scoped to Sol 6.1; the October 9 review below corrects the older models as well. Historical Fast observation gates remain September 23 even when the catalog review date advances.
 
-Rates are reviewed on September 30 and applied from the day-only launch boundary at 00:00 UTC on September 29; launch-day calls remain estimated. The date-suffixed ID is recognized, while undocumented moving aliases, private suffixes and unsupported Batch/Flex/Ultrafast tiers remain unrated.
+Rates are reviewed on September 30 and applied from the day-only launch boundary at 00:00 UTC on September 29; launch-day calls remain estimated. The date-suffixed ID is recognized, while undocumented moving aliases, private suffixes and tiers outside their independently documented coverage remain unrated.
+
+### October 9 review: service tiers and corrected credit accounting
+
+The [API changelog](https://developers.openai.com/api/docs/changelog) dates Astra Ultrafast to **September 29**, and Sol 6.1 Ultrafast to **October 8**. The [API rate card](https://developers.openai.com/api/docs/pricing) gives 6x Standard for both, including cached reads, cache writes and output. The full-request long-context factors still stack independently. Ultrafast is a `service_tier`, not another model ID. GPT-5.6 Sol's limited preview has no applicable public Ultrafast card in this review and remains unrated.
+
+The [Codex speed rules](https://learn.chatgpt.com/docs/agent-configuration/speed) and [credit card](https://learn.chatgpt.com/docs/pricing) distinguish Fast **2x purchased credits / 2.5x included usage** and Ultrafast **6x purchased credits / 8x included usage**. The prior catalog mixed the first pair for older models. This release corrects that assumption across supported Fast periods without changing base token rates or inventing a new price-cut date. Speed factors before the September 30 direct review remain reconstructed and increment the estimated-call count. For example, the former Astra Fast 97.5-credit estimate becomes 78 purchased credits for the same 39 Standard credits, while subscription calibration still uses 97.5. Old exported reports retain their original embedded rates and remain reproducible.
+
+Astra Ultrafast credit eligibility starts conservatively at the September 30 direct observation; its exact earlier Codex rollout hour was not established. Sol 6.1 credit eligibility uses the [October 8 launch](https://learn.chatgpt.com/docs/whats-new/october-5-9-2026). Launch/boundary days remain estimated. Ultrafast and Fast retain distinct call counts, premiums, profile badges and export buckets, including in SQL aggregates and quota forecasts.
+
+Batch/Flex API rates are supported only for the exact proportional GPT-6 and GPT-5.6 cards verified on October 9, at **0.5x**, including supported long context and cache writes. Earlier eligibility remains unknown and unrated. Other models, cards with rounding differences, and Codex credit/allowance usage do not inherit this discount.
+
+The September 8 API announcement explicitly says GPT-Rosalind Research billing begins **October 5**: its API period is free before that boundary, then $5 / $0.50 / $25. Its 125 / 12.5 / 625 credit card is observed from October 9; no earlier credit-free period is inferred. `chat-latest` has its own observed $5 / $0.50 / $30 API card from October 9 and is never aliased to its moving underlying model. Both have no undocumented speed or cache-write premiums.
+
+The GPT-6 Standard rates are unchanged. API usage-tier names (Build/Launch/Grow), plan availability, GPT-5.5's forthcoming Codex retirement and image-encoding fixes do not alter token charges. Voice duration, tools, images, regional uplifts and negotiated rates require measurements not present in these counters; this release does not invent them.
 
 ## Evidence, precision and missing history
 
@@ -60,11 +74,11 @@ Rates are reviewed on September 30 and applied from the day-only launch boundary
 
 ## GPT-6 and accounting boundaries
 
-For GPT-6 Astra, Sol, Luna and GPT-6.1 Sol API calls, prompts **strictly above 272,000 input tokens** apply 2x to input/cache and 1.5x to output for the whole request. API Fast applies another 2x. These API factors are not copied into the credit calculator. Sol 6.1 uses the distinct credit/subscription Fast factors described above; earlier periods retain their recorded factors.
+For GPT-6 Astra, Sol, Luna and GPT-6.1 Sol API calls, prompts **strictly above 272,000 input tokens** apply 2x to input/cache and 1.5x to output for the whole request. API Fast applies another 2x; supported Ultrafast applies 6x. These API context factors are not copied into the credit calculator. Credits and subscription quota weighting follow their distinct factors above.
 
 Input includes cached reads and cache writes, so ordinary fresh input is `inputTokens - cachedInputTokens - cacheWriteInputTokens`. The [official cache cost example](https://developers.openai.com/api/docs/guides/prompt-caching) confirms this accounting. Reasoning output is already part of output tokens and is not charged twice. Invalid/nonfinite counters and cache exceeding input are reported rather than coerced into a plausible amount. A missing published cached rate is `null`, not a free cache price.
 
-GPT-5.6 and Astra publish cache-write rates at 1.25x uncached input. Analyzer v8 preserves the optional `cache_write_input_tokens` observation as `cacheWriteInputTokens`. Measured writes are subtracted from ordinary input and charged once at the documented write rate, including API Fast/long-context factors. Older calls without this field remain distinguishable from observed zero writes and carry an unobserved-write count and estimated coverage when uncached input could contain writes. Tool fees, unobserved cache-write surcharges, regional processing uplifts, negotiated rates, Batch/Flex and other unobserved details are excluded or explicitly unsupported. Estimates are not exact invoices.
+GPT-5.6 and Astra publish cache-write rates at 1.25x uncached input. Analyzer v8 preserves the optional `cache_write_input_tokens` observation as `cacheWriteInputTokens`. Measured writes are subtracted from ordinary input and charged once at the documented write rate, including API Fast/long-context factors. Older calls without this field remain distinguishable from observed zero writes and carry an unobserved-write count and estimated coverage when uncached input could contain writes. Tool fees, unobserved cache-write surcharges, regional processing uplifts, negotiated rates and other unobserved details are excluded or explicitly unsupported. Estimates are not exact invoices.
 
 ## UI, migration and reproducibility
 

@@ -6,7 +6,7 @@
 
 Local Usage turns the Codex session metadata stored on your computer into a fast, privacy-conscious usage dashboard. It can run entirely on one machine, or several machines can send signed, minimized usage snapshots to an optional central dashboard.
 
-[**Stable release 1.5.5**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.5.5) · [Docker image 1.5.5](https://hub.docker.com/r/capitaine/codex-usage-dashboard/tags) · [Source code](https://github.com/capisoft-lib/codex_usage) · [AGPL-3.0-or-later](https://github.com/capisoft-lib/codex_usage/blob/main/LICENSE) · [Changelog](https://github.com/capisoft-lib/codex_usage/blob/main/CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
+[**Stable release 1.6.0**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.6.0) · [Docker image 1.6.0](https://hub.docker.com/r/capitaine/codex-usage-dashboard/tags) · [Source code](https://github.com/capisoft-lib/codex_usage) · [AGPL-3.0-or-later](https://github.com/capisoft-lib/codex_usage/blob/main/LICENSE) · [Changelog](https://github.com/capisoft-lib/codex_usage/blob/main/CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
 
 ## Donate
 
@@ -22,10 +22,10 @@ If you like this project and want to support its ongoing development, you can [b
 - project, model, period, usage, and conversation filters;
 - nine interface languages.
 
-## New in 1.5.5
+## New in 1.6.0
 
-- GPT-6.1 Sol has distinct API and Codex credit rates, including its lower cached-input price.
-- Sol 6.1 Fast credit billing (2x) and included-subscription quota weighting (2.5x) are calculated separately.
+- Astra and Sol 6.1 Ultrafast are recognized, displayed and priced with dated eligibility.
+- Fast credit billing (2x) and quota weighting (2.5x), plus Ultrafast credit billing (6x) and quota weighting (8x), are calculated separately.
 - Recent releases added relational SQLite storage, faster history queries, and clearer loading and error states.
 
 ## Docker
@@ -33,18 +33,18 @@ If you like this project and want to support its ongoing development, you can [b
 The public image supports Linux AMD64 and ARM64 and runs as a non-root user:
 
 ```text
-capitaine/codex-usage-dashboard:1.5.5
+capitaine/codex-usage-dashboard:1.6.0
 ```
 
 ```bash
-docker pull capitaine/codex-usage-dashboard:1.5.5
+docker pull capitaine/codex-usage-dashboard:1.6.0
 docker compose up -d
 ```
 
 Inspect the published multi-platform manifest and digest:
 
 ```text
-docker buildx imagetools inspect capitaine/codex-usage-dashboard:1.5.5
+docker buildx imagetools inspect capitaine/codex-usage-dashboard:1.6.0
 ```
 
 The published manifests include SBOM and provenance attestations. See the [full README](https://github.com/capisoft-lib/codex_usage#readme) for scoped read-only mounts, PowerShell/macOS/Linux commands, Compose configuration, and hardened deployment examples.
