@@ -7,8 +7,8 @@ const usage = { inputTokens: 1_000, cachedInputTokens: 800, outputTokens: 100 };
 test("applies the GPT-5.6 Sol Fast credit multiplier to priority calls", () => {
   const result = codexCreditsOfCalls([{ timestamp: "2026-08-14T12:00:00Z", model: "gpt-5.6-sol", serviceTier: "priority", usage }]);
   assert.equal(result.standardCredits, 0.11);
-  assert.equal(result.credits, 0.275);
-  assert.ok(Math.abs(result.fastPremiumCredits - 0.165) < 1e-12);
+  assert.equal(result.credits, 0.22);
+  assert.ok(Math.abs(result.fastPremiumCredits - 0.11) < 1e-12);
   assert.equal(result.fastCalls, 1);
   assert.equal(result.unratedCalls, 0);
 });
@@ -23,13 +23,13 @@ test("keeps standard calls at the base Codex credit rate", () => {
 test("applies published GPT-6 Sol and Luna Codex rates and Fast multipliers", () => {
   const input = { inputTokens: 1_000_000, cachedInputTokens: 0, outputTokens: 0 };
   for (const [model, standardCredits, fastCredits] of [
-    ["gpt-6-sol", 50, 125],
-    ["gpt-6-luna", 2.5, 6.25],
+    ["gpt-6-sol", 50, 100],
+    ["gpt-6-luna", 2.5, 5],
   ]) {
     const standard = codexCreditsOfCalls([{ timestamp: "2026-09-23T12:00:00Z", model, usage: input }]);
     const fast = codexCreditsOfCalls([{ timestamp: "2026-09-23T12:00:00Z", model, serviceTier: "fast", usage: input }]);
     assert.equal(creditRateFor(model).input, standardCredits);
-    assert.equal(fastMultiplierFor(model, "fast"), 2.5);
+    assert.equal(fastMultiplierFor(model, "fast"), 2);
     assert.equal(standard.credits, standardCredits);
     assert.equal(fast.credits, fastCredits);
     assert.equal(standard.unratedCalls, 0);
@@ -55,7 +55,7 @@ test("aggregates model, effort and Fast multiplier into distinct usage profiles"
   ]);
 
   assert.deepEqual(profiles, [
-    { model: "gpt-5.6-sol", effort: "xhigh", multiplier: 2.5, fast: true, calls: 2 },
-    { model: "gpt-5.6-sol", effort: "high", multiplier: 1, fast: false, calls: 1 },
+    { model: "gpt-5.6-sol", effort: "xhigh", multiplier: 2, fast: true, tier: "fast", calls: 2 },
+    { model: "gpt-5.6-sol", effort: "high", multiplier: 1, fast: false, tier: "standard", calls: 1 },
   ]);
 });

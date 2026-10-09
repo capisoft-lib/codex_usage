@@ -64,7 +64,7 @@ test("Astra bills fresh/cache/output and Fast separately from Codex credits", ()
   near(apiCostOfCalls(calls).standardCost, 1.56);
   near(apiCostOfCalls(calls).cost, 3.12);
   near(codexCreditsOfCalls(calls).standardCredits, 39);
-  near(codexCreditsOfCalls(calls).credits, 97.5);
+  near(codexCreditsOfCalls(calls).credits, 78);
 });
 
 test("Astra long context starts strictly above 272000 and stacks with API Fast", () => {
@@ -79,8 +79,8 @@ test("Astra long context starts strictly above 272000 and stacks with API Fast",
 test("GPT-6 Sol and Luna use separate dated API and Codex rates", () => {
   const usage = { inputTokens: 1_000_000, cachedInputTokens: 400_000, cacheWriteInputTokens: 100_000, outputTokens: 200_000 };
   const cases = [
-    { model: "gpt-6-sol", apiStandard: 5.66, apiFast: 11.32, cacheWriteCost: 1, creditsStandard: 82, creditsFast: 205 },
-    { model: "gpt-6-luna", apiStandard: 0.283, apiFast: 0.566, cacheWriteCost: 0.05, creditsStandard: 4.1, creditsFast: 10.25 },
+    { model: "gpt-6-sol", apiStandard: 5.66, apiFast: 11.32, cacheWriteCost: 1, creditsStandard: 82, creditsFast: 164 },
+    { model: "gpt-6-luna", apiStandard: 0.283, apiFast: 0.566, cacheWriteCost: 0.05, creditsStandard: 4.1, creditsFast: 8.2 },
   ];
   for (const entry of cases) {
     const callAtRelease = call(entry.model, "2026-09-22T12:00:00Z", usage, "fast");
@@ -207,7 +207,7 @@ test("the existing collector preserves Astra model, timestamp, counters and serv
     assert.equal(mesh.sessions[0].usage.cacheWriteInputTokens, 20000);
     validateSyncPayload({ kind: "sync", snapshotVersion: 1, analyzerVersion: 8, generatedAt: mesh.generatedAt, privacy: mesh.privacy, upserts: mesh.sessions, removals: [] });
     near(apiCostOfCalls([captured]).cost, 3.22);
-    near(codexCreditsOfCalls([captured]).credits, 97.5);
+    near(codexCreditsOfCalls([captured]).credits, 78);
     assert.ok(!JSON.stringify(mesh).includes("C:/private/project"));
   } finally { await rm(dir, { recursive: true, force: true }); }
 });

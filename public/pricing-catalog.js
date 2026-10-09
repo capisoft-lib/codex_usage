@@ -1,9 +1,9 @@
 // Public, offline rate history. Evidence and maintenance: docs/pricing-history.md.
 // Day-only announcements use 00:00 UTC; their boundary day remains estimated.
-export const PRICING_CATALOG_VERSION = "2026-09-30.1";
-export const PRICING_VERIFIED_AT = "2026-09-30";
+export const PRICING_CATALOG_VERSION = "2026-10-09.1";
+export const PRICING_VERIFIED_AT = "2026-10-09";
 export const PRICING_RESEARCHED_FROM = "2025-08-07";
-export const PRICING_REVIEW_AFTER = "2026-10-30";
+export const PRICING_REVIEW_AFTER = "2026-11-09";
 export const PRICING_SOURCES = Object.freeze({
   api: "https://developers.openai.com/api/docs/pricing",
   credits: "https://learn.chatgpt.com/docs/pricing",
@@ -22,6 +22,7 @@ export const PRICING_SOURCES = Object.freeze({
   gpt6Sol: "https://developers.openai.com/api/docs/models/gpt-6-sol",
   gpt6Luna: "https://developers.openai.com/api/docs/models/gpt-6-luna",
   gpt61Sol: "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+  ultrafast: "https://developers.openai.com/api/docs/guides/ultrafast-mode",
 });
 
 const entries = [];
@@ -74,7 +75,8 @@ api("gpt-5.6-luna", "2026-07-09", [1, 0.1, 6], { ...family56, sources: ["gpt56",
 api("gpt-5.6-luna", "2026-07-30", [0.2, 0.02, 1.2], { ...family56, sources: ["julyCut", "api", "changelog"] });
 api("gpt-6-astra", "2026-09-03", [10, 1, 50], {
   ...long, fastMultiplier: 2, fastFrom: "2026-09-03", fastLongContextFrom: "2026-09-03",
-  cacheWriteMultiplier: 1.25, sources: ["astra", "api", "changelog"],
+  cacheWriteMultiplier: 1.25, ultrafastMultiplier: 6, ultrafastFrom: "2026-09-29",
+  sources: ["astra", "api", "changelog", "ultrafast"],
 });
 const gpt6Api = {
   ...long, fastMultiplier: 2, fastFrom: "2026-09-22", fastLongContextFrom: "2026-09-22",
@@ -84,8 +86,21 @@ api("gpt-6-sol", "2026-09-22", [2, 0.2, 10], { ...gpt6Api, sources: ["gpt6Launch
 api("gpt-6-luna", "2026-09-22", [0.1, 0.01, 0.5], { ...gpt6Api, sources: ["gpt6Launch", "gpt6Luna", "api", "changelog"] });
 api("gpt-6.1-sol", "2026-09-29", [2, 0.1, 10], {
   ...long, fastMultiplier: 2, fastFrom: "2026-09-29", fastLongContextFrom: "2026-09-29",
-  cacheWriteMultiplier: 1.25, sources: ["gpt61Sol", "api", "changelog"],
+  cacheWriteMultiplier: 1.25, ultrafastMultiplier: 6, ultrafastFrom: "2026-10-08",
+  sources: ["gpt61Sol", "api", "changelog", "ultrafast"],
 });
+// Only exact proportional Batch/Flex cards reviewed here are supported. Older
+// eligibility is unknown, so discounted requests before this review stay unrated.
+for (const entry of entries.filter(entry => entry.model.startsWith("gpt-6") || entry.model.startsWith("gpt-5.6-"))) {
+  entry.discountedFrom = "2026-10-09";
+  entry.batchMultiplier = 0.5;
+  entry.flexMultiplier = 0.5;
+}
+// API text-token prices become billable on October 5; the earlier free period
+// is explicit in the September 8 announcement. No credit-free period is inferred.
+api("gpt-rosalind-research", "2026-09-08", [0, 0, 0]);
+api("gpt-rosalind-research", "2026-10-05", [5, 0.5, 25]);
+api("chat-latest", "2026-10-09", [5, 0.5, 30], { evidence: "observed", sources: ["api"] });
 
 // Codex credits are independent of API USD. Before our dated observation on
 // August 11 the older token rate cards are not recoverable from these sources.
@@ -110,6 +125,21 @@ credits("gpt-6.1-sol", "2026-09-29", [50, 2.5, 250], {
   fastMultiplier: 2, subscriptionFastMultiplier: 2.5, fastFrom: "2026-09-29",
   sources: ["credits", "speed", "changelog"],
 });
+credits("gpt-rosalind-research", "2026-10-09", [125, 12.5, 625], { evidence: "observed", sources: ["credits"] });
+
+// Correct the former conflation of purchased-credit billing and quota weighting,
+// not a dated price cut. Pre-review Fast multipliers remain reconstructed.
+for (const entry of entries.filter(entry => entry.billing === "credits" && entry.fastMultiplier)) {
+  entry.fastMultiplier = 2;
+  entry.subscriptionFastMultiplier = 2.5;
+  entry.fastVerifiedFrom = "2026-09-30";
+}
+Object.assign(entries.find(entry => entry.billing === "credits" && entry.model === "gpt-6-astra"), {
+  ultrafastMultiplier: 6, subscriptionUltrafastMultiplier: 8, ultrafastFrom: "2026-09-30",
+});
+Object.assign(entries.find(entry => entry.billing === "credits" && entry.model === "gpt-6.1-sol"), {
+  ultrafastMultiplier: 6, subscriptionUltrafastMultiplier: 8, ultrafastFrom: "2026-10-08",
+});
 
 for (const entry of entries) {
   const next = entries.filter((candidate) => candidate.billing === entry.billing && candidate.model === entry.model && candidate.effectiveFrom > entry.effectiveFrom).sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))[0];
@@ -131,6 +161,26 @@ export function canonicalPricingModel(model) {
   const value = String(model || "").trim().toLowerCase();
   const undated = value.replace(/-\d{4}-\d{2}-\d{2}$/, "");
   return MODEL_ALIASES[value] || MODEL_ALIASES[undated] || undated;
+}
+
+export function canonicalServiceTier(value) {
+  if (!value || value === "default" || value === "standard") return "standard";
+  return value === "priority" ? "fast" : String(value);
+}
+
+// Eligibility is separate for each billing system and tier, independent of
+// model launch and catalog verification. Unknown tiers never become Standard.
+export function serviceTierRate(rate, serviceTier, day, { billing = "credits" } = {}) {
+  const tier = canonicalServiceTier(serviceTier);
+  if (tier === "standard") return { tier, multiplier: 1, boundaryDay: false, reconstructed: false };
+  if (!rate || !["fast", "ultrafast", "batch", "flex"].includes(tier)) return { tier, multiplier: null, reason: "unsupported-tier" };
+  if (["batch", "flex"].includes(tier) && rate.billing !== "api") return { tier, multiplier: null, reason: "unsupported-tier" };
+  const from = tier === "fast" ? rate.fastFrom : tier === "ultrafast" ? rate.ultrafastFrom : rate.discountedFrom;
+  const multiplier = billing === "subscription" && tier === "fast" ? rate.subscriptionFastMultiplier ?? rate.fastMultiplier
+    : billing === "subscription" && tier === "ultrafast" ? rate.subscriptionUltrafastMultiplier ?? rate.ultrafastMultiplier : rate[`${tier}Multiplier`];
+  if (!from || !day || day < from || !Number.isFinite(multiplier) || multiplier <= 0) return { tier, multiplier: null, reason: tier === "fast" ? "unsupported-fast" : "unsupported-tier" };
+  return { tier, multiplier, boundaryDay: day === from,
+    reconstructed: Boolean(tier === "fast" && rate.fastVerifiedFrom && day < rate.fastVerifiedFrom) };
 }
 
 export function resolveRate(billing, model, timestamp, { mode = "historical", asOf = PRICING_VERIFIED_AT } = {}) {
