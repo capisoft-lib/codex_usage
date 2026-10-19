@@ -5,6 +5,27 @@ import { apiCostOfCalls, mergeApiPricing } from '../public/api-pricing.js';
 import { codexCreditsOfCalls } from '../public/usage-pricing.js';
 import { conversationTitle } from '../public/conversation-title.js';
 
+test('repeated grouped summaries preserve counts and keep custom prices request-local', () => {
+  const call={timestamp:'2026-09-15T12:00:00Z',model:'gpt-5',effort:'high',serviceTier:'default',usage:{inputTokens:1000,cachedInputTokens:500,outputTokens:10,totalTokens:1010}};
+  const grouped={...call,_count:3};
+  const query={view:'overview',start:'2026-09-15',end:'2026-09-16',buckets:[{start:'2026-09-15',end:'2026-09-16'}]};
+  const summarize=(pricing={schemaVersion:2,mode:'historical',asOf:'2026-10-19'})=>{
+    const b=createPageData({}, {...query,pricing});
+    for(let i=0;i<4;i++) b.add({id:String(i),cwd:'/shared',calls:[grouped]});
+    return b.finish().pageData;
+  };
+  const official=summarize();
+  assert.equal(official.totals.count,12);
+  assert.equal(official.buckets[0].summary.count,12);
+  assert.ok(Math.abs(official.totals.cost.cost-apiCostOfCalls(Array(12).fill(call)).cost)<1e-9);
+  const pricing=mergeApiPricing({schemaVersion:2,mode:'custom'});
+  pricing.models['gpt-5']={input:50,cached:25,output:100};
+  const custom=summarize(pricing);
+  assert.ok(Math.abs(custom.totals.cost.cost-apiCostOfCalls(Array(12).fill(call),pricing).cost)<1e-9);
+  assert.notEqual(custom.totals.cost.cost,official.totals.cost.cost);
+  assert.deepEqual(summarize(),official);
+});
+
 test('untitled archived sessions show and search by the legacy identifier in every view', () => {
   const session = {id:'node:archived',sourceSessionId:'archived',title:'Conversation sans titre',calls:[{timestamp:'2026-09-15T12:00:00Z',model:'gpt-test',usage:{inputTokens:1,totalTokens:1}}]};
   const expected = conversationTitle(session);

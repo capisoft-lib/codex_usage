@@ -1859,7 +1859,7 @@ async function loadQuotaData(force, source, signal) {
     throw new Error(t("load.errorToast"));
   }
   quotaResponses.delete(key);
-  quotaResponses.set(key, { data, etag: response.headers.get("etag") || cached?.etag });
+  quotaResponses.set(key, { data, etag: response.headers.get("etag") || (response.status === 304 ? cached?.etag : null) });
   while (quotaResponses.size > 3) quotaResponses.delete(quotaResponses.keys().next().value);
   state.data = data;
   render();

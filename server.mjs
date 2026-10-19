@@ -12,7 +12,7 @@ import { MeshHubStore } from "./src/mesh-hub-store.mjs";
 import { serializePublicUsage, toPublicUsage } from "./src/public-usage.mjs";
 import { createUsageCollector } from "./src/usage-collector.mjs";
 import { cliText } from "./src/cli-locale.mjs";
-import { readSessionSlices, readFilters } from './src/storage/relational-reader.mjs';
+import { readSessionSlices, readQuotaCalls, readQuotaCalibration, readQuotaSamples, readFilters } from './src/storage/relational-reader.mjs';
 import { LOCAL_OWNER } from './src/storage/local-repository.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -154,7 +154,7 @@ async function routeApi(request, response, url) {
     let builder;
     try { builder = createPageData(safeMetadata, raw); } catch { sendJson(response, 400, { error: "Filtres invalides." }); return true; }
     const q = builder.query;
-    if (database && !['settings','detail','pricing'].includes(q.view) && q.end-q.start >= 28*86400000) {
+    if (database && !['settings','detail','pricing'].includes(q.view) && q.end-q.start >= 86400000) {
       await readSessionSlices(database,LOCAL_OWNER,Number.isFinite(q.start)?new Date(q.start).toISOString():'0001-01-01',Number.isFinite(q.end)?new Date(q.end).toISOString():'9999-12-31',false,null,()=>{},false,{aggregate:true,prepareOnly:true});
     }
     const etag = `"${createHash("sha256").update(JSON.stringify([data.generatedAt, data.analyzerVersion, data.revision, raw])).digest("hex")}"`;
@@ -176,7 +176,9 @@ async function routeApi(request, response, url) {
       } else for (const session of data.sessions) builder.add(toPublicUsage({ sessions: [session] }).sessions[0]);
     }
     if(database && (meshHub?meshHub.metadata():usageCollector.store.repository.metadata()).revision !== data.revision) {
-      sendJson(response,409,{error:'Les données ont changé pendant la lecture. Réessayez.'});return true;
+      response.removeHeader('ETag');
+      response.setHeader('Cache-Control','private, no-store');
+      sendJson(response,200,{...builder.finish(),revision:null});return true;
     }
     sendJson(response, 200, { ...builder.finish(), revision: etag });
     return true;
@@ -214,9 +216,15 @@ async function routeApi(request, response, url) {
     if (!force && matchesQuotaEtag(request.headers["if-none-match"], etag)) { send(response, 304, ""); return true; }
     if (url.searchParams.get("detail") !== "1") { sendJson(response, 200, safe); return true; }
     const detail = createQuotaDetail(safe, url.searchParams.get("period"));
-    if (database) await readSessionSlices(database,LOCAL_OWNER,new Date(detail.from).toISOString(),new Date(detail.to).toISOString(),true,null,row => {
-      for(const call of JSON.parse(row.snapshot_json).calls) detail.add(call,meshHub?row.node_id:null);
-    },true);
+    if (database) {
+      await readQuotaCalls(database,LOCAL_OWNER,new Date(detail.callsFrom).toISOString(),new Date(detail.sampleTo).toISOString(),(call,nodeId) => {
+        detail.addRecent(call,meshHub?nodeId:null);
+      });
+      await Promise.all([
+        readQuotaCalibration(database,LOCAL_OWNER,detail.calibrationWindows,meshHub?detail.calibrationNodeId:null,(call,nodeId)=>detail.addCalibration(call,meshHub?nodeId:null)),
+        readQuotaSamples(database,LOCAL_OWNER,detail.sampleFrom,detail.callsFrom-1,detail.sampleAnchor,meshHub?detail.calibrationNodeId:null,(call,nodeId)=>detail.addHistoricalSample(call,meshHub?nodeId:null)),
+      ]);
+    }
     else for (const session of data.sessions || []) for (const call of session.calls || []) {
       const time = Date.parse(call.timestamp);
       if (!Number.isFinite(time) || (time >= detail.from && time <= detail.to)) {
@@ -224,7 +232,9 @@ async function routeApi(request, response, url) {
       }
     }
     if(database && (meshHub?meshHub.metadata():usageCollector.store.repository.metadata()).revision !== data.revision) {
-      sendJson(response,409,{error:'Les données ont changé pendant la lecture. Réessayez.'});return true;
+      response.removeHeader('ETag');
+      response.setHeader('Cache-Control','private, no-store');
+      sendJson(response,200,{...detail.finish(),revision:null});return true;
     }
     sendJson(response, 200, detail.finish());
     return true;

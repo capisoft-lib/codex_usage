@@ -29,20 +29,26 @@ function compactPrice(price) {
   delete summary.ratesUsed; delete summary.usageByRate; delete summary.unratedReasons;
   return summary;
 }
-function summarize(calls, pricing) {
+function summarize(calls, pricing, cache = null) {
   if (calls.some(call => call._count != null)) {
     const total = summarize([], pricing), profiles = new Map();
     for (const call of calls) {
       const count = call._count ?? 1;
-      const one = summarize([{ ...call, _count: undefined,
-        ...(call._totals ? {usage:call._totals,_contextInputTokens:call.usage.inputTokens} : {}) }], pricing);
-      for (const object of [one.cost, one.credits, one.usage]) {
-        for (const key of Object.keys(object)) {
-          if (typeof object[key] === 'number' && !['officialCoverage','catalogVersion'].includes(key)
-            && (!call._totals || key.endsWith('Calls'))) object[key] *= count;
+      const key = cache && JSON.stringify([call.timestamp,call.model,call.effort,call.serviceTier,count,call.usage,call._totals]);
+      let one = cache?.get(key);
+      if (!one) {
+        one = summarize([{ ...call, _count: undefined,
+          ...(call._totals ? {usage:call._totals,_contextInputTokens:call.usage.inputTokens} : {}) }], pricing);
+        for (const object of [one.cost, one.credits, one.usage]) {
+          for (const key of Object.keys(object)) {
+            if (typeof object[key] === 'number' && !['officialCoverage','catalogVersion'].includes(key)
+              && (!call._totals || key.endsWith('Calls'))) object[key] *= count;
+          }
         }
+        one.count = count;
+        // Request-local and bounded; prices and user overrides never cross requests.
+        if (cache) { if (cache.size >= 512) cache.delete(cache.keys().next().value); cache.set(key,one); }
       }
-      one.count = count;
       mergeSummary(total, one);
       for (const profile of one.profiles) {
         const key = JSON.stringify([profile.model,profile.effort,profile.tier,profile.multiplier]);
@@ -72,6 +78,8 @@ const normalized = (v, locale) => String(v || '').normalize('NFD').replace(/\p{D
 // individual calls and turns are returned solely for explicit detail/report requests.
 export function createPageData(metadata, query) {
   const q = parsePageQuery(query);
+  const summaryCache = new Map();
+  const summarizeCalls = calls => summarize(calls, q.pricing, summaryCache);
   const data = pageMetadata(metadata);
   const totals = summarize([], q.pricing);
   const groups = new Map(), models = new Set(), folders = new Set(), rows = [];
@@ -98,7 +106,7 @@ export function createPageData(metadata, query) {
       const calls = (session.calls || []).filter(c => inRange(c.timestamp) && (!scoped || !q.model || q.model === 'all' || c.model === q.model));
       if (!calls.length) return;
       const turns = (session.turns || []).filter(t => inRange(t.startedAt) && (!scoped || !q.model || q.model === 'all' || t.model === q.model));
-      const summary = summarize(calls, q.pricing);
+      const summary = summarizeCalls(calls);
       const row = { id: session.id, sourceSessionId: session.sourceSessionId, title: conversationTitle(session), nodeId: session.nodeId, nodeAlias: session.nodeAlias, cwd: session.cwd, projectName: session.projectName, projectGitHubUrl: session.projectGitHubUrl, startedAt: session.startedAt, models: [...new Set(calls.map(c => c.model))], summary, usage: summary.usage, modelCalls: summary.count, exchanges: turns.reduce((n,t)=>n+(t._count ?? 1),0), durationMs: turns.reduce((n, t) => n + (t.durationMs || 0), 0), calls: [], turns: [] };
       if (['detail', 'pricing'].includes(q.view)) { rawSessions.push({ ...row, calls, turns }); return; }
       const identity = projectIdentity(row, q.unknownProject || 'No project', q.projectGroups);
@@ -117,7 +125,7 @@ export function createPageData(metadata, query) {
       group.paths.add(row.cwd || ''); group.sessionCount++; mergeSummary(group.summary, summary);
       group.sessions.push(row); group.sessions.sort((a,b) => String(b.summary.lastCall).localeCompare(String(a.summary.lastCall))); group.sessions.length = Math.min(group.sessions.length, 6);
       if (q.project === group.key) for (const model of row.models) {
-        const s = summarize(calls.filter(c => c.model === model), q.pricing);
+        const s = summarizeCalls(calls.filter(c => c.model === model));
         if (!group.models.has(model)) group.models.set(model, summarize([], q.pricing));
         mergeSummary(group.models.get(model), s);
       }
@@ -125,7 +133,7 @@ export function createPageData(metadata, query) {
       for (let i = 0; i < buckets.length; i++) {
         const b = buckets[i], start = Date.parse(b.start), end = Date.parse(b.end);
         const selected = calls.filter(c => { const t = Date.parse(c.timestamp); return t >= start && (t < end || (b.inclusiveEnd && t === end)); });
-        if (selected.length) mergeSummary(b.summary, summarize(selected, q.pricing));
+        if (selected.length) mergeSummary(b.summary, summarizeCalls(selected));
       }
     },
     finish() {

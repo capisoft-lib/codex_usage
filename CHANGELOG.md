@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.6.2 — 2026-10-19
+
+- Speed up weekly quota forecasts by reading exact selected-week calls and aggregating older EMA samples and calibration history in SQL, preserving the forecast formula and dated subscription prices.
+- Batch Sites metadata and read quota events across active machines with bounded keyset pagination. Measured uncached forecast requests on the private Site fell from 9.7 seconds to 2.1–4.0 seconds; a full reload displayed the chart in 4.4 seconds.
+- Cache completed days from recent ranges, including the last seven days, with atomic preparation and invalidation after late writes. Today and partial days remain live.
+- Return completed reads during concurrent synchronization without caching them, clear stale quota ETags, and time out requests whose response headers never arrive.
+- Reuse bounded request-local pricing summaries without sharing custom prices between requests.
+
+Docker: `capitaine/codex-usage-dashboard:1.6.2` and `:latest` (Linux AMD64 and ARM64). Recreate containers with their existing configuration and storage volumes.
+
 ## 1.6.1 — 2026-10-19
 
 - Read Codex's Zstandard-compressed `.jsonl.zst` session archives directly, alongside plain JSONL logs. Compression no longer makes historical usage disappear locally or propagate as Mesh deletions.

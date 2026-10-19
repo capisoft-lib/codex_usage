@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     }
     const q = builder.query;
     // Continue warming even when the client's unchanged payload receives 304.
-    if (!['settings','detail','pricing'].includes(q.view) && q.end-q.start >= 28*86400000) {
+    if (!['settings','detail','pricing'].includes(q.view) && q.end-q.start >= 86400000) {
       await readSessionSlices(db(),owner,Number.isFinite(q.start)?new Date(q.start).toISOString():'0001-01-01',Number.isFinite(q.end)?new Date(q.end).toISOString():'9999-12-31',false,null,()=>{},false,{aggregate:true,prepareOnly:true});
     }
     const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(metadata.revision + raw));

@@ -270,3 +270,16 @@ test("an uncached response drops the previous ETag after concurrent ingestion", 
   await ui.load(); await ui.load(); await ui.load();
   assert.deepEqual(headers, [undefined, '"old"', undefined]);
 });
+
+test('a quota read completed during sync cannot reuse an old ETag', async () => {
+  const reset='2099-09-21T00:00:00Z';
+  const headers=[];
+  let revision=0;
+  const ui=dashboard({view:'quota',fetch:async (url,_count,options)=>{
+    if(!url.includes('detail=1')) return Response.json({revision:`v${++revision}`,quotaOnly:true,weeklyQuota:{resetsAt:reset},sessions:[]});
+    headers.push(options.headers['If-None-Match']);
+    return Response.json({revision:null,quotaOnly:true,quotaDetail:{reset},sessions:[]},{headers:headers.length===1?{ETag:'"old"'}:{'Cache-Control':'private, no-store'}});
+  }});
+  await ui.load(); await ui.load(); await ui.load();
+  assert.deepEqual(headers,[undefined,'"old"',undefined]);
+});

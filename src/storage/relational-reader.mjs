@@ -94,12 +94,12 @@ export async function readSessionSlices(
     '_totals',json(${aggregateUsage.replaceAll("AVG(", "SUM(")}))`;
   const groupedTurn = `json_object('_count',COUNT(*),'startedAt',MAX(t.started_at),'model',t.model,'durationMs',SUM(t.duration_ms))`;
   const now = new Date();
-  const cutoff = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
-  const useRollups = options.aggregate && !includeInvalid && options.rollups !== false && database.batch && lower < cutoff && upper-lower >= 28*DAY_MS;
+  const cutoff = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const useRollups = options.aggregate && !includeInvalid && options.rollups !== false && database.batch && lower < cutoff && upper-lower >= DAY_MS;
   const signature = `v1_${thresholds.join('_')}`;
   let eligible = '';
   if (useRollups) {
-    if (options.prepareCache !== false) await prepareDailyRollups(database, owner, cutoff, signature, { call: groupedCall, turn: groupedTurn, group: dailyGroupBy });
+    if (options.prepareCache !== false) await prepareDailyRollups(database, owner, cutoff, signature, { call: groupedCall, turn: groupedTurn, group: dailyGroupBy }, {from:lower, to:upper});
     eligible = eligibleRollupDay(lower,upper,cutoff,boundaries,signature);
   }
   if (options.prepareOnly) return;
@@ -193,6 +193,72 @@ export async function readFilters(database, owner) {
     folders: (folders.results || []).map((row) => row.cwd),
     models: (models.results || []).map((row) => row.model),
   };
+}
+
+// Quota forecasts need exact event times, but no conversation metadata or turns.
+// Bound by events rather than sessions: a single long conversation cannot grow
+// a database response without limit. Keep session/ordinal order for accounting.
+export async function readQuotaCalls(database, owner, from, to, consume) {
+  await migrateLegacySessions(database, owner);
+  const lower = Date.parse(from), upper = Date.parse(to);
+  if (!Number.isFinite(lower) || !Number.isFinite(upper) || lower > upper) throw new Error('Invalid quota range');
+  const batchSize = 8192;
+  let cursor = null;
+    for (;;) {
+      // Short transport keys avoid repeating verbose column names for thousands
+      // of events over D1; the public event contract is reconstructed below.
+      const result = await database.prepare(`SELECT c.session_id AS s,c.ordinal AS o,c.node_id AS n,
+        c.timestamp AS t,c.turn_id AS u,c.model AS m,c.effort AS e,c.service_tier AS r,
+        c.input_tokens AS i,c.cached_input_tokens AS k,c.output_tokens AS p,
+        c.reasoning_output_tokens AS z,c.total_tokens AS a,c.cache_write_input_tokens AS w FROM usage_calls c
+        JOIN mesh_nodes n ON n.id=c.node_id
+        WHERE n.owner_id=? AND n.revoked_at IS NULL
+        ${cursor ? 'AND (c.node_id,c.session_id,c.ordinal)>(?,?,?)' : ''}
+        AND (c.timestamp_ms BETWEEN ? AND ? OR c.timestamp_ms IS NULL)
+        ORDER BY c.node_id,c.session_id,c.ordinal LIMIT ${batchSize}`)
+        .bind(owner, ...(cursor || []), lower, upper).all();
+      const rows = result.results || [];
+      for (const row of rows) consume({timestamp:row.t,turnId:row.u,model:row.m,effort:row.e,serviceTier:row.r,
+        usage:{inputTokens:row.i,cachedInputTokens:row.k,outputTokens:row.p,reasoningOutputTokens:row.z,totalTokens:row.a,
+          ...(row.w == null ? {} : {cacheWriteInputTokens:row.w})}}, row.n);
+      if (rows.length < batchSize) break;
+      cursor = [rows.at(-1).n, rows.at(-1).s, rows.at(-1).o];
+    }
+}
+
+// Forecast calibration only needs totals inside each observation window. One
+// owner-scoped SQL aggregation replaces months of raw-event network batches.
+// UTC pricing days and every inclusive period boundary remain distinct.
+export async function readQuotaCalibration(database, owner, windows, node, consume) {
+  if (!windows.length) return;
+  const boundaries=[...new Set(windows.flatMap(w=>[w.start,w.end]))].sort((a,b)=>a-b);
+  if (boundaries.some(value=>!Number.isFinite(value))) throw new Error('Invalid calibration range');
+  const segment=`CASE ${boundaries.map((value,i)=>`WHEN c.timestamp_ms<${value} THEN ${i*2} WHEN c.timestamp_ms=${value} THEN ${i*2+1}`).join(' ')} ELSE ${boundaries.length*2} END`;
+  await readQuotaGroups(database,owner,boundaries[0],boundaries.at(-1),node,segment,true,consume);
+}
+
+// Older EMA samples need their exact hour relative to this forecast's anchor,
+// not each event. Pricing days, invalid gaps and subscription tiers stay distinct.
+export async function readQuotaSamples(database,owner,from,to,anchor,node,consume) {
+  if (to<from) return;
+  if (![from,to,anchor].every(Number.isFinite)) throw new Error('Invalid sample range');
+  await readQuotaGroups(database,owner,from,to,node,`CAST((${anchor}-c.timestamp_ms)/3600000 AS INTEGER)`,false,consume);
+}
+
+// Called after readQuotaCalls has completed legacy migration for this request.
+async function readQuotaGroups(database,owner,from,to,node,segment,includeInvalid,consume) {
+  const invalid=`c.input_tokens<0 OR c.cached_input_tokens<0 OR c.output_tokens<0 OR coalesce(c.cache_write_input_tokens,0)<0 OR c.cached_input_tokens+coalesce(c.cache_write_input_tokens,0)>c.input_tokens`;
+  const result=await database.prepare(`SELECT c.node_id,MAX(c.timestamp) AS timestamp,c.model,c.service_tier,
+    SUM(c.input_tokens) AS input_tokens,SUM(c.cached_input_tokens) AS cached_input_tokens,
+    SUM(c.output_tokens) AS output_tokens,SUM(c.reasoning_output_tokens) AS reasoning_output_tokens,
+    SUM(c.total_tokens) AS total_tokens,SUM(c.cache_write_input_tokens) AS cache_write_input_tokens,
+    MAX(CASE WHEN ${invalid} THEN 1 ELSE 0 END) AS invalid_usage
+    FROM usage_calls c JOIN mesh_nodes n ON n.id=c.node_id
+    WHERE n.owner_id=? AND n.revoked_at IS NULL ${node?'AND c.node_id=?':''}
+    AND (c.timestamp_ms BETWEEN ? AND ? ${includeInvalid?'OR c.timestamp_ms IS NULL':''})
+    GROUP BY c.node_id,date(c.timestamp_ms/1000,'unixepoch'),c.model,c.service_tier,${segment},CASE WHEN ${invalid} THEN 1 ELSE 0 END`)
+    .bind(owner,...(node?[node]:[]),from,to).all();
+  for (const row of result.results || []) consume({...callFromRow(row),_invalidUsage:Boolean(row.invalid_usage)},row.node_id);
 }
 
 export function countersFromRow(row) {
