@@ -1,11 +1,12 @@
 {
   "name": "codex-usage-dashboard",
   "private": true,
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "An independent, privacy-conscious local dashboard for Codex usage, model calls, timing, and theoretical cost.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
+    "benchmark:pages": "node scripts/benchmark-pages.mjs",
     "benchmark:storage": "node scripts/benchmark-storage.mjs",
     "test:storage:docker": "node scripts/smoke-relational-docker.mjs",
     "build:ui": "node scripts/build-dashboard-ui.mjs",

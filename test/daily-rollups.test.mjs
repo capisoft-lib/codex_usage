@@ -37,3 +37,36 @@ test('daily cache preserves prices, boundaries, filtering, late writes and delet
     assert.equal(db.raw.prepare('SELECT COUNT(*) n FROM usage_daily_rollups').get().n,0);
   } finally { db.close(); }
 });
+
+test('last seven days cache finished days in the current month, keeping today and split days live', async () => {
+  const db=openSqlite(), repo=new LocalRepository(db);
+  const day=86400000, today=Math.floor(Date.now()/day)*day;
+  const timestamp=ms=>new Date(ms).toISOString();
+  try {
+    const calls=Array.from({length:8},(_,i)=>({timestamp:timestamp(today-i*day),model:'gpt-5',usage:{inputTokens:100,outputTokens:10}}));
+    calls.push({...calls[0],timestamp:timestamp(today-2*day+12*3600000)});
+    repo.saveUsage({generatedAt:timestamp(today),sessions:[{id:'s',calls,turns:[]}]},'test',timestamp(today));
+    const q={view:'overview',start:timestamp(today-6*day),end:timestamp(today+day-1),pricing:{schemaVersion:2,mode:'historical',asOf:'2026-10-19'},
+      buckets:Array.from({length:7},(_,i)=>({start:timestamp(today-(6-i)*day),end:timestamp(today-(5-i)*day)}))};
+    let batches=0;
+    const adapter={...db,batch:async statements=>{batches++;assert.equal(statements.length,4);return db.batch(statements);}};
+    const read=async(rollups,query=q)=>{
+      const b=createPageData(repo.metadata(),query);
+      await readSessionSlices(adapter,'local',query.start,query.end,false,null,row=>b.add({...JSON.parse(row.snapshot_json),id:row.session_id}),false,{aggregate:true,rollups,buckets:query.buckets});
+      return b.finish();
+    };
+    assert.deepEqual(await read(true),await read(false));
+    assert.equal(db.raw.prepare('SELECT COUNT(*) n FROM usage_rollup_days WHERE dirty=0').get().n,6);
+    assert.equal(batches,1);
+    await read(true); assert.equal(batches,1,'Warm visits do not rebuild clean days');
+    db.raw.exec('UPDATE usage_calls SET output_tokens=99 WHERE ordinal=2');
+    assert.deepEqual(await read(true),await read(false));
+    assert.equal(batches,2,'Only changed days are prepared again');
+    const split={...q,buckets:[{start:timestamp(today-6*day+3600000),end:timestamp(today-2*day+12*3600000),inclusiveEnd:true}]};
+    assert.deepEqual(await read(true,split),await read(false,split));
+    db.raw.exec('UPDATE usage_calls SET output_tokens=88 WHERE ordinal=0');
+    const normalize=value=>JSON.parse(JSON.stringify(value,(_key,v)=>typeof v==='number'?Number(v.toPrecision(12)):v));
+    assert.deepEqual(normalize(await read(true)),normalize(await read(false)),'Today always reads current events (ignoring floating-point summation order)');
+    assert.equal(batches,2);
+  } finally {db.close();}
+});

@@ -8,11 +8,23 @@ type SessionRow = { node_id: string; snapshot_json: string };
 export async function quotaMetadataForOwner(ownerId: string, includeFirstSession = false) {
   const database = db();
   if (includeFirstSession) await migrateLegacySessions(database, ownerId);
-  const [nodeResult, count, preferences] = await Promise.all([
-    database.prepare("SELECT id, alias, enrolled_at, last_seen, revoked_at, privacy_json, short_quota_json, quota_json, quota_history_json, analyzer_version, last_generated_at, last_payload_hash FROM mesh_nodes WHERE owner_id = ? ORDER BY alias").bind(ownerId).all<NodeRow>(),
-    database.prepare(`SELECT COUNT(*) AS total${includeFirstSession ? ", MIN(s.started_at) AS first_session_at" : ""} FROM mesh_sessions s JOIN mesh_nodes n ON n.id = s.node_id WHERE n.owner_id = ? AND n.revoked_at IS NULL`).bind(ownerId).first<{ total: number; first_session_at: string | null }>(),
-    database.prepare("SELECT theme FROM dashboard_preferences WHERE owner_id = ?").bind(ownerId).first<{ theme: string }>(),
-  ]);
+  const statements = [
+    database.prepare("SELECT id, alias, enrolled_at, last_seen, revoked_at, privacy_json, short_quota_json, quota_json, quota_history_json, analyzer_version, last_generated_at, last_payload_hash FROM mesh_nodes WHERE owner_id = ? ORDER BY alias").bind(ownerId),
+    database.prepare(`SELECT COUNT(*) AS total${includeFirstSession ? ", MIN(s.started_at) AS first_session_at" : ""} FROM mesh_sessions s JOIN mesh_nodes n ON n.id = s.node_id WHERE n.owner_id = ? AND n.revoked_at IS NULL`).bind(ownerId),
+    database.prepare("SELECT theme FROM dashboard_preferences WHERE owner_id = ?").bind(ownerId),
+  ];
+  let nodeResult: {results:NodeRow[]}, count: {total:number;first_session_at:string|null}|null, preferences: {theme:string}|null;
+  if (typeof database.batch === 'function') {
+    // One D1 round trip and one consistent metadata snapshot.
+    const result = await database.batch(statements);
+    nodeResult = {results:result[0].results as NodeRow[]};
+    count = (result[1].results[0] as typeof count) || null;
+    preferences = (result[2].results[0] as typeof preferences) || null;
+  } else {
+    [nodeResult,count,preferences] = await Promise.all([
+      statements[0].all<NodeRow>(), statements[1].first<{total:number;first_session_at:string|null}>(), statements[2].first<{theme:string}>(),
+    ]);
+  }
   const nodes = nodeResult.results || [];
   const active = nodes.filter((node) => !node.revoked_at);
   const quotas = active.filter((node) => node.quota_json).map((node) => ({ ...JSON.parse(node.quota_json!), nodeId: node.id, nodeAlias: node.alias, receivedAt: node.last_seen }));
