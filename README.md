@@ -6,7 +6,7 @@
 
 Local Usage turns the Codex session metadata stored on your computer into a fast, privacy-conscious usage dashboard. It can run entirely on one machine, or several machines can send signed, minimized usage snapshots to an optional central dashboard hosted with OpenAI Sites or on your own server.
 
-[**Stable release 1.6.0**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.6.0) · [Docker image 1.6.0](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
+[**Stable release 1.6.1**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.6.1) · [Docker image 1.6.1](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
 
 Setup guides: [deploy the central dashboard with OpenAI Sites](docs/sites-deployment.md) · [deploy the public Mesh ingress](docs/mesh-ingress.md) · [install a reporting agent](docs/reporting-agent.md)
 
@@ -75,7 +75,7 @@ Local mode is always the default. Nothing is sent to a hub unless `MESH_HUB_URL`
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) 22.13 or newer for the local dashboard/agent, or [Docker](https://www.docker.com/);
+- [Node.js](https://nodejs.org/) 22.15 or newer for the local dashboard/agent, or [Docker](https://www.docker.com/);
 - a local Codex installation with session files under the Codex home directory;
 - Node.js 22.13 or newer when developing or testing `sites-hub/` locally.
 
@@ -123,11 +123,13 @@ Direct mode reads only these paths under the current user's Codex directory:
 
 It does not authenticate with OpenAI and never opens `auth.json`.
 
+Both plain `.jsonl` sessions and Zstandard-compressed `.jsonl.zst` archives are indexed directly. Compressing a Codex archive preserves its usage history; no extracted copy is needed. If an archive cannot be read, the collector keeps its last successful snapshot and skips synchronization instead of sending historical deletions.
+
 ## Optional mini quota window
 
 In dashboard Settings, choose the five-hour quota, weekly quota, or both, then open the compact window. It uses the selected data source, language and palette. The browser popup does not guarantee always-on-top behavior.
 
-For a native always-on-top window, install the **separate** desktop helper with Node.js 22.13 or newer:
+For a native always-on-top window, install the **separate** desktop helper with Node.js 22.15 or newer:
 
 ```bash
 npm ci --prefix desktop
@@ -163,7 +165,7 @@ The dashboard image runs as a non-root user with all Linux capabilities removed.
 The public Linux AMD64/ARM64 image is:
 
 ```text
-capitaine/codex-usage-dashboard:1.6.0
+capitaine/codex-usage-dashboard:1.6.1
 ```
 
 The 1.0.2 release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.2`.
@@ -172,7 +174,7 @@ On Windows PowerShell:
 
 ```powershell
 $codexData = Join-Path $env:USERPROFILE ".codex"
-$image = "capitaine/codex-usage-dashboard:1.6.0"
+$image = "capitaine/codex-usage-dashboard:1.6.1"
 
 docker pull $image
 docker volume create codex-usage-dashboard-storage
@@ -196,7 +198,7 @@ docker run -d `
 On macOS or Linux:
 
 ```bash
-IMAGE="capitaine/codex-usage-dashboard:1.6.0"
+IMAGE="capitaine/codex-usage-dashboard:1.6.1"
 
 docker pull "$IMAGE"
 docker volume create codex-usage-dashboard-storage
