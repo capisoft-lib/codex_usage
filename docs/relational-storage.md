@@ -2,7 +2,7 @@
 
 The dashboard uses embedded SQLite on Node.js and in Docker, and Cloudflare D1 on Sites. The schema and read queries are shared. No SQL server, container, account or connection string is required for local operation.
 
-Node.js **22.13 or newer** is required because the application uses `node:sqlite`. The Docker image already supplies Node 22. The optional desktop helper supplies its own compatible Node runtime through Electron.
+Node.js **22.15 or newer** is required for embedded SQLite and streaming Zstandard archive reads. The Docker image already supplies Node 22. The optional desktop helper supplies its own compatible Node runtime through Electron.
 
 ## Data model
 

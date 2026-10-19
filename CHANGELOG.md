@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 1.6.1 — 2026-10-19
+
+- Read Codex's Zstandard-compressed `.jsonl.zst` session archives directly, alongside plain JSONL logs. Compression no longer makes historical usage disappear locally or propagate as Mesh deletions.
+- Preserve session identities, calls, tokens and incremental indexing when archives are compressed, and deduplicate compressed/plain copies.
+- Keep the last successful snapshot and skip synchronization if a compressed archive cannot be read, preventing partial history from replacing stored data.
+- Require Node.js 22.15 or newer for streaming Zstandard support. Existing Docker storage volumes and Mesh identities are retained.
+
+Docker: `capitaine/codex-usage-dashboard:1.6.1` and `:latest` (Linux AMD64 and ARM64). Recreate containers with their existing configuration and storage volumes. Update reporting agents to restore collection of compressed archives.
+
 ## 1.6.0 — 2026-10-09
 
 - Add dated Ultrafast pricing for GPT-6 Astra and GPT-6.1 Sol: API and purchased credits use 6x Standard; included-subscription quota calibration uses 8x.

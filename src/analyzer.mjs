@@ -3,6 +3,7 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import readline from "node:readline";
+import * as zlib from "node:zlib";
 import { mergeWeeklyQuotaObservations } from "./quota-history.mjs";
 
 const EMPTY_USAGE = Object.freeze({
@@ -187,7 +188,7 @@ async function walkJsonl(root) {
     await Promise.all(entries.map(async (entry) => {
       const fullPath = path.join(directory, entry.name);
       if (entry.isDirectory()) await walk(fullPath);
-      else if (entry.isFile() && entry.name.endsWith(".jsonl")) files.push(fullPath);
+      else if (entry.isFile() && /\.jsonl(?:\.zst)?$/.test(entry.name)) files.push(fullPath);
     }));
   }
   await walk(root);
@@ -243,7 +244,17 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
   const calls = [];
   const parseErrors = [];
 
-  const input = createReadStream(filePath, { encoding: "utf8" });
+  const compressed = filePath.endsWith(".jsonl.zst");
+  if (compressed && typeof zlib.createZstdDecompress !== "function") {
+    throw new Error("Les archives Codex .jsonl.zst nécessitent Node.js 22.15 ou plus récent.");
+  }
+  const source = createReadStream(filePath);
+  const input = compressed ? zlib.createZstdDecompress() : source;
+  if (compressed) {
+    source.on("error", (error) => input.destroy(error));
+    source.pipe(input);
+  }
+  input.setEncoding("utf8");
   const lines = readline.createInterface({ input, crlfDelay: Infinity });
   let lineNumber = 0;
 
@@ -348,10 +359,14 @@ export async function parseSessionFile(filePath, threadNames = new Map()) {
       }
     }
   } catch (error) {
-    if (error.code !== "EBUSY" && error.code !== "EPERM") throw error;
+    if (compressed || (error.code !== "EBUSY" && error.code !== "EPERM")) throw error;
+  } finally {
+    lines.close();
+    input.destroy();
+    source.destroy();
   }
 
-  const sessionId = meta?.id || meta?.session_id || path.basename(filePath, ".jsonl");
+  const sessionId = meta?.id || meta?.session_id || path.basename(filePath).replace(/\.jsonl(?:\.zst)?$/, "");
   const turnList = [...turns.values()];
   const models = [...new Set(calls.map((call) => call.model).filter(Boolean))];
   const usage = calls.reduce((total, call) => addUsage(total, call.usage), { ...EMPTY_USAGE });
@@ -424,6 +439,11 @@ export async function analyzeCodexUsage(options = {}) {
       }
     }
   }));
+
+  // A failed archive read must not become a successful partial snapshot whose
+  // missing sessions would then be deleted from both SQLite and the Mesh hub.
+  const archiveError = sessions.find((session) => session.error && session.filePath.endsWith(".jsonl.zst"));
+  if (archiveError) throw new Error(`Lecture de l'archive Codex impossible : ${archiveError.filePath}: ${archiveError.error}`);
 
   // A session may briefly exist in both active and archived folders. Keep the newest copy.
   const unique = new Map();

@@ -57,3 +57,9 @@ jobs:
         run: npm run test:storage:docker
         env:
           STORAGE_TEST_IMAGE: codex-usage-dashboard:ci
+      - name: Verify compressed archives in the container
+        run: >-
+          docker run --rm --read-only --tmpfs /tmp --cap-drop ALL
+          --security-opt no-new-privileges:true
+          --mount type=bind,source=${{ github.workspace }}/scripts/smoke-compressed-docker.mjs,target=/verify-compressed.mjs,readonly
+          codex-usage-dashboard:ci node /verify-compressed.mjs
