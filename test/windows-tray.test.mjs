@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { once } from "node:events";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -15,7 +16,29 @@ const ps = (command) => execute(powershell, ["-NoProfile", "-NonInteractive", "-
 
 test("Windows notification health, private-state errors and task controls", { skip: process.platform !== "win32", timeout: 90_000 }, async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "codex-tray-test-"));
-  t.after(() => ps(`Remove-Item -LiteralPath ${literal(directory)} -Recurse -ErrorAction Stop`));
+  const cleanup = () => ps(String.raw`
+$ErrorActionPreference = 'Stop'
+$directory = ${literal(directory)}
+$segment = '\' + [IO.Path]::GetFileName($directory) + '\TrayTests.exe'
+# Task Scheduler stop is asynchronous. Match this unique test directory even
+# when Windows expands RUNNER~1 to runneradmin in the process command line.
+$workers = @(Get-CimInstance Win32_Process -Filter "Name='TrayTests.exe'" | Where-Object { $_.CommandLine -like ('*' + $segment + '*') })
+foreach ($worker in $workers) {
+  $process = Get-Process -Id $worker.ProcessId -ErrorAction SilentlyContinue
+  if ($process -and -not $process.WaitForExit(10000)) { throw 'Owned tray test worker did not exit; files preserved' }
+}
+# Windows can retain the image mapping briefly after process exit. Retry only
+# normal deletion, with a fixed bound; do not force attributes or ignore errors.
+$deadline = [DateTime]::UtcNow.AddSeconds(3)
+while (Test-Path -LiteralPath $directory) {
+  try { Remove-Item -LiteralPath $directory -Recurse -ErrorAction Stop }
+  catch {
+    if ([DateTime]::UtcNow -ge $deadline) { throw }
+    Start-Sleep -Milliseconds 200
+  }
+}
+`);
+  t.after(cleanup);
   const output = path.join(directory, "TrayTests.exe");
   const framework = process.arch === "x64" ? "Framework64" : "Framework";
   const compiler = path.join(process.env.SystemRoot, "Microsoft.NET", framework, "v4.0.30319", "csc.exe");
@@ -68,4 +91,11 @@ try {
 }
 `);
   assert.match(lifecycle.stdout, /lifecycle-ok/);
+  // Reproduce the cleanup race deterministically without a long-lived orphan:
+  // the executable is still mapped when the test body's cleanup hooks begin.
+  const delayed = spawn(output, ["--brief-worker"], { windowsHide: true, stdio: "ignore" });
+  const delayedExit = once(delayed, "close");
+  await once(delayed, "spawn");
+  await cleanup();
+  assert.equal((await delayedExit)[0], 0);
 });
