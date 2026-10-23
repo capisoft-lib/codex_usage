@@ -21,6 +21,7 @@ public static class TrayTests
     {
         try
         {
+            if (args.Length > 0 && args[0] == "--brief-worker") { Thread.Sleep(2000); return 0; }
             if (args.Length > 0 && args[0] == "--worker") { Thread.Sleep(120000); return 0; }
             if (args.Length == 3 && args[0] == "--control") { TrayProbe.Control(args[1], args[2]); return 0; }
             Check("connected", value => { });
