@@ -12,7 +12,7 @@
     "dev": "npm run sync:dashboard && node scripts/run-vinext.mjs dev",
     "build": "npm run sync:dashboard && node scripts/run-vinext.mjs build",
     "start": "node scripts/run-vinext.mjs start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/mesh-protocol.test.mjs tests/migrations.test.mjs tests/quota-api.test.mjs tests/page-api.test.mjs tests/relational-d1.test.mjs",
+    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/mesh-protocol.test.mjs tests/migrations.test.mjs tests/quota-api.test.mjs tests/page-api.test.mjs tests/relational-d1.test.mjs tests/braces-depth.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
@@ -33,6 +33,7 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.5",
     "@vitejs/plugin-rsc": "0.5.34",
+    "braces": "file:vendor/braces",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-plugin-jsx-a11y": "6.10.2",
@@ -49,6 +50,7 @@
     "wrangler": "4.123.0"
   },
   "overrides": {
+    "braces": "$braces",
     "@esbuild-kit/core-utils": {
       "esbuild": "0.25.12"
     },
