@@ -363,6 +363,8 @@ function Install-Supervision {
     Write-Output "État Mesh conservé : $($Configuration.StatePath)"
     Write-Output "Logs UTF-8 : $($Configuration.LogPath)"
     Write-Output "Génération : $generationResult"
+    & (Join-Path $PSScriptRoot 'Install-CodexUsageTray.ps1') -Action Install -TaskName $TaskName `
+        -RepoRoot $Configuration.RepoRoot -InstallDirectory $Configuration.InstallDirectory -StatePath $Configuration.StatePath
     } finally {
         if (Test-Path -LiteralPath $preparedHost -PathType Leaf) { Remove-Item -LiteralPath $preparedHost -Force }
     }
@@ -463,6 +465,8 @@ function Invoke-Diagnostic {
 
 function Uninstall-Supervision {
     param([Parameter(Mandatory = $true)]$Configuration)
+    & (Join-Path $PSScriptRoot 'Install-CodexUsageTray.ps1') -Action Uninstall -TaskName $TaskName `
+        -RepoRoot $Configuration.RepoRoot -InstallDirectory $Configuration.InstallDirectory -StatePath $Configuration.StatePath
     Stop-ExistingTask $TaskName
     $processes = Wait-MatchingProcessesToExit $Configuration
     if ($processes.InspectionError) { throw "Impossible de vérifier l'arrêt des processus : $($processes.InspectionError)" }
