@@ -1,0 +1,44 @@
+{
+  "scenarioTime": "2026-10-25T12:00:00.000Z",
+  "data": "Deterministic synthetic demo; no Codex files or credentials are read.",
+  "language": "en",
+  "theme": "green",
+  "captures": [
+    {
+      "file": "overview.png",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "fullPage": false
+    },
+    {
+      "file": "projects.png",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "fullPage": false
+    },
+    {
+      "file": "weekly-quota.png",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "fullPage": true
+    },
+    {
+      "file": "mobile.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "fullPage": false
+    }
+  ],
+  "checks": {
+    "pageErrors": [],
+    "horizontalOverflow": false
+  }
+}

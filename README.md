@@ -8,11 +8,11 @@ Local Usage turns the Codex session metadata stored on your computer into a fast
 
 [**Stable release 1.6.2**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.6.2) · [Docker image 1.6.2](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
 
+![Local Usage dashboard showing API-equivalent cost, Codex credits, activity and a project breakdown](docs/screenshots/overview.png)
+
+*The real dashboard with synthetic demo data. [Explore the screenshots](#screenshots) · [Quick start](#quick-start-local-gui-only)*
+
 Setup guides: [deploy the central dashboard with OpenAI Sites](docs/sites-deployment.md) · [deploy the public Mesh ingress](docs/mesh-ingress.md) · [install a reporting agent](docs/reporting-agent.md)
-
-## Donate
-
-If you like this project and want to support its ongoing development, you can [buy me a coffee](https://buymeacoffee.com/capitaine). Donations are entirely optional; the dashboard remains free and open source.
 
 ## What the application shows
 
@@ -30,6 +30,25 @@ The interface is available in French, English, German, Spanish, Italian, Portugu
 Choose **Settings → Appearance** for the original green theme or the blue, violet and amber palettes. The choice applies immediately to the dashboard and its charts, persists in this browser and synchronizes across tabs on the same origin. Local and hosted dashboards share the same themes. See [UI themes](docs/ui-themes.md) to add a palette.
 
 The server indexes sessions incrementally and persists a derived snapshot. An open page checks for newer data every 15 seconds, while **Refresh** forces an immediate source check.
+
+## Screenshots
+
+Compare projects and their recent conversations, or follow your weekly quota through to its projected reset.
+
+| Project details | Weekly quota and forecast |
+| --- | --- |
+| [![Project costs, models and recent conversations](docs/screenshots/projects.png)](docs/screenshots/projects.png) | [![Weekly quota, hourly activity and end-of-window projection](docs/screenshots/weekly-quota.png)](docs/screenshots/weekly-quota.png) |
+
+<details>
+<summary>Mobile view</summary>
+
+<p align="center">
+  <img src="docs/screenshots/mobile.png" width="300" alt="Projects page on a mobile browser, with project costs and bottom navigation">
+</p>
+
+</details>
+
+All screenshots use fictional projects and usage data. [Full-size gallery and capture instructions](docs/screenshots/README.md).
 
 ## Deployment models
 
@@ -552,6 +571,10 @@ npm run lint
 The root runtime uses Node.js built-ins and browser-native HTML, CSS, and JavaScript. The Sites adapter uses React/vinext and D1.
 
 Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes, especially the privacy requirements for fixtures, logs, and local Codex data.
+
+## Donate
+
+If you like this project and want to support its ongoing development, you can [buy me a coffee](https://buymeacoffee.com/capitaine). Donations are entirely optional; the dashboard remains free and open source.
 
 ## Independence, branding, and license
 
