@@ -1,3 +1,5 @@
+import { latestResetDeadlineMetadata } from "./reset-deadlines.js";
+
 export const QUOTA_RESET_TOLERANCE_MS = 5 * 60_000;
 
 export function sameQuotaReset(left, right) {
@@ -34,6 +36,7 @@ export function normalizeQuotaPeriods(data) {
     const nodes = new Set(items.map((item) => item.nodeId).filter(Boolean));
     const peak = items.reduce((best, item) => Number(item.peakUsedPercent ?? item.usedPercent) > Number(best.peakUsedPercent ?? best.usedPercent) ? item : best, latest);
     return { ...latest, startsAt: new Date(start).toISOString(), endsAt: latest.resetsAt, windowMinutes: minutes,
+      ...latestResetDeadlineMetadata(items),
       peakUsedPercent: peak.peakUsedPercent ?? peak.usedPercent ?? null,
       peakObservedAt: peak.peakObservedAt || peak.observedAt || null,
       planTypes: [...new Set(items.flatMap((item) => item.planTypes?.length ? item.planTypes : [item.planType]).filter(Boolean))],

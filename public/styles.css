@@ -744,6 +744,51 @@ body[data-page="quota"] .cost-chart.is-hourly .chart-column:first-child label { 
 .quota-hover-value.is-over { fill: var(--danger) !important; }
 .quota-forecast-empty { min-height: 230px; margin: 0; display: grid; place-items: center; color: var(--muted); font-size: 12px; text-align: center; }
 
+.forecast-goals { border-top: 1px solid var(--line); padding: 18px 24px; }
+.forecast-goals-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.forecast-goals-heading h3 { margin: 0; font-size: 14px; }
+.forecast-goals-heading p { margin: 5px 0 0; color: var(--subtle); font-size: 11px; }
+.forecast-goals .secondary-button, .forecast-goals .primary-button { min-height: 36px; padding: 8px 12px; font-size: 12px; }
+.forecast-goal-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 12px; margin-top: 18px; }
+.forecast-goal-form[hidden] { display: none; }
+.forecast-goal-form label { display: grid; gap: 7px; min-width: 0; font-size: 12px; color: var(--muted); }
+.forecast-goal-form input { width: 100%; min-width: 0; min-height: 38px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface); color: var(--text); }
+.forecast-goals input:focus-visible, .forecast-goals button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.forecast-goal-form-actions, .forecast-goal-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+#forecastGoalZone { grid-column: 1 / -1; margin: 0; color: var(--subtle); font-size: 11px; }
+#forecastGoalError { color: var(--danger); font-size: 12px; }
+.forecast-goal-list { list-style: none; margin: 14px 0 0; padding: 0; }
+.forecast-goals-empty { color: var(--muted); font-size: 12px; }
+.forecast-goal-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) minmax(100px, auto) auto; gap: 14px; align-items: center; padding: 14px 0; border-top: 1px solid var(--line); }
+.forecast-goal-row:first-child { border-top: 0; }
+.forecast-goal-number { display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--output); border-radius: 50%; color: var(--output); font-size: 11px; }
+.forecast-goal-detail { min-width: 0; }
+.forecast-goal-detail strong { display: block; overflow-wrap: anywhere; font-size: 13px; font-weight: 600; }
+.forecast-goal-detail time { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; }
+.forecast-goal-result { text-align: right; }
+.forecast-goal-result strong { display: block; color: var(--output); font-size: 20px; }
+.forecast-goal-result.is-over strong { color: var(--danger); }
+.forecast-goal-result small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+.forecast-goal-row.is-outside .forecast-goal-number { color: var(--subtle); border-color: var(--line-strong); }
+.quota-goal-marker { pointer-events: none; }
+.quota-goal-marker line { stroke: var(--output); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.quota-goal-point { fill: var(--output); stroke: var(--surface); stroke-width: 2; }
+.quota-goal-badge { fill: var(--surface); stroke: var(--output); stroke-width: 1.5; }
+.quota-goal-marker text { fill: var(--output) !important; font-size: 10px !important; font-weight: 700; }
+@media (max-width: 900px) {
+  .forecast-goal-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .forecast-goal-form-actions { grid-column: 1 / -1; }
+  .forecast-goal-row { grid-template-columns: 24px minmax(0, 1fr) minmax(85px, auto); }
+  .forecast-goal-actions { grid-column: 2 / -1; }
+}
+@media (max-width: 520px) {
+  .forecast-goals { padding: 16px; }
+  .forecast-goals-heading { align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+  .forecast-goal-form { grid-template-columns: minmax(0, 1fr); }
+  .forecast-goal-row { column-gap: 10px; }
+  .forecast-goal-result { max-width: 115px; }
+}
+
 .analysis-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); align-items: stretch; gap: var(--gutter); }
 .analysis-grid .activity-panel,
 .analysis-grid .projects-panel { display: flex; flex-direction: column; min-height: 0; }
@@ -1317,3 +1362,14 @@ tbody:not(:has(tr:not(.region-loader-row))) > .region-loader-row { position: rel
 
 body[data-page="project-groups"] .periods { display: none; }
 .group-options .folder-filter-option span { white-space: normal; overflow-wrap: anywhere; }
+
+/* Account reset credits are automatic deadlines, separate from personal goals. */
+#forecastResetDeadlines { margin-bottom: 22px; }
+.forecast-reset-row { grid-template-columns: 30px minmax(0, 1fr) auto; }
+.forecast-reset-row .forecast-goal-number { color: var(--green, #8bd5b0); border-color: var(--green, #8bd5b0); }
+.quota-reset-marker { color: var(--green, #8bd5b0); }
+.quota-reset-marker line, .quota-reset-marker .quota-goal-point { stroke: var(--green, #8bd5b0); }
+.quota-reset-marker .quota-goal-point { fill: var(--green, #8bd5b0); }
+.quota-reset-marker .quota-goal-badge { stroke: var(--green, #8bd5b0); }
+.quota-reset-marker text { fill: var(--green, #8bd5b0) !important; }
+.quota-reset-marker text.quota-reset-value { font-size: 12px !important; font-weight: 700; paint-order: stroke; stroke: var(--bg, #101318); stroke-width: 3px; }

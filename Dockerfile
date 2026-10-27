@@ -20,7 +20,7 @@ LABEL org.opencontainers.image.source="https://github.com/capisoft-lib/codex_usa
       org.opencontainers.image.licenses="AGPL-3.0-or-later" \
       org.opencontainers.image.title="Local Usage Dashboard for Codex" \
       org.opencontainers.image.description="Independent local dashboard for Codex usage, token activity, and cost estimates" \
-      org.opencontainers.image.version="1.6.2"
+      org.opencontainers.image.version="1.7.0"
 
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
@@ -37,7 +37,7 @@ WORKDIR /app
 COPY --chown=node:node package.json agent.mjs LICENSE ./
 COPY --chown=node:node src ./src
 COPY --chown=node:node sites-hub/drizzle ./sites-hub/drizzle
-COPY --chown=node:node public/quota-periods.js ./public/quota-periods.js
+COPY --chown=node:node public/quota-periods.js public/reset-deadlines.js ./public/
 COPY --chown=node:node public/pricing-catalog.js ./public/pricing-catalog.js
 
 RUN mkdir -p /app-cache /codex-data/sessions /codex-data/archived_sessions \

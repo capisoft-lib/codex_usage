@@ -10,6 +10,7 @@ import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryM
 import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, GROUP_I18N, MIGRATION_I18N, resolveLanguage } from "./translations.js";
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp as rawLatestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
+import { createForecastGoalsController, FORECAST_GOALS_I18N } from "./forecast-goals.js";
 import { buildQuotaForecast, estimateQuotaCapacityCredits, interpolateForecastPercent, weeklyForecastTicks } from "./quota-forecast.js";
 import { OVERVIEW_PROJECT_LIMIT, projectIdentity, normalizeProjectGroups, automaticProjectGroups, collapseProjectCatalog } from "./project-identity.js";
 
@@ -362,6 +363,7 @@ function renderGroupEditor() {
   };
 }
 
+for (const [language, messages] of Object.entries(FORECAST_GOALS_I18N)) Object.assign(I18N[language], messages);
 const PAGES = ["project-groups", "overview", "projects", "quota", "conversations", "settings"];
 for (const [language, messages] of Object.entries(PRICING_I18N)) Object.assign(I18N[language], messages);
 const PAGE_TITLE_KEYS = {
@@ -1063,6 +1065,15 @@ function forecastDateTimeLabel(value) {
   return new Intl.DateTimeFormat(locale(), clockOptions({ dateStyle: "medium", timeStyle: "short" })).format(new Date(value));
 }
 
+let forecastGoalsController;
+function forecastGoals() {
+  return forecastGoalsController ??= createForecastGoalsController({
+    root: $("#quotaForecastGoals"), t, formatPercent: forecastPercent,
+    formatDate: value => new Intl.DateTimeFormat(locale(), { dateStyle: "medium", timeStyle: "short", timeZone: "UTC", hourCycle: "h23" }).format(new Date(value)) + " UTC",
+    onChange: renderQuotaForecast,
+  });
+}
+
 function quotaForecastSamples(quota) {
   const sessions = (state.data?.sessions || []).filter((session) => !quota?.nodeId || session.nodeId === quota.nodeId);
   return sessions.flatMap((session) => session.calls.map((call) => {
@@ -1121,6 +1132,7 @@ function quotaForecastSvg(forecast) {
     <circle class="quota-actual-point" cx="${x(actualPoint.timestamp)}" cy="${y(actualPoint.percent)}" r="4"><title>${escapeHtml(`${t("quota.actual")} · ${forecastPercent(actualPoint.percent)} %`)}</title></circle>
     ${projectedPoint ? `<circle class="quota-projected-point${dangerClass}" cx="${x(projectedPoint.timestamp)}" cy="${y(projectedPoint.percent)}" r="5"><title>${escapeHtml(`${t("quota.forecastAtReset")} · ${forecastPercent(projectedPoint.percent)} %`)}</title></circle>` : ""}
     <text class="quota-endpoint-label${dangerClass}" x="${x(endpoint.timestamp) - 8}" y="${Math.max(plot.top + 14, y(endpoint.percent) - 10)}" text-anchor="end">${escapeHtml(`${forecastPercent(endpoint.percent)} %`)}</text>
+    ${forecastGoals().markers(forecast, { x, y, top: plot.top, bottom: height - plot.bottom })}
     <text class="quota-window-label" x="${plot.left}" y="${height - 28}" text-anchor="start">${escapeHtml(t("quota.renew"))}</text>
     <text class="quota-window-label" x="${width - plot.right}" y="${height - 28}" text-anchor="end">${escapeHtml(t("quota.reset"))}</text>
     <g class="quota-hover-layer" aria-hidden="true">
@@ -1243,6 +1255,7 @@ function renderQuotaForecast() {
   const summary = $("#quotaForecastSummary");
   const chart = $("#quotaForecastChart");
   if (!summary || !chart) return;
+  forecastGoals().render(null);
   const quota = selectedQuota();
   const range = weeklyRange();
   const current = isCurrentQuotaSelection();
@@ -1275,6 +1288,7 @@ function renderQuotaForecast() {
     project: current,
     capacityCredits: current ? quotaForecastCapacity(samples, quota) : null,
   });
+  forecastGoals().render(forecast, current ? quota : null);
   if (forecast.status !== "ready") {
     summary.innerHTML = "";
     chart.innerHTML = `<p class="quota-forecast-empty">${t(forecast.status === "unavailable" ? "quota.unavailable" : forecast.reason ? "dated.blocked." + forecast.reason : "quota.insufficient")}</p>`;

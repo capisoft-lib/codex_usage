@@ -1,3 +1,4 @@
+import { validResetDeadlineMetadata } from "../../public/reset-deadlines.js";
 export const MAX_CLOCK_SKEW_MS = 10 * 60 * 1000;
 
 export class MeshRequestError extends Error {
@@ -110,11 +111,12 @@ export function validatePayload(value: unknown): asserts value is Record<string,
   const turnKeys = new Set(["id", "startedAt", "completedAt", "durationMs", "model", "effort", "serviceTier", "calls", "usage"]);
   const callKeys = new Set(["timestamp", "turnId", "model", "effort", "serviceTier", "usage"]);
   const usageKeys = new Set(["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens", "cacheWriteInputTokens"]);
-  const quotaKeys = new Set(["usedPercent", "remainingPercent", "peakUsedPercent", "windowMinutes", "startsAt", "endsAt", "resetsAt", "resetsAvailable", "observedAt", "firstObservedAt", "peakObservedAt", "planType", "planTypes", "nodeId", "nodeAlias", "receivedAt", "observations"]);
+  const quotaKeys = new Set(["usedPercent", "remainingPercent", "peakUsedPercent", "windowMinutes", "startsAt", "endsAt", "resetsAt", "resetsAvailable", "resetDeadlines", "resetDeadlinesObservedAt", "observedAt", "firstObservedAt", "peakObservedAt", "planType", "planTypes", "nodeId", "nodeAlias", "receivedAt", "observations"]);
   const hasOnly = (item: unknown, keys: Set<string>) => Boolean(item && typeof item === "object" && !Array.isArray(item) && Object.keys(item).every((key) => keys.has(key)));
   const validQuota = (item: unknown) => {
     if (!hasOnly(item, quotaKeys)) return false;
     const quota = item as Record<string, unknown>;
+    if (!validResetDeadlineMetadata(quota)) return false;
     return quota.observations === undefined || Array.isArray(quota.observations)
       && quota.observations.length <= 10000 && quota.observations.every((value) => {
         if (!hasOnly(value, new Set(["observedAt", "usedPercent"]))) return false;
