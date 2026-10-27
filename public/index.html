@@ -186,10 +186,11 @@
         <article class="panel quota-forecast-panel">
           <div class="panel-heading forecast-heading">
             <div><p class="eyebrow" data-i18n="quota.forecastEyebrow">CONSOMMATION</p><h2 data-i18n="quota.forecastTitle">Évolution de la consommation du quota</h2></div>
-            <div class="forecast-legend" aria-hidden="true"><span class="forecast-key actual"></span><span data-i18n="quota.actual">Consommé</span><span class="forecast-key projected"></span><span data-i18n="quota.projected">Prévision</span><span class="forecast-key limit"></span><span data-i18n="quota.limit">Limite 100 %</span></div>
+            <div class="forecast-legend" aria-hidden="true"><span class="forecast-key actual"></span><span data-i18n="quota.actual">Consommé</span><span class="forecast-key projected"></span><span data-i18n="quota.currentPace">Depuis le début du quota</span><span class="forecast-key history"></span><span data-i18n="quota.historyPace">Moyenne glissante 30 j</span><span class="forecast-key limit"></span><span data-i18n="quota.limit">Limite 100 %</span></div>
           </div>
           <div id="quotaForecastSummary" class="forecast-summary"></div>
           <div id="quotaForecastChart" class="quota-forecast-chart"></div>
+          <section id="quotaForecastGoals" class="forecast-goals" aria-label="Dates objectifs" data-i18n-aria="goals.title"></section>
         </article>
       </section>
 
@@ -311,6 +312,15 @@
               <p class="dialog-copy" data-i18n="settings.pricingHint">Cette estimation reproduit les tarifs API Standard ou Fast observés et ne représente pas votre abonnement Codex.</p>
               <button id="settingsPricingButton" type="button" class="primary-button" data-i18n="action.pricing">Configurer les tarifs</button>
             </div>
+          </article>
+          <article class="panel settings-card">
+            <div class="panel-heading"><h2 data-i18n="subscription.title">Abonnement mensuel</h2><span id="subscriptionPlan" class="quota-badge"></span></div>
+            <form id="subscriptionForm" class="settings-body">
+              <p class="dialog-copy" data-i18n="subscription.copy">Base hebdomadaire = montant mensuel × 12 ÷ 52. Avec 223 $/mois, 4 % du weekly ≈ 2,06 $.</p>
+              <label for="subscriptionAmount" data-i18n="subscription.amount">Montant mensuel (USD)</label>
+              <div class="subscription-controls"><input id="subscriptionAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="223.00"><button type="submit" class="primary-button" data-i18n="pricing.save">Enregistrer</button></div>
+              <p id="subscriptionStatus" class="kpi-meta" role="status" aria-live="polite"></p>
+            </form>
           </article>
           <article class="panel settings-card">
             <div class="panel-heading">

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { OVERVIEW_PROJECT_LIMIT, projectIdentity, automaticProjectGroups, collapseProjectCatalog } from "../public/project-identity.js";
+import { OVERVIEW_PROJECT_LIMIT, NO_PROJECT_KEY, projectIdentity, normalizeProjectGroups, automaticProjectGroups, collapseProjectCatalog } from "../public/project-identity.js";
 
 test("groups projects by GitHub URL before the local project name", () => {
   const left = projectIdentity({ id: "one", projectName: "Desktop", projectGitHubUrl: "https://github.com/example/shared" });
@@ -13,11 +13,22 @@ test("falls back to a normalized project name", () => {
   assert.equal(projectIdentity({ id: "one", projectName: "SewKeep" }).key, projectIdentity({ id: "two", projectName: "sewkeep" }).key);
 });
 
-test("keeps unnamed projects separate and never displays privacy hashes", () => {
-  const left = projectIdentity({ id: "one", nodeId: "pc", cwd: "project-123456789abc" }, "Nouveau projet");
-  const right = projectIdentity({ id: "two", nodeId: "pc", cwd: "project-123456789abc" }, "Nouveau projet");
-  assert.notEqual(left.key, right.key);
-  assert.equal(left.name, "Nouveau projet");
+test("groups unnamed sessions across machines under one localized identity without displaying privacy hashes", () => {
+  for (const session of [{}, { id: "one", nodeId: "pc", cwd: null }, { id: "two", nodeId: "other", cwd: "project-123456789abc" }, { projectName: "  " }]) {
+    assert.deepEqual(projectIdentity(session, "Sans projet"), { key: NO_PROJECT_KEY, name: "Sans projet", githubUrl: null });
+  }
+  assert.equal(projectIdentity({}, "No project").key, NO_PROJECT_KEY);
+  assert.notEqual(projectIdentity({projectName:"Sans projet"}).key, NO_PROJECT_KEY);
+  assert.equal(projectIdentity({cwd:"C:\\work\\Example"}).name, "Example");
+});
+
+test("supports no-project custom groups and preserves existing per-session memberships", () => {
+  const groups = normalizeProjectGroups([{id:"combined",name:"Combined",members:[NO_PROJECT_KEY,"name:example"]}]);
+  assert.equal(projectIdentity({}, "Sans projet", groups).key, "group:combined");
+  const legacy = [{id:"legacy",name:"Legacy",members:["session:pc:source","name:example"]}];
+  assert.equal(projectIdentity({id:"prefixed",sourceSessionId:"source",nodeId:"pc"}, "Sans projet", legacy).key, "group:legacy");
+  assert.equal(projectIdentity({id:"another",nodeId:"pc"}, "Sans projet", legacy).key, NO_PROJECT_KEY);
+  assert.throws(() => normalizeProjectGroups([{...groups[0],members:["no-project:invalid","name:example"]}]));
 });
 
 test("overview project count is capped at five", () => {

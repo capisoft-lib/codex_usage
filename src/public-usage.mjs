@@ -86,6 +86,10 @@ function publicQuota(quota) {
     endsAt: quota.endsAt || quota.resetsAt || null,
     resetsAt: quota.resetsAt || null,
     resetsAvailable: quota.resetsAvailable ?? null,
+    ...(quota.resetDeadlines !== undefined ? {
+      resetDeadlines: Array.isArray(quota.resetDeadlines) ? quota.resetDeadlines.map(item => ({ expiresAt: item.expiresAt, count: item.count })) : null,
+      resetDeadlinesObservedAt: quota.resetDeadlinesObservedAt,
+    } : {}),
     observedAt: quota.observedAt || null,
     firstObservedAt: quota.firstObservedAt || null,
     peakObservedAt: quota.peakObservedAt || quota.observedAt || null,

@@ -81,3 +81,21 @@ test('migration dialog stays open until concurrent requests finish', () => {
   assert.equal(elements['#migrationDialog'].open, false);
   assert.equal(elements['#migrationDialog'].closes, 1);
 });
+
+test('an unresponsive server times out and releases its request', async () => {
+  let signal;
+  await assert.rejects(fetchUsage('/api/page', {}, {
+    timeoutMs: 10, fetchImpl: async (_url, options) => { signal=options.signal; return new Promise(()=>{}); },
+  }), {name:'TimeoutError'});
+  assert.equal(signal.aborted,true);
+});
+
+test('navigation still cancels a response body after its headers arrive', async () => {
+  const controller=new AbortController();
+  let signal;
+  await fetchUsage('/api/page',{signal:controller.signal},{fetchImpl:async(_url,options)=>{
+    signal=options.signal;return Response.json({});
+  }});
+  controller.abort();
+  assert.equal(signal.aborted,true);
+});

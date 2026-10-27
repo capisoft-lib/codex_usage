@@ -178,7 +178,7 @@ test("forecast fails closed when quota calibration data is unavailable", () => {
   };
   assert.equal(buildQuotaForecast({ ...common, usedPercent: null }).status, "insufficient");
   assert.equal(buildQuotaForecast({ ...common, usedPercent: null, capacityCredits: 100, samples: [{ timestamp: common.observedAt, value: 1 }] }).status, "insufficient");
-  assert.equal(buildQuotaForecast({ ...common, usedPercent: 20, samples: [] }).status, "insufficient");
+  assert.equal(buildQuotaForecast({ ...common, usedPercent: 20, samples: [] }).forecasts.current.expectedFinalPercent, 140);
   assert.equal(buildQuotaForecast({ ...common, usedPercent: 20, observedAt: "broken" }).status, "unavailable");
 });
 
@@ -239,4 +239,43 @@ test("completed periods retain their estimated past curve despite a late unrated
   assert.ok(result.actual.length > 2);
   assert.equal(result.actual.at(-1).percent, 20);
   assert.deepEqual(result.projected, []);
+});
+
+
+test("independent forecasts use quota-to-date and a simple available 30-day mean", () => {
+  const now = Date.parse("2026-10-27T12:00:00Z"), hour = FORECAST_HOUR_MS;
+  const base = { rangeStart: now - 48 * hour, rangeEnd: now + 120 * hour, observedAt: now, usedPercent: 24, capacityCredits: 1000,
+    samples: [{ timestamp: now - 29 * 24 * hour, value: 290 }, { timestamp: now - 2 * hour, value: 406 }] };
+  const result = buildQuotaForecast(base);
+  assert.equal(result.forecasts.current.percentPerHour, 0.5);
+  assert.equal(result.forecasts.current.expectedFinalPercent, 84);
+  assert.ok(Math.abs(result.forecasts.historical.percentPerHour - 0.1) < 1e-10);
+  assert.ok(Math.abs(result.forecasts.historical.expectedFinalPercent - 36) < 1e-10);
+  const older = buildQuotaForecast({ ...base, samples: [...base.samples, { timestamp: now - 31 * 24 * hour, value: 10000 }] });
+  assert.equal(older.forecasts.historical.expectedFinalPercent, result.forecasts.historical.expectedFinalPercent);
+});
+
+test("missing, unrated or stale data do not produce a historical forecast", () => {
+  const now = Date.parse("2026-10-27T12:00:00Z"), hour = FORECAST_HOUR_MS;
+  const base = { rangeStart: now - 48 * hour, rangeEnd: now + 120 * hour, observedAt: now, usedPercent: 24, capacityCredits: 1000,
+    samples: [{ timestamp: now - 48 * hour, value: 20 }] };
+  assert.equal(buildQuotaForecast({ ...base, samples: [...base.samples, { timestamp: now - 12 * hour, rated: false }] }).forecasts.historical, null);
+  assert.equal(buildQuotaForecast({ ...base, samples: [{ timestamp: now - hour, value: 20 }] }).forecasts.historical, null);
+  const stale = buildQuotaForecast({ ...base, observedAt: now - 30 * hour, asOf: now });
+  assert.equal(stale.forecasts.current, null);
+  assert.equal(stale.forecasts.historical, null);
+});
+
+
+test("unrated usage falls back to measured intervals across separate quota windows", () => {
+  const now = Date.parse("2026-10-27T12:00:00Z"), h = FORECAST_HOUR_MS;
+  const period = (offset, values) => ({ planType: "pro", observations: values.map(([hours, usedPercent]) => ({ observedAt: new Date(now - (offset + hours) * h), usedPercent })) });
+  const periods = [period(0, [[30,10],[18,22],[6,34]]), period(40, [[30,20],[18,32],[6,44]])];
+  const result = buildQuotaForecast({rangeStart:now-48*h, rangeEnd:now+120*h, observedAt:now, usedPercent:40, samples:[{timestamp:now-h,rated:false}], quotaPeriods:periods, planType:"pro"});
+  assert.equal(result.forecasts.historical.source, "observations");
+  assert.equal(result.forecasts.historical.historyHours, 48);
+  assert.equal(result.forecasts.historical.percentPerHour, 1);
+  assert.equal(result.forecasts.historical.expectedFinalPercent, 160);
+  const otherPlan = buildQuotaForecast({rangeStart:now-48*h, rangeEnd:now+120*h, observedAt:now, usedPercent:40, samples:[{timestamp:now-h,rated:false}], quotaPeriods:periods, planType:"plus"});
+  assert.equal(otherPlan.forecasts.historical, null);
 });

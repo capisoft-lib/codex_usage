@@ -29,9 +29,39 @@ The command:
 3. copies an earlier `%LOCALAPPDATA%\CodexUsageMesh\state\mesh-agent.json` state, or the legacy repository `.cache\mesh-agent.json`, once to `%LOCALAPPDATA%\CodexUsageMesh\mesh-agent.windows.json` when the installed state does not exist;
 4. never overwrites an installed state during later runs;
 5. compiles a small Windows GUI host and generates `.cache\windows-agent\CodexUsageMesh.Supervisor.ps1` without an association code or infrastructure credential;
-6. registers and starts the current user's task.
+6. registers and starts the current user's task;
+7. installs the separate notification app and its per-user logon task, `CodexUsageMesh-Tray`.
 
 The original state file is retained. After supervision is installed, do not start a second `npm run start:agent` process from the repository. The scheduled task is the owner of the reporting process.
+
+## Notification area application
+
+The notification app starts at Windows sign-in and adds **Codex Usage** to the notification area. Windows may place a new icon inside the **Show hidden icons** arrow. Double-click the icon, or use **Codex Usage - CodexUsageMesh** in the Start menu, to open its reusable status window.
+
+The application embeds the existing `public/icon-192.png` logo (usage bars and rising activity line). Its executable and Start menu shortcut use that logo; the notification icon adds a small status badge. No separate runtime image path or newly invented logo is needed.
+
+The icon checks the local reporting task, the exact collector process and the last successful synchronization every ten seconds:
+
+| Indicator | Meaning |
+| --- | --- |
+| Green | One active collector, enabled reporting task and a successful sync within five minutes. |
+| Amber | Sync missing or stale, unreadable local state, clock mismatch or multiple collectors. |
+| Red | Reporting task missing or collector stopped. |
+| Gray | Reporting task disabled; collection is paused. |
+
+These are local observations; green does not independently verify the hosted dashboard or database. The tray reads the enrollment state without modifying it and writes only an allowlisted `tray-state.json` diagnostic, without keys or conversation content.
+
+The right-click menu opens the status window and logs, refreshes status, restarts collection, pauses collection or resumes it. Pause disables the reporting task **before** stopping it, so the one-minute recovery trigger cannot immediately undo the pause. **Quitter l’icône** closes only the notification application; the reporting agent continues. Closing the status window leaves the icon running. A second application launch opens the existing window instead of creating another icon.
+
+To add or update only the icon on an already-running installation, without restarting collection:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\Install-CodexUsageTray.ps1 -Action Install
+```
+
+The tray installer also supports `Update`, `Diagnose` and `Uninstall`. Its `Uninstall` removes only the notification app and startup registration. The main Mesh uninstaller removes both local tasks while preserving enrollment and logs. Reuse custom `-TaskName`, `-InstallDirectory` and `-StatePath` values when operating a custom installation. An optional `-DashboardUrl https://your-dashboard.example` adds a dashboard shortcut to the tray menu; routine updates preserve it.
+
+The executable, icon, non-secret configuration and current diagnostic live at `.cache\windows-tray\<TaskName>\`. Keep this directory while the application is installed. It is intentionally outside AppData: packaged callers can redirect newly-created AppData files into a private cache that Task Scheduler cannot see. The application also ensures its Start menu shortcut from the normal interactive process. Compilation uses the Windows .NET Framework compiler and requires no Electron or Python installation.
 
 ## Install and associate a new machine
 

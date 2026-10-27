@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
-import { readSessionSlices } from "../../src/storage/relational-reader.mjs";
+import { readSessionSlices, readQuotaCalls, readQuotaCalibration, readQuotaSamples } from "../../src/storage/relational-reader.mjs";
 
 test("real workerd D1 supports relational migrations, atomic ingest and grouped reads", async () => {
   const mf = new Miniflare(
@@ -104,6 +104,17 @@ test("real workerd D1 supports relational migrations, atomic ingest and grouped 
     assert.equal((await db.prepare("SELECT COUNT(*) n FROM usage_daily_rollups WHERE session_id='old'").first()).n,1);
     assert.equal(historical.reduce((sum,s)=>sum+s.calls.reduce((n,c)=>n+c._count,0),0),2001);
     assert.equal((await db.prepare("SELECT dirty FROM usage_rollup_days WHERE session_id='old'").first()).dirty,0);
+    const quotaCalls=[];
+    await readQuotaCalls(db,'owner','2026-09-01','2026-09-16',(call,node)=>quotaCalls.push({call,node}));
+    assert.equal(quotaCalls.length,1001);
+    assert.ok(quotaCalls.every(({call,node})=>node==='n' && call.model==='gpt-5.6-sol'));
+    const calibration=[];
+    await readQuotaCalibration(db,'owner',[{start:Date.parse('2026-09-01'),end:Date.parse('2026-09-16')}],'n',(call)=>calibration.push(call));
+    assert.equal(calibration.reduce((n,c)=>n+c.usage.inputTokens,0),1001000);
+    const samples=[];
+    await readQuotaSamples(db,'owner',Date.parse('2026-09-01'),Date.parse('2026-09-16'),Date.parse('2026-09-16T00:37:00Z'),'n',call=>samples.push(call));
+    assert.equal(samples.length,2,'Exact EMA hours retain separate event groups');
+    assert.equal(samples.reduce((n,c)=>n+c.usage.inputTokens,0),1001000);
   } finally {
     await mf.dispose();
   }

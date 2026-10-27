@@ -5,6 +5,20 @@ import path from "node:path";
 import { normalizeFiveHourQuota, normalizeWeeklyQuota } from "./analyzer.mjs";
 import { mergeWeeklyQuotaObservations } from "./quota-history.mjs";
 
+function resetDeadlines(credits, observedAt) {
+  if (credits?.availableCount === 0) return [];
+  if (!Number.isSafeInteger(credits?.availableCount) || credits.availableCount < 0 || !Array.isArray(credits.credits)) return null;
+  const grouped = new Map();
+  for (const credit of credits.credits) {
+    if (credit?.status !== "available" || credit.resetType !== "codexRateLimits" || !Number.isFinite(credit.expiresAt)) continue;
+    const milliseconds = credit.expiresAt * 1000;
+    if (milliseconds <= Date.parse(observedAt) || !Number.isFinite(new Date(milliseconds).getTime())) continue;
+    const expiresAt = new Date(milliseconds).toISOString();
+    grouped.set(expiresAt, (grouped.get(expiresAt) || 0) + 1);
+  }
+  return [...grouped].sort(([a], [b]) => a.localeCompare(b)).map(([expiresAt, count]) => ({ expiresAt, count }));
+}
+
 // Only derived quota fields leave the local Codex App Server. Never retain the
 // account ID, credentials, credit IDs or descriptions from its response.
 export function normalizeAccountQuotas(result, observedAt = new Date().toISOString()) {
@@ -17,7 +31,9 @@ export function normalizeAccountQuotas(result, observedAt = new Date().toISOStri
   const raw = { primary: window(limits.primary), secondary: window(limits.secondary),
     individual_limit: window(limits.individualLimit), plan_type: limits.planType,
     resets_available: resets };
-  return { weeklyQuota: normalizeWeeklyQuota(raw, observedAt), fiveHourQuota: normalizeFiveHourQuota(raw, observedAt) };
+  const metadata = { resetDeadlines: resetDeadlines(result.rateLimitResetCredits, observedAt), resetDeadlinesObservedAt: observedAt };
+  const enrich = quota => quota ? { ...quota, ...metadata } : quota;
+  return { weeklyQuota: enrich(normalizeWeeklyQuota(raw, observedAt)), fiveHourQuota: enrich(normalizeFiveHourQuota(raw, observedAt)) };
 }
 
 export function codexExecutable(env = process.env) {
@@ -77,7 +93,8 @@ export function applyAccountQuotas(data, account) {
   const live = account?.weeklyQuota;
   if (!live) {
     // A failed/unsupported read must not present an old credit count as current.
-    const clear = (quota) => quota ? { ...quota, resetsAvailable: null } : quota;
+    const observedAt = new Date().toISOString();
+    const clear = (quota) => quota ? { ...quota, resetsAvailable: null, resetDeadlines: null, resetDeadlinesObservedAt: observedAt } : quota;
     return { ...data, weeklyQuota: clear(data.weeklyQuota), fiveHourQuota: clear(data.fiveHourQuota),
       weeklyQuotaHistory: data.weeklyQuotaHistory?.map((q, index) => index === 0 ? clear(q) : q) };
   }

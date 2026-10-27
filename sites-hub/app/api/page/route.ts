@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     }
     const q = builder.query;
     // Continue warming even when the client's unchanged payload receives 304.
-    if (!['settings','detail','pricing'].includes(q.view) && q.end-q.start >= 28*86400000) {
+    if (!['settings','detail','pricing'].includes(q.view) && q.end-q.start >= 86400000) {
       await readSessionSlices(db(),owner,Number.isFinite(q.start)?new Date(q.start).toISOString():'0001-01-01',Number.isFinite(q.end)?new Date(q.end).toISOString():'9999-12-31',false,null,()=>{},false,{aggregate:true,prepareOnly:true});
     }
     const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(metadata.revision + raw));
@@ -44,6 +44,9 @@ export async function GET(request: Request) {
       await readSessionSlices(db(),owner,Number.isFinite(q.start)?new Date(q.start).toISOString():'0001-01-01',Number.isFinite(q.end)?new Date(q.end).toISOString():'9999-12-31',false,q.id || null,(row: {node_id:string;session_id:string;snapshot_json:string})=>{
         builder.add({...JSON.parse(row.snapshot_json),id:`${row.node_id}:${row.session_id}`,sourceSessionId:row.session_id,nodeId:row.node_id,nodeAlias:nodes.get(row.node_id)?.alias});
       },false,{...(['conversations','detail','pricing'].includes(q.view)?{model:q.model,node:q.node,folders:q.folders}:{}),aggregate:!['detail','pricing'].includes(q.view),buckets:q.buckets,prepareCache:false});
+      if (builder.weekly) await readSessionSlices(db(),owner,new Date(builder.weekly.from).toISOString(),new Date(builder.weekly.to).toISOString(),false,null,(row: {snapshot_json:string;node_id:string;session_id:string})=>{
+        builder.addWeekly({...JSON.parse(row.snapshot_json),id:`${row.node_id}:${row.session_id}`,sourceSessionId:row.session_id,nodeId:row.node_id});
+      },false,{aggregate:true,prepareCache:false});
       if(q.view === 'conversations') {
         const filters=await readFilters(db(),owner);
         for(const cwd of filters.folders) builder.add({cwd,models:filters.models,calls:[],turns:[]});

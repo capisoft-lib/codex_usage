@@ -58,11 +58,15 @@ After data compaction, rolling back to an old application requires restoring a m
 
 ## Historical aggregates
 
-Migration `0008` adds a durable daily aggregate cache. Summary reads covering at least 28 days use it for complete UTC days in finished UTC months. Calls remain available for details, pricing exports and short zooms. Any day touched by a graph boundary or a partial range is read from detailed rows, preserving local-time month boundaries and inclusive endpoints.
+Migration `0008` adds a durable daily aggregate cache. Summary reads covering at least one day use it for complete UTC days before today, including the last seven days in the current month. Today's activity, partial range edges and days split by graph boundaries remain on detailed rows. Boundaries exactly at UTC midnight allow cached days. Calls remain available for details, pricing exports and short zooms, preserving local-time boundaries and inclusive endpoints.
 
-The cache retains session identity, model, effort, tier, pricing date, context bands, cache evidence, token sums and event counts. Prices remain dynamic. Each request prepares up to 25 pending days in one atomic batch; days not yet prepared use the existing detailed query, so the first visits can still be slower. Automatic page polling continues preparation even when an unchanged response returns HTTP 304. Subsequent reads reuse the durable cache. There is no global history lock or partial result.
+The cache retains session identity, model, effort, tier, pricing date, context bands, cache evidence, token sums and event counts. Prices remain dynamic. Each request prepares up to 128 pending session-days in the requested range, prioritizing recent days, in four atomic batch statements. Days not yet prepared use the detailed query, so first visits can still be slower. Automatic page polling continues preparation even when an unchanged response returns HTTP 304. Subsequent reads reuse the durable cache. There is no global history lock or partial result.
 
 Database triggers mark only affected days dirty when calls or turns are inserted, corrected, moved or deleted. The next summary request rebuilds those days. Unchanged history stays cached, and session deletion cascades to the cache. A grouping signature protects against changed pricing-context thresholds. Raw fallback remains available during preparation.
+
+Quota forecasting reads exact events directly in batches of at most 8,192 calls, without rebuilding conversation JSON. It preserves event order and invalid-date evidence. A completed page or forecast whose revision changed during reading returns `private, no-store` without an ETag; the quota result also clears its exact revision marker. This prevents frequent Mesh ingestion from continually rejecting completed reads. A later poll validates fresh data. These responses are not transaction-wide snapshots.
+
+See [page loading measurements](page-loading-performance.md) for the measured before/after comparison and `scripts/benchmark-pages.mjs` for reproduction.
 
 Run `node scripts/benchmark-rollups.mjs` for a synthetic 200,000-call comparison with exact result checks. On Node 24, one local measurement was 487 ms without the cache versus 23 ms warm, with 309 ms of initial preparation. This is not a production D1 latency claim.
 

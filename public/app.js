@@ -2,6 +2,8 @@ import { conversationTitle } from "./conversation-title.js";
 import { fetchUsage } from './storage-fetch.js';
 import { weeklyQuotaPeriods, shortQuotaDisplay, quotaCountdownText, normalizeTimeFormat, timeFormatOptions } from "./quota-display.js";
 import { quotaMetadata } from "./quota-data.js";
+import { createPageData } from "./page-data.js";
+import { SUBSCRIPTION_AMOUNTS_KEY, normalizeSubscriptionAmounts, subscriptionPlan, weeklySubscriptionAmount, projectWeeklyAllocation } from "./project-allocation.js";
 import { sameQuotaReset } from "./quota-periods.js";
 import { codexCreditsOfCalls as rawCreditsOfCalls, fastMultiplierFor, usageProfilesOfCalls as rawUsageProfilesOfCalls } from "./usage-pricing.js";
 import { apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
@@ -11,7 +13,8 @@ import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, GROUP_I18N,
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp as rawLatestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { buildQuotaForecast, estimateQuotaCapacityCredits, interpolateForecastPercent, weeklyForecastTicks } from "./quota-forecast.js";
-import { OVERVIEW_PROJECT_LIMIT, projectIdentity, normalizeProjectGroups, automaticProjectGroups, collapseProjectCatalog } from "./project-identity.js";
+import { createForecastGoalsController, FORECAST_GOALS_I18N } from "./forecast-goals.js";
+import { OVERVIEW_PROJECT_LIMIT, NO_PROJECT_KEY, projectIdentity, normalizeProjectGroups, automaticProjectGroups, collapseProjectCatalog } from "./project-identity.js";
 
 // Summary arrays keep the renderer shared with the quota/detail paths.
 function summaryCalls(summary) { const calls = []; calls.summary = summary; return calls; }
@@ -72,7 +75,7 @@ const I18N = {
     "freshness": "{n} sessions indexées · relevé {time}", "refresh.done": "Sessions actualisées", "load.loading": "Chargement des sessions locales…", "load.error": "Impossible de lire les sessions : {error}", "load.errorToast": "Erreur de chargement", "units.tokens": "tokens",
     "duration.seconds": "{n} s", "duration.minutes": "{m} min {s} s", "hero.privacyMesh": "Métadonnées minimisées · réseau privé", "node.all": "Toutes les machines", "filter.node": "Filtrer par machine", "table.node": "Machine", "detail.node": "Machine observée", "freshness.mesh": "{n} sessions · {nodes} machines · relevé {time}",
   },
-  en: { "quota.loading": "Loading charts…",
+  en: { "quota.currentPace": "Since quota start", "quota.historyPace": "Rolling 30-day average", "quota.currentHint": "Average pace since reset", "quota.historyHint": "Available history: {n} d · estimated credits", "quota.paceUnavailable": "Insufficient data", "quota.historyCaveat": "Average since the first recorded call in the last 30 days; missing periods cannot be identified.", "quota.loading": "Loading charts…",
     "app.title": "Local Usage — Costs and activity", "brand.tagline": "for Codex · local", "license.independent": "Independent free software for local Codex data.", "license.source": "Source code", "nav.period": "Period", "nav.main": "Main navigation", "nav.overview": "Overview", "nav.projects": "Projects", "nav.quota": "Weekly Quota", "nav.conversations": "Conversations", "nav.settings": "Settings", "action.language": "Language", "action.close": "Close", "summary.label": "Period summary", "summary.kpis": "Key indicators",
     "period.weeklyQuota": "WeeklyQuota", "period.weeklyQuotaLabel": "WeeklyQuota", "period.today": "Today", "period.7d": "7 days", "period.30d": "30 days", "period.12m": "12 months", "period.all": "All", "period.custom": "Custom", "period.customStart": "Start", "period.customEnd": "End", "period.now": "Now",
     "period.todayLabel": "Today", "period.7dLabel": "Last 7 days", "period.30dLabel": "Last 30 days", "period.12mLabel": "Last 12 months", "period.allLabel": "All local history", "period.customLabel": "From {start} to {end}",
@@ -159,6 +162,7 @@ const PAGE_I18N = {
     "settings.source": "Source des données", "settings.sourceCopy": "Local lit les sessions de cette machine. Centralisé agrège les nœuds du réseau privé.", "settings.pricingHint": "Cette estimation reproduit les tarifs API Standard ou Fast observés et ne représente pas votre abonnement Codex.", "settings.machines": "Machines observées", "settings.noMachines": "Aucune machine mesh pour le moment. Le mode local n’affiche que ce PC.", "settings.machineAdmin": "Administration Mesh", "settings.machineAdminCopy": "Ajoutez ou révoquez les machines autorisées à synchroniser avec ce Site privé.", "settings.openMachineAdmin": "Gérer les machines", "brand.taglineHosted": "pour Codex · centralisé privé", "license.independentHosted": "Dashboard privé et indépendant pour les métadonnées Codex agrégées.",
   },
   en: {
+    "quota.currentPace": "Since quota start", "quota.historyPace": "Rolling 30-day average", "quota.currentHint": "Average pace since reset", "quota.historyHint": "Available history: {n} d · estimated credits", "quota.paceUnavailable": "Insufficient data", "quota.historyCaveat": "Average since the first recorded call in the last 30 days; missing periods cannot be identified.",
     "overview.recent": "Recent conversations", "overview.viewAll": "View all",
     "projects.viewAll": "All projects", "projects.select": "Select a project to see its details.", "projects.models": "Cost by model", "projects.openConversations": "View conversations", "search.projects": "Search projects…",
     "quota.window": "Weekly window", "quota.weekCost": "Cost this week", "quota.weekTokens": "Tokens this week", "quota.weekCredits": "Credits this week",
@@ -264,6 +268,18 @@ for (const [language, messages] of Object.entries(TIME_FORMAT_I18N)) Object.assi
 for (const [language, messages] of Object.entries(MIGRATION_I18N)) Object.assign(I18N[language], messages);
 
 for (const [language, messages] of Object.entries(GROUP_I18N)) Object.assign(I18N[language], messages);
+const ALLOCATION_I18N = {
+  es: {"projects.apiShare":"{n}% del coste API","projects.weeklyShare":"≈ {n}% de la cuota semanal","projects.subscriptionCost":"≈ {amount} suscripción/semana","projects.weeklyMissing":"Cuota semanal —","projects.subscriptionMissing":"Suscripción —","projects.allocationHint":"Semana actual: {used}% consumido, repartido según el coste API de los proyectos en esta semana. Suscripción {plan}: {amount}/mes → {weeklyAmount}/semana (× 12 ÷ 52). Importe = proporción semanal × base semanal.","projects.allocationUnavailable":"Estimación no disponible: cuota semanal o tarifas incompletas.","projects.amountMissing":"Introduce el importe de esta suscripción en los ajustes.","subscription.title":"Suscripción mensual","subscription.copy":"El importe mensual se convierte en una base semanal (× 12 ÷ 52). Con 223 $/mes, el 4% semanal ≈ 2,06 $. El importe se guarda por plan en este navegador.","subscription.amount":"Importe mensual (USD)","subscription.saved":"Importe guardado","subscription.storage":"El importe se aplica en esta pestaña; no está disponible el almacenamiento del navegador.","subscription.weeklyLabel":"Cuota semanal estimada","subscription.costLabel":"Prorrata de suscripción"},
+  it: {"projects.apiShare":"{n}% del costo API","projects.weeklyShare":"≈ {n}% della quota settimanale","projects.subscriptionCost":"≈ {amount} abbonamento/settimana","projects.weeklyMissing":"Quota settimanale —","projects.subscriptionMissing":"Abbonamento —","projects.allocationHint":"Settimana corrente: {used}% utilizzato, ripartito secondo il costo API dei progetti nella settimana. Abbonamento {plan}: {amount}/mese → {weeklyAmount}/settimana (× 12 ÷ 52). Importo = quota settimanale × base settimanale.","projects.allocationUnavailable":"Stima non disponibile: quota settimanale o tariffe incomplete.","projects.amountMissing":"Inserisci l’importo dell’abbonamento nelle impostazioni.","subscription.title":"Abbonamento mensile","subscription.copy":"L’importo mensile viene convertito in una base settimanale (× 12 ÷ 52). Con 223 $/mese, il 4% settimanale ≈ 2,06 $. L’importo viene salvato per piano in questo browser.","subscription.amount":"Importo mensile (USD)","subscription.saved":"Importo salvato","subscription.storage":"L’importo vale per questa scheda; la memoria del browser non è disponibile.","subscription.weeklyLabel":"Quota settimanale stimata","subscription.costLabel":"Prorata abbonamento"},
+  pt: {"projects.apiShare":"{n}% do custo API","projects.weeklyShare":"≈ {n}% da quota semanal","projects.subscriptionCost":"≈ {amount} subscrição/semana","projects.weeklyMissing":"Quota semanal —","projects.subscriptionMissing":"Subscrição —","projects.allocationHint":"Semana atual: {used}% consumido, repartido segundo o custo API dos projetos nesta semana. Subscrição {plan}: {amount}/mês → {weeklyAmount}/semana (× 12 ÷ 52). Montante = proporção semanal × base semanal.","projects.allocationUnavailable":"Estimativa indisponível: quota semanal ou tarifas incompletas.","projects.amountMissing":"Indique o montante da subscrição nas definições.","subscription.title":"Subscrição mensal","subscription.copy":"O montante mensal é convertido numa base semanal (× 12 ÷ 52). Com 223 $/mês, 4% semanal ≈ 2,06 $. O montante é guardado por plano neste navegador.","subscription.amount":"Montante mensal (USD)","subscription.saved":"Montante guardado","subscription.storage":"O montante aplica-se neste separador; o armazenamento do navegador está indisponível.","subscription.weeklyLabel":"Quota semanal estimada","subscription.costLabel":"Proporção da subscrição"},
+  ja: {"projects.apiShare":"API費用の {n}%","projects.weeklyShare":"週間枠の約 {n}%","projects.subscriptionCost":"サブスク配分 約 {amount}/週","projects.weeklyMissing":"週間枠 —","projects.subscriptionMissing":"サブスク配分 —","projects.allocationHint":"今週の使用率 {used}% を各プロジェクトの今週のAPI費用で配分。{plan} のサブスク: {amount}/月 → {weeklyAmount}/週（× 12 ÷ 52）。金額 = 週間枠の割合 × 週あたりの基準額。","projects.allocationUnavailable":"週間枠または料金情報が不完全なため推定できません。","projects.amountMissing":"設定でこのサブスクリプション金額を入力してください。","subscription.title":"月額サブスクリプション","subscription.copy":"月額を週あたりの基準額に換算します（× 12 ÷ 52）。月額223ドルで週間枠の4%は約2.06ドルです。プランごとにこのブラウザーに保存されます。","subscription.amount":"月額（USD）","subscription.saved":"金額を保存しました","subscription.storage":"このタブに金額を適用しました。ブラウザーには保存できません。","subscription.weeklyLabel":"週間枠の推定割合","subscription.costLabel":"サブスク配分"},
+  ru: {"projects.apiShare":"{n}% стоимости API","projects.weeklyShare":"≈ {n}% недельной квоты","projects.subscriptionCost":"≈ {amount} подписки/неделю","projects.weeklyMissing":"Недельная квота —","projects.subscriptionMissing":"Подписка —","projects.allocationHint":"Текущая неделя: использовано {used}%, распределено по стоимости API проектов за эту неделю. Подписка {plan}: {amount}/месяц → {weeklyAmount}/неделю (× 12 ÷ 52). Сумма = доля недельной квоты × недельная база.","projects.allocationUnavailable":"Оценка недоступна: неполная недельная квота или тарифы.","projects.amountMissing":"Укажите стоимость этой подписки в настройках.","subscription.title":"Месячная подписка","subscription.copy":"Месячная сумма переводится в недельную базу (× 12 ÷ 52). При 223 $/месяц 4% недельной квоты ≈ 2,06 $. Сумма сохраняется по тарифам в этом браузере.","subscription.amount":"Месячная сумма (USD)","subscription.saved":"Сумма сохранена","subscription.storage":"Сумма действует в этой вкладке; хранилище браузера недоступно.","subscription.weeklyLabel":"Оценка доли недельной квоты","subscription.costLabel":"Доля подписки"},
+  zh: {"projects.apiShare":"API费用占 {n}%","projects.weeklyShare":"约占每周额度的 {n}%","projects.subscriptionCost":"订阅分摊约 {amount}/周","projects.weeklyMissing":"每周额度 —","projects.subscriptionMissing":"订阅分摊 —","projects.allocationHint":"本周已使用 {used}%，按各项目本周的API费用分摊。{plan} 订阅：{amount}/月 → {weeklyAmount}/周（× 12 ÷ 52）。金额 = 每周额度占比 × 每周基准金额。","projects.allocationUnavailable":"每周额度或价格信息不完整，无法估算。","projects.amountMissing":"请在设置中填写此订阅的金额。","subscription.title":"月度订阅","subscription.copy":"月度金额换算为每周基准金额（× 12 ÷ 52）。每月223美元时，每周额度的4%约为2.06美元。金额按套餐保存在此浏览器中。","subscription.amount":"月度金额（USD）","subscription.saved":"金额已保存","subscription.storage":"金额在此标签页生效，浏览器存储不可用。","subscription.weeklyLabel":"每周额度占比估算","subscription.costLabel":"订阅分摊"},
+  fr: {"projects.apiShare":"{n} % part API","projects.weeklyShare":"≈ {n} % du weekly","projects.subscriptionCost":"≈ {amount} abonnement/sem.","projects.weeklyMissing":"Weekly —","projects.subscriptionMissing":"Abonnement —","projects.allocationHint":"Semaine en cours : {used} % consommés, répartis selon le coût API de chaque projet sur cette semaine. Abonnement {plan} : {amount}/mois → {weeklyAmount}/semaine (× 12 ÷ 52). Montant = part du weekly × base hebdomadaire.","projects.allocationUnavailable":"Estimation indisponible : quota hebdomadaire ou tarifs incomplets.","projects.amountMissing":"Renseignez le montant de cet abonnement dans les paramètres.","subscription.title":"Abonnement mensuel","subscription.copy":"Le montant mensuel est ramené à une semaine (× 12 ÷ 52). Avec 223 $/mois, 4 % du weekly ≈ 2,06 $. La base par tier est mémorisée dans ce navigateur.","subscription.amount":"Montant mensuel (USD)","subscription.saved":"Montant enregistré","subscription.storage":"Le montant est appliqué pour cet onglet ; l’enregistrement dans ce navigateur est indisponible.","subscription.weeklyLabel":"Weekly estimé","subscription.costLabel":"Prorata abonnement"},
+  en: {"projects.apiShare":"{n}% API share","projects.weeklyShare":"≈ {n}% of weekly","projects.subscriptionCost":"≈ {amount} subscription/week","projects.weeklyMissing":"Weekly —","projects.subscriptionMissing":"Subscription —","projects.allocationHint":"Current week: {used}% consumed, allocated by each project's API cost within this week. {plan} subscription: {amount}/month → {weeklyAmount}/week (× 12 ÷ 52). Project amount = weekly share × weekly base.","projects.allocationUnavailable":"Estimate unavailable: weekly quota or pricing is incomplete.","projects.amountMissing":"Set this subscription amount in settings.","subscription.title":"Monthly subscription","subscription.copy":"The monthly amount is converted to a weekly base (× 12 ÷ 52). At $223/month, 4% of weekly ≈ $2.06. The amount is saved per tier in this browser.","subscription.amount":"Monthly amount (USD)","subscription.saved":"Amount saved","subscription.storage":"The amount applies in this tab; browser storage is unavailable.","subscription.weeklyLabel":"Estimated weekly","subscription.costLabel":"Subscription allocation"},
+  de: {"projects.apiShare":"{n} % API-Anteil","projects.weeklyShare":"≈ {n} % des Wochenkontingents","projects.subscriptionCost":"≈ {amount} Abo/Woche","projects.weeklyMissing":"Woche —","projects.subscriptionMissing":"Abo —","projects.allocationHint":"Aktuelle Woche: {used} % verbraucht, nach den API-Kosten der Projekte in dieser Woche verteilt. Abo {plan}: {amount}/Monat → {weeklyAmount}/Woche (× 12 ÷ 52). Betrag = Wochenanteil × Wochenbasis.","projects.allocationUnavailable":"Schätzung nicht verfügbar: Wochenkontingent oder Tarife unvollständig.","projects.amountMissing":"Abonnementbetrag in den Einstellungen eingeben.","subscription.title":"Monatliches Abonnement","subscription.copy":"Der Monatsbetrag wird auf eine Woche umgerechnet (× 12 ÷ 52). Bei 223 $/Monat entsprechen 4 % des Wochenkontingents etwa 2,06 $. Der Betrag wird pro Tarif in diesem Browser gespeichert.","subscription.amount":"Monatsbetrag (USD)","subscription.saved":"Betrag gespeichert","subscription.storage":"Betrag gilt für diesen Tab; Browserspeicher nicht verfügbar.","subscription.weeklyLabel":"Geschätzter Wochenanteil","subscription.costLabel":"Abo-Anteil"},
+};
+for (const language of Object.keys(I18N)) Object.assign(I18N[language], ALLOCATION_I18N[language] || ALLOCATION_I18N.en);
 function loadProjectGroups() {
   try { return normalizeProjectGroups(JSON.parse(localStorage.getItem("codex-usage-project-groups") || "[]")); }
   catch { return []; }
@@ -308,6 +324,7 @@ function saveProjectGroups(groups) {
     return;
   }
   state.selectedProject = null;
+  state.projectFilter = null;
   editingGroup = null;
   groupEditorSignature = null;
   renderGroupEditor();
@@ -349,6 +366,7 @@ function renderGroupEditor() {
     catch { event.target.checked = state.automaticGrouping; $("#groupStatus").textContent = t("groups.storage"); return; }
     state.automaticGrouping = enabled;
     state.selectedProject = null;
+    state.projectFilter = null;
     renderGroupEditor();
   };
   $$("[data-edit-group]").forEach(b => b.onclick = () => { editingGroup = b.dataset.editGroup; renderGroupEditor(); $("#groupName").focus(); });
@@ -363,6 +381,7 @@ function renderGroupEditor() {
 }
 
 const PAGES = ["project-groups", "overview", "projects", "quota", "conversations", "settings"];
+for (const [language, messages] of Object.entries(FORECAST_GOALS_I18N)) Object.assign(I18N[language], messages);
 for (const [language, messages] of Object.entries(PRICING_I18N)) Object.assign(I18N[language], messages);
 const PAGE_TITLE_KEYS = {
   "project-groups": "groups.title",
@@ -400,6 +419,7 @@ const state = {
   query: "",
   projectQuery: "",
   selectedProject: null,
+  projectFilter: null,
   selectedQuotaReset: null,
   renderedQuotaReset: null,
   model: "all",
@@ -413,6 +433,7 @@ const state = {
   language: preferredLanguage(),
   timeFormat: loadTimeFormat(),
   pricing: loadPricing(),
+  subscriptionAmounts: loadSubscriptionAmounts(),
   chartZoom: {},
   chartZoomBasePeriods: {},
   transientRange: null,
@@ -437,6 +458,8 @@ function fetchDashboardUsage(url, options) {
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const locale = () => LOCALE_TAGS[state.language] || LOCALE_TAGS.fr;
 const clockOptions = (options = {}) => ({ ...options, ...timeFormatOptions(state.timeFormat) });
+Object.assign(I18N.fr, { "quota.currentPace": "Depuis le début du quota", "quota.historyPace": "Moyenne glissante 30 j", "quota.currentHint": "Rythme moyen depuis le reset", "quota.historyHint": "Historique disponible : {n} j · crédits estimés", "quota.paceUnavailable": "Données insuffisantes", "quota.historyCaveat": "Moyenne calculée depuis le premier appel enregistré sur les 30 derniers jours ; les périodes manquantes ne sont pas identifiables.", "quota.observedPaceHint": "Observations valides : {n} j", "quota.observedPaceCaveat": "Moyenne des intervalles observés sur 30 jours, sans les coupures et périodes saturées.", "quota.goalPace": "Prévision depuis le reset" });
+Object.assign(I18N.en, { "quota.currentPace": "Since quota start", "quota.historyPace": "Rolling 30-day average", "quota.currentHint": "Average pace since reset", "quota.historyHint": "Available history: {n} d · estimated credits", "quota.paceUnavailable": "Insufficient data", "quota.historyCaveat": "Average since the first recorded call in the last 30 days; missing periods cannot be identified.", "quota.observedPaceHint": "Observed intervals: {n} d", "quota.observedPaceCaveat": "Average of observed intervals over 30 days, excluding gaps and saturated periods.", "quota.goalPace": "Forecast since reset" });
 const t = (key, values = {}) => (I18N[state.language]?.[key] || I18N.fr[key] || key).replace(/\{(\w+)\}/g, (_, name) => values[name] ?? "");
 const formatInt = (value) => new Intl.NumberFormat(locale(), { maximumFractionDigits: 0 }).format(value);
 const formatCompact = (value) => new Intl.NumberFormat(locale(), { notation: "compact", maximumFractionDigits: 2 }).format(value);
@@ -582,6 +605,37 @@ function loadPricing() {
   catch { return mergeApiPricing(); }
 }
 
+function loadSubscriptionAmounts() {
+  try { return normalizeSubscriptionAmounts(JSON.parse(localStorage.getItem(SUBSCRIPTION_AMOUNTS_KEY))); }
+  catch { return normalizeSubscriptionAmounts(null); }
+}
+
+function renderSubscriptionSettings() {
+  const plan = subscriptionPlan(quotaPeriods()[0]);
+  $("#subscriptionPlan").textContent = quotaPlanLabel(plan === "unknown" ? null : plan);
+  const input = $("#subscriptionAmount");
+  if (document.activeElement !== input) input.value = state.subscriptionAmounts[plan] ?? "";
+  input.dataset.plan = plan;
+}
+
+function currentProjectAllocation() {
+  if (state.data?.pageOnly) return state.data.pageData?.weeklyAllocation || null;
+  if (!state.data) return null;
+  const builder = createPageData(state.data, {view:"projects", projectGroups:effectiveProjectGroups(), pricing:state.pricing});
+  for (const session of state.data.sessions) builder.addWeekly(session);
+  return builder.finish().pageData.weeklyAllocation;
+}
+
+function allocationMarkup(allocation, key) {
+  const value = projectWeeklyAllocation(allocation, key, state.subscriptionAmounts);
+  const amount = state.subscriptionAmounts[allocation?.plan];
+  const money = n => new Intl.NumberFormat(locale(), {style:"currency", currency:"USD", minimumFractionDigits:2, maximumFractionDigits:2}).format(n);
+  const percent = n => new Intl.NumberFormat(locale(), {maximumFractionDigits:n > 0 && n < 0.01 ? 4 : 2}).format(n);
+  const weeklyAmount = weeklySubscriptionAmount(amount);
+  const hint = value ? t("projects.allocationHint", {used:forecastPercent(allocation.usedPercent), plan:quotaPlanLabel(allocation.plan), amount:Number.isFinite(amount) ? money(amount) : "—", weeklyAmount:weeklyAmount === null ? "—" : money(weeklyAmount)}) : t("projects.allocationUnavailable");
+  return `<span class="project-allocation" title="${escapeHtml(hint)}"><span class="project-weekly">${value ? escapeHtml(t("projects.weeklyShare", {n:percent(value.weeklyPercent)})) : t("projects.weeklyMissing")}</span><span class="project-subscription" ${value?.subscriptionCost == null ? `title="${escapeHtml(t("projects.amountMissing"))}"` : ""}>${value?.subscriptionCost == null ? t("projects.subscriptionMissing") : escapeHtml(t("projects.subscriptionCost", {amount:money(value.subscriptionCost)}))}</span></span>`;
+}
+
 function loadCustomRange() {
   try { return normalizeCustomRange(JSON.parse(localStorage.getItem(CUSTOM_RANGE_KEY))); }
   catch { return normalizeCustomRange(null); }
@@ -720,11 +774,12 @@ function projectGroups(sessions) {
     .sort((left, right) => right.cost.cost - left.cost.cost);
 }
 
-function sessionsInRange({ node = "all", folders = new Set(), model = "all", range = dateRange() } = {}) {
+function sessionsInRange({ node = "all", folders = new Set(), project = null, model = "all", range = dateRange() } = {}) {
   if (!state.data) return [];
   if (state.data.pageOnly) return state.data.sessions;
   return state.data.sessions.filter((session) => node === "all" || session.nodeId === node).map((session) => {
     if (folders.size && !folders.has(session.cwd || "")) return null;
+    if (project && projectIdentity(session, t("projects.unknown"), effectiveProjectGroups()).key !== project.key) return null;
     const calls = session.calls.filter((call) => inRange(call.timestamp, range) && (model === "all" || call.model === model));
     const turns = session.turns.filter((turn) => inRange(turn.startedAt, range) && (model === "all" || turn.model === model));
     return { ...session, calls, turns, usage: sumUsage(calls), modelCalls: calls.length, exchanges: turns.length, durationMs: turns.reduce((sum, turn) => sum + (turn.durationMs || 0), 0) };
@@ -732,7 +787,7 @@ function sessionsInRange({ node = "all", folders = new Set(), model = "all", ran
 }
 
 function scopedSessions() {
-  return sessionsInRange({ node: state.node, folders: state.folders, model: state.model });
+  return sessionsInRange({ node: state.node, folders: state.folders, project: state.projectFilter, model: state.model });
 }
 
 function overviewSessions() {
@@ -834,12 +889,13 @@ function render() {
     renderCostSummary(overviewCalls);
     renderKpis(overview, overviewCalls, sumUsage(overviewCalls));
     renderCostChart(overviewCalls, "#costChart");
-    renderProjectRows("#overviewProjects", projectGroups(overview).slice(0, OVERVIEW_PROJECT_LIMIT), { navigate: true });
+    const groups = projectGroups(overview);
+    renderProjectRows("#overviewProjects", groups.slice(0, OVERVIEW_PROJECT_LIMIT), { navigate: true, totalCost:state.data?.pageData?.totals?.cost?.cost ?? groups.reduce((sum, group) => sum + group.cost.cost, 0) });
     renderRecentConversations(overview);
   } else if (state.view === "projects") renderProjectsPage(overviewSessions());
   else if (state.view === "quota") renderQuotaPage();
   else if (state.view === "conversations") renderTable(scopedSessions());
-  else if (state.view === "settings") renderSettingsNodes();
+  else if (state.view === "settings") { renderSettingsNodes(); renderSubscriptionSettings(); }
   else if (state.view === "project-groups") renderGroupEditor();
   renderFreshness();
 }
@@ -1063,6 +1119,15 @@ function forecastDateTimeLabel(value) {
   return new Intl.DateTimeFormat(locale(), clockOptions({ dateStyle: "medium", timeStyle: "short" })).format(new Date(value));
 }
 
+let forecastGoalsController;
+function forecastGoals() {
+  return forecastGoalsController ??= createForecastGoalsController({
+    root: $("#quotaForecastGoals"), t, formatPercent: forecastPercent,
+    formatDate: value => new Intl.DateTimeFormat(locale(), { dateStyle: "medium", timeStyle: "short", timeZone: "UTC", hourCycle: "h23" }).format(new Date(value)) + " UTC",
+    onChange: renderQuotaForecast,
+  });
+}
+
 function quotaForecastSamples(quota) {
   const sessions = (state.data?.sessions || []).filter((session) => !quota?.nodeId || session.nodeId === quota.nodeId);
   return sessions.flatMap((session) => session.calls.map((call) => {
@@ -1088,7 +1153,7 @@ function quotaForecastSvg(forecast) {
   const plotHeight = height - plot.top - plot.bottom;
   const startTime = Date.parse(forecast.rangeStart);
   const endTime = Date.parse(forecast.rangeEnd);
-  const maximumPercent = Math.max(100, forecast.expectedFinalPercent, ...forecast.actual.map((point) => point.percent));
+  const maximumPercent = Math.max(100, forecast.expectedFinalPercent, forecast.forecasts?.historical?.expectedFinalPercent || 0, ...forecast.actual.map((point) => point.percent));
   const yMaximum = Math.max(125, Math.ceil(maximumPercent * 1.08 / 25) * 25);
   const x = (timestamp) => plot.left + (Date.parse(timestamp) - startTime) / (endTime - startTime) * plotWidth;
   const y = (percent) => plot.top + (1 - percent / yMaximum) * plotHeight;
@@ -1118,18 +1183,21 @@ function quotaForecastSvg(forecast) {
     ${observedMarker}
     <polyline class="quota-actual-line" points="${polyline(forecast.actual)}"></polyline>
     ${projectedLine}
+    ${forecast.forecasts?.historical ? `<polyline class="quota-history-line" points="${polyline(forecast.forecasts.historical.projected)}"><title>${escapeHtml(t("quota.historyPace"))}</title></polyline>` : ""}
     <circle class="quota-actual-point" cx="${x(actualPoint.timestamp)}" cy="${y(actualPoint.percent)}" r="4"><title>${escapeHtml(`${t("quota.actual")} · ${forecastPercent(actualPoint.percent)} %`)}</title></circle>
     ${projectedPoint ? `<circle class="quota-projected-point${dangerClass}" cx="${x(projectedPoint.timestamp)}" cy="${y(projectedPoint.percent)}" r="5"><title>${escapeHtml(`${t("quota.forecastAtReset")} · ${forecastPercent(projectedPoint.percent)} %`)}</title></circle>` : ""}
     <text class="quota-endpoint-label${dangerClass}" x="${x(endpoint.timestamp) - 8}" y="${Math.max(plot.top + 14, y(endpoint.percent) - 10)}" text-anchor="end">${escapeHtml(`${forecastPercent(endpoint.percent)} %`)}</text>
+    ${forecastGoals().markers(forecast, { x, y, top: plot.top, bottom: height - plot.bottom })}
     <text class="quota-window-label" x="${plot.left}" y="${height - 28}" text-anchor="start">${escapeHtml(t("quota.renew"))}</text>
     <text class="quota-window-label" x="${width - plot.right}" y="${height - 28}" text-anchor="end">${escapeHtml(t("quota.reset"))}</text>
     <g class="quota-hover-layer" aria-hidden="true">
       <line class="quota-hover-line" x1="0" y1="${plot.top}" x2="0" y2="${height - plot.bottom}"></line>
       <circle class="quota-hover-point" cx="0" cy="0" r="5"></circle>
       <g class="quota-hover-tooltip">
-        <rect width="190" height="46" rx="7"></rect>
+        <rect width="210" height="62" rx="7"></rect>
         <text class="quota-hover-date" x="10" y="17"></text>
         <text class="quota-hover-value" x="10" y="35"></text>
+        <text class="quota-hover-history" x="10" y="52"></text>
       </g>
     </g>
     <rect class="quota-hover-target" x="${plot.left}" y="${plot.top}" width="${plotWidth}" height="${plotHeight}" tabindex="0" role="slider" aria-orientation="horizontal" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="${escapeHtml(t("quota.forecastAria"))}"></rect>
@@ -1149,21 +1217,22 @@ function bindQuotaForecastHover(chart, forecast) {
   const startTime = Date.parse(forecast.rangeStart);
   const endTime = Date.parse(forecast.rangeEnd);
   const actualEndTime = Date.parse(forecast.actual.at(-1).timestamp);
-  const maximumPercent = Math.max(100, forecast.expectedFinalPercent, ...forecast.actual.map((point) => point.percent));
+  const maximumPercent = Math.max(100, forecast.expectedFinalPercent, forecast.forecasts?.historical?.expectedFinalPercent || 0, ...forecast.actual.map((point) => point.percent));
   const yMaximum = Math.max(125, Math.ceil(maximumPercent * 1.08 / 25) * 25);
   const line = layer.querySelector(".quota-hover-line");
   const point = layer.querySelector(".quota-hover-point");
   const tooltip = layer.querySelector(".quota-hover-tooltip");
   const date = layer.querySelector(".quota-hover-date");
   const value = layer.querySelector(".quota-hover-value");
-  const tooltipWidth = 190;
-  const tooltipHeight = 46;
+  const historyValue = layer.querySelector(".quota-hover-history");
+  const tooltipWidth = 210;
+  const tooltipHeight = 62;
   let activeTime = Math.min(endTime, Math.max(startTime, Date.parse(forecast.observedAt)));
 
   const positionAt = (timestamp) => {
     activeTime = Math.min(endTime, Math.max(startTime, timestamp));
-    const projected = forecast.projected.length > 0 && activeTime > actualEndTime;
-    const series = projected ? forecast.projected : forecast.actual;
+    const projected = activeTime > actualEndTime && (forecast.projected.length > 0 || forecast.forecasts?.historical);
+    const series = projected ? (forecast.projected.length ? forecast.projected : forecast.forecasts.historical.projected) : forecast.actual;
     const percent = interpolateForecastPercent(series, activeTime, { clamp: false });
     if (!Number.isFinite(percent)) {
       layer.classList.remove("is-visible");
@@ -1179,9 +1248,11 @@ function bindQuotaForecastHover(chart, forecast) {
     const safeY = Math.min(plotBottom, Math.max(plot.top, y));
     const isOver = percent > 100;
     const kind = projected ? "projected" : "actual";
-    const label = t(projected ? "quota.projected" : forecast.historySource === "estimated" ? "dated.estimatedHistory" : "dated.measuredHistory");
+    const label = t(projected ? (forecast.projected.length ? "quota.currentPace" : "quota.historyPace") : forecast.historySource === "estimated" ? "dated.estimatedHistory" : "dated.measuredHistory");
     const dateText = forecastDateTimeLabel(activeTime);
+    const historicalPercent = projected && forecast.projected.length && forecast.forecasts?.historical ? interpolateForecastPercent(forecast.forecasts.historical.projected, activeTime, { clamp: false }) : null;
     const valueText = `${label} · ${forecastPercent(percent)} %`;
+    const historyText = historicalPercent === null ? "" : `${t("quota.historyPace")} · ${forecastPercent(historicalPercent)} %`;
     let tooltipX = x + 12;
     if (tooltipX + tooltipWidth > plotRight) tooltipX = x - tooltipWidth - 12;
     tooltipX = Math.min(plotRight - tooltipWidth, Math.max(plot.left, tooltipX));
@@ -1197,11 +1268,12 @@ function bindQuotaForecastHover(chart, forecast) {
     tooltip.setAttribute("transform", `translate(${tooltipX} ${tooltipY})`);
     date.textContent = dateText;
     value.textContent = valueText;
+    historyValue.textContent = historyText;
     value.setAttribute("class", `quota-hover-value is-${kind}${isOver ? " is-over" : ""}`);
     layer.classList.add("is-visible");
     layer.setAttribute("aria-hidden", "false");
     target.setAttribute("aria-valuenow", Math.round(ratio * 100));
-    target.setAttribute("aria-valuetext", `${dateText} · ${valueText}`);
+    target.setAttribute("aria-valuetext", `${dateText} · ${valueText}${historyText ? ` · ${historyText}` : ""}`);
   };
 
   const positionFromPointer = (event) => {
@@ -1243,12 +1315,15 @@ function renderQuotaForecast() {
   const summary = $("#quotaForecastSummary");
   const chart = $("#quotaForecastChart");
   if (!summary || !chart) return;
+  forecastGoals().render(null);
   const quota = selectedQuota();
   const range = weeklyRange();
   const current = isCurrentQuotaSelection();
   const rawUsedPercent = current ? quota?.usedPercent : quota?.peakUsedPercent;
   const usedPercent = rawUsedPercent === null || rawUsedPercent === undefined || rawUsedPercent === "" ? Number.NaN : Number(rawUsedPercent);
   const projectedLegend = $(".forecast-key.projected");
+  const historicalLegend = $(".forecast-key.history");
+  if (historicalLegend) { historicalLegend.hidden = true; historicalLegend.nextElementSibling.hidden = true; }
   if (projectedLegend) {
     projectedLegend.hidden = !current;
     if (projectedLegend.nextElementSibling) projectedLegend.nextElementSibling.hidden = !current;
@@ -1264,9 +1339,10 @@ function renderQuotaForecast() {
     return;
   }
   const samples = state.data?.quotaDetail ? [] : quotaForecastSamples(quota);
-  const forecast = state.data?.quotaDetail?.forecast || buildQuotaForecast({
+  let forecast = state.data?.quotaDetail?.forecast || buildQuotaForecast({
     samples,
     observations: quota.observations,
+    quotaPeriods: quotaPeriods(), planType: quota.planType, nodeId: quota.nodeId,
     rangeStart: range.start,
     rangeEnd: range.resetsAt,
     observedAt: current || quota.observations?.length ? (quota.observedAt || new Date()) : range.resetsAt,
@@ -1275,11 +1351,18 @@ function renderQuotaForecast() {
     project: current,
     capacityCredits: current ? quotaForecastCapacity(samples, quota) : null,
   });
+  if (forecast.status === "ready" && forecast.forecasts) {
+    const pace = forecast.forecasts.current;
+    forecast = { ...forecast, projected: pace?.projected || [], expectedFinalPercent: pace?.expectedFinalPercent ?? forecast.actual.at(-1).percent,
+      marginPercent: pace ? 100 - pace.expectedFinalPercent : null, projectionUnavailable: !pace && !forecast.forecasts.historical };
+  }
+  forecastGoals().render(forecast, current ? quota : null);
   if (forecast.status !== "ready") {
     summary.innerHTML = "";
     chart.innerHTML = `<p class="quota-forecast-empty">${t(forecast.status === "unavailable" ? "quota.unavailable" : forecast.reason ? "dated.blocked." + forecast.reason : "quota.insufficient")}</p>`;
     return;
   }
+  if (historicalLegend) { historicalLegend.hidden = !forecast.forecasts?.historical; historicalLegend.nextElementSibling.hidden = !forecast.forecasts?.historical; }
   const actualLegend = $(".forecast-key.actual")?.nextElementSibling;
   if (actualLegend) actualLegend.textContent = t(forecast.historySource === "estimated" ? "dated.estimatedHistory" : "dated.measuredHistory");
   if (projectedLegend) {
@@ -1293,17 +1376,12 @@ function renderQuotaForecast() {
     bindQuotaForecastHover(chart, forecast);
     return;
   }
-  const measuredForecast = forecast.calibrationSource === "observations";
-  const forecastHint = t(measuredForecast ? "dated.measuredHistory" : "quota.forecastHint");
-  const hourRate = measuredForecast ? forecastPercent(forecast.percentPerHour) + " %" : formatCredits(forecast.creditsPerHour);
-  const dayRate = measuredForecast ? forecastPercent(forecast.percentPerDay) + " %" : formatCredits(forecast.creditsPerDay);
-  const over = forecast.marginPercent < 0;
-  const outcome = t(over ? "quota.overrun" : "quota.margin", { n: forecastPercent(Math.abs(forecast.marginPercent)) });
-  summary.innerHTML = `
-    <article class="forecast-stat forecast-outcome${over ? " is-over" : " is-safe"}"><span>${t("quota.forecastAtReset")}</span><strong>${forecastPercent(forecast.expectedFinalPercent)} %</strong><small>${escapeHtml(outcome)}</small></article>
-    <article class="forecast-stat"><span>${t("quota.emaHour")}</span><strong>${hourRate}</strong><small>${escapeHtml(forecastHint)}</small></article>
-    <article class="forecast-stat"><span>${t("quota.emaDay")}</span><strong>${dayRate}</strong><small>${escapeHtml(forecastHint)}</small></article>`;
-  summary.innerHTML += historyNote + (measuredForecast ? `<p class="quota-forecast-history-note">${escapeHtml(t("dated.observationForecast"))}</p>` : "");
+  const currentPace = forecast.forecasts?.current;
+  const historicalPace = forecast.forecasts?.historical;
+  const card = (title, pace, hint) => `<article class="forecast-stat forecast-outcome${pace && pace.expectedFinalPercent > 100 ? " is-over" : ""}"><span>${escapeHtml(title)}</span><strong>${pace ? `${forecastPercent(pace.expectedFinalPercent)} %` : "—"}</strong><small>${escapeHtml(pace ? hint : t("quota.paceUnavailable"))}</small></article>`;
+  summary.innerHTML = card(t("quota.currentPace"), currentPace, t("quota.currentHint"))
+    + card(t("quota.historyPace"), historicalPace, t(historicalPace?.source === "observations" ? "quota.observedPaceHint" : "quota.historyHint", { n: historicalPace ? forecastPercent(historicalPace.historyHours / 24) : 0 }))
+    + historyNote + `<p class="quota-forecast-history-note">${escapeHtml(t(historicalPace?.source === "observations" ? "quota.observedPaceCaveat" : "quota.historyCaveat"))}</p>`;
   chart.innerHTML = quotaForecastSvg(forecast);
   bindQuotaForecastHover(chart, forecast);
 }
@@ -1316,10 +1394,11 @@ function selectProject(group) {
   state.selectedProject = isSelectedProject(group) ? null : { key: group.key, name: group.name, paths: group.paths };
 }
 
-function renderProjectRows(selector, groups, { navigate = false } = {}) {
+function renderProjectRows(selector, groups, { navigate = false, totalCost = null } = {}) {
   const target = $(selector);
   if (!target) return;
-  const total = groups.reduce((sum, group) => sum + group.cost.cost, 0);
+  const total = totalCost ?? state.data?.pageData?.totals?.cost?.cost ?? groups.reduce((sum, group) => sum + group.cost.cost, 0);
+  const allocation = currentProjectAllocation();
   const max = Math.max(0.0001, ...groups.map((group) => group.cost.cost));
   if (!groups.length) {
     target.innerHTML = `<div class="project-empty">${t("projects.none")}</div>`;
@@ -1329,7 +1408,7 @@ function renderProjectRows(selector, groups, { navigate = false } = {}) {
     const active = isSelectedProject(group);
     const share = total ? group.cost.cost / total * 100 : 0;
     const tokens = sumUsage(group.calls).totalTokens;
-    return `<button class="project-row${active ? " active" : ""}" type="button" data-project-index="${index}" aria-pressed="${active}" aria-label="${escapeHtml(t("projects.filter", { name: group.name }))}"><span class="project-name">${escapeHtml(group.name)}</span><span class="project-value">${formatApiSummary(group.cost)}</span><span class="project-meta">${formatInt(group.sessionCount ?? group.sessions.length)} · ${new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(share)} % · ${formatCompact(tokens)}</span><progress class="project-bar" max="${max}" value="${group.cost.cost}" aria-label="${escapeHtml(group.name)}"></progress></button>`;
+    return `<button class="project-row${active ? " active" : ""}" type="button" data-project-index="${index}" aria-pressed="${active}" aria-label="${escapeHtml(t("projects.filter", { name: group.name }))}"><span class="project-name">${escapeHtml(group.name)}</span><span class="project-value">${formatApiSummary(group.cost)}</span><span class="project-meta">${formatInt(group.sessionCount ?? group.sessions.length)} · ${escapeHtml(t("projects.apiShare", {n:new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(share)}))} · ${formatCompact(tokens)}</span>${allocationMarkup(allocation, group.key)}<progress class="project-bar" max="${max}" value="${group.cost.cost}" aria-label="${escapeHtml(group.name)}"></progress></button>`;
   }).join("");
   $$(`${selector} .project-row`).forEach((row) => row.addEventListener("click", () => {
     selectProject(groups[Number(row.dataset.projectIndex)]);
@@ -1341,7 +1420,7 @@ function renderProjectRows(selector, groups, { navigate = false } = {}) {
 function renderProjectsPage(periodSessions) {
   const query = normalizeSearch(state.projectQuery);
   const groups = projectGroups(periodSessions).filter((group) => !query || normalizeSearch(group.name).includes(query));
-  renderProjectRows("#projectList", groups);
+  renderProjectRows("#projectList", groups, {totalCost:projectGroups(periodSessions).reduce((sum, group) => sum + group.cost.cost, 0)});
   const selected = groups.find((group) => isSelectedProject(group)) || (query ? null : projectGroups(periodSessions).find((group) => isSelectedProject(group)));
   renderProjectDetail(selected);
 }
@@ -1360,6 +1439,7 @@ function renderProjectDetail(group) {
   const modelMarkup = models.map((item) => `<div class="model-row"><div class="model-row-head"><strong>${escapeHtml(item.model)}</strong><span>${formatApiSummary(item.cost)} · ${formatCompact(item.tokens)}</span></div><progress class="project-bar" max="${maxCost}" value="${item.cost.cost}" aria-label="${escapeHtml(item.model)}"></progress></div>`).join("") || `<p class="kpi-meta">${t("projects.none")}</p>`;
   target.innerHTML = `
     <div><p class="eyebrow">${t("projects.label")}</p><h2>${escapeHtml(group.name)}</h2></div>
+    ${allocationMarkup(currentProjectAllocation(), group.key)}
     <div class="project-detail-kpis">
       <div class="detail-kpi"><span>${t("table.cost")}</span><strong class="cost">${formatApiSummary(group.cost)}</strong></div>
       <div class="detail-kpi"><span>${t("kpi.credits")}</span><strong class="credits">${formatCreditSummary(credits)}</strong></div>
@@ -1370,7 +1450,8 @@ function renderProjectDetail(group) {
     <button type="button" class="primary-button" id="openProjectConversations">${t("projects.openConversations")}</button>`;
   bindRecentConversationClicks(target);
   $("#openProjectConversations")?.addEventListener("click", () => {
-    state.folders = new Set(group.paths);
+    state.projectFilter = { key: group.key, name: group.name };
+    state.folders.clear();
     state.page = 1;
     $$("#folderFilterOptions input").forEach((input) => { input.checked = state.folders.has(input.value); });
     updateFolderFilterSummary();
@@ -1727,7 +1808,8 @@ function populateFolders() {
 function updateFolderFilterSummary() {
   const selected = state.folders.size;
   const summary = $("#folderFilterSummary");
-  summary.textContent = selected ? t("filter.folderSelected", { n: selected }) : t("filter.folderAll");
+  const projectLabel = state.projectFilter?.key === NO_PROJECT_KEY ? t("projects.unknown") : state.projectFilter?.name;
+  summary.textContent = projectLabel || (selected ? t("filter.folderSelected", { n: selected }) : t("filter.folderAll"));
   summary.setAttribute("aria-label", t("filter.folder"));
 }
 
@@ -1859,7 +1941,7 @@ async function loadQuotaData(force, source, signal) {
     throw new Error(t("load.errorToast"));
   }
   quotaResponses.delete(key);
-  quotaResponses.set(key, { data, etag: response.headers.get("etag") || cached?.etag });
+  quotaResponses.set(key, { data, etag: response.headers.get("etag") || (response.status === 304 ? cached?.etag : null) });
   while (quotaResponses.size > 3) quotaResponses.delete(quotaResponses.keys().next().value);
   state.data = data;
   render();
@@ -1943,6 +2025,7 @@ function pageQuery(view = state.view, id = null) {
     node:view === "detail" && state.view !== "conversations" ? "all" : state.node, model:view === "detail" && state.view !== "conversations" ? "all" : state.model, folders:view === "detail" && state.view !== "conversations" ? [] : [...state.folders].sort(), search:state.query, usageThreshold:state.usageThreshold,
     page:state.page, pageSize:state.pageSize, sortKey:state.sortKey, sortDirection:state.sortDirection,
     project:state.selectedProject?.key, locale:locale(), unknownProject:t("projects.unknown"), untitled:t("conversation.untitled"), localNode:t("node.local"),
+    projectFilter:view === "detail" && state.view !== "conversations" ? null : state.projectFilter?.key,
     effortLabels:Object.fromEntries(["low","medium","high","xhigh","max","ultra"].map(e=>[e,effortLabel(e)])), pricing:state.pricing,
     buckets:buckets.map(b=>({start:b.start.toISOString(),end:b.end.toISOString(),label:b.label,granularity:b.granularity,inclusiveEnd:state.period==="custom" && b === buckets.at(-1)})) };
 }
@@ -2099,6 +2182,7 @@ $("#nodeFilter").addEventListener("change", (event) => { state.node = event.targ
 $("#folderFilterOptions").addEventListener("change", (event) => {
   const folder = event.target.value;
   if (!folder) return;
+  state.projectFilter = null;
   if (event.target.checked) state.folders.add(folder); else state.folders.delete(folder);
   state.page = 1;
   updateFolderFilterSummary();
@@ -2121,6 +2205,7 @@ $("#resetTableFilters").addEventListener("click", () => {
   state.model = "all";
   state.node = "all";
   state.folders.clear();
+  state.projectFilter = null;
   state.usageThreshold = 0;
   state.sortKey = "lastCall";
   state.sortDirection = "desc";
@@ -2162,6 +2247,18 @@ $("#exportPricing").addEventListener("click", async () => {
 });
 $$('[data-close-drawer]').forEach((element) => element.addEventListener("click", () => { $("#detailDrawer").setAttribute("aria-hidden", "true"); document.body.classList.remove("drawer-open"); detailController?.abort(); }));
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") { $("#detailDrawer").setAttribute("aria-hidden", "true"); document.body.classList.remove("drawer-open"); detailController?.abort(); } });
+$("#subscriptionForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const input = $("#subscriptionAmount");
+  const amount = input.value === "" ? null : input.valueAsNumber;
+  if (amount !== null && (!Number.isFinite(amount) || amount < 0)) return;
+  state.subscriptionAmounts = normalizeSubscriptionAmounts({...state.subscriptionAmounts, [input.dataset.plan]:amount});
+  let message = "subscription.saved";
+  try { localStorage.setItem(SUBSCRIPTION_AMOUNTS_KEY, JSON.stringify(state.subscriptionAmounts)); }
+  catch { message = "subscription.storage"; }
+  $("#subscriptionStatus").textContent = t(message);
+  render();
+});
 $("#projectSearch").addEventListener("input", (event) => { state.projectQuery = event.target.value; if (state.data) renderProjectsPage(overviewSessions()); });
 $("#settingsPricingButton").addEventListener("click", openPricing);
 $("#timeFormatSelect")?.addEventListener("change", (event) => {

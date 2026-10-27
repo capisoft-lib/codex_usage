@@ -4,6 +4,7 @@ import { createPageData } from '../public/page-data.js';
 import { apiCostOfCalls, mergeApiPricing } from '../public/api-pricing.js';
 import { codexCreditsOfCalls } from '../public/usage-pricing.js';
 import { conversationTitle } from '../public/conversation-title.js';
+import { NO_PROJECT_KEY } from '../public/project-identity.js';
 
 test('untitled archived sessions show and search by the legacy identifier in every view', () => {
   const session = {id:'node:archived',sourceSessionId:'archived',title:'Conversation sans titre',calls:[{timestamp:'2026-09-15T12:00:00Z',model:'gpt-test',usage:{inputTokens:1,totalTokens:1}}]};
@@ -88,4 +89,44 @@ test('group editor catalogue ignores call history, dates and grouping preference
   assert.equal(result.pageData.view,'project-groups');
   assert.deepEqual(result.pageData.projectCatalog.map(p=>p.key),['name:a','name:b']);
   assert.deepEqual(result.sessions,[]);
+});
+
+test('no-project entry aggregates accounting and opens only its conversations across machines', () => {
+  const fixtures = [
+    {id:'unnamed-a',nodeId:'a',cwd:null},
+    {id:'unnamed-b',nodeId:'b',cwd:''},
+    {id:'unnamed-private',nodeId:'b',cwd:'project-123456789abc'},
+    {id:'named-no-folder',nodeId:'a',cwd:null,projectName:'Named'},
+    {id:'same-label',nodeId:'b',cwd:'',projectName:'Sans projet'},
+    {id:'outside-period',nodeId:'a',cwd:null,calls:[{...calls[0],timestamp:'2025-01-01T00:00:00Z'}]},
+  ].map(s=>({calls:[calls[0]],...s}));
+  const buildFixtures = query => {
+    const builder = createPageData({}, {start:'2026-09-15',end:'2026-09-16',unknownProject:'Sans projet',...query});
+    fixtures.forEach(s=>builder.add(s));
+    return builder.finish();
+  };
+  const projects = buildFixtures({view:'projects',project:NO_PROJECT_KEY}).pageData;
+  assert.equal(projects.projectCount,3);
+  const group = projects.projects.find(p=>p.key===NO_PROJECT_KEY);
+  assert.equal(group.name,'Sans projet');
+  assert.equal(group.sessionCount,3);
+  assert.equal(group.summary.count,3);
+  assert.equal(group.summary.usage.totalTokens,3*calls[0].usage.totalTokens);
+  assert.ok(Math.abs(group.cost.cost - apiCostOfCalls(Array(3).fill(calls[0])).cost)<1e-9);
+  assert.deepEqual(group.sessions.map(s=>s.id).sort(),['unnamed-a','unnamed-b','unnamed-private']);
+  assert.equal(group.models[0].summary.count,3);
+  assert.equal(buildFixtures({view:'overview'}).pageData.projects.filter(p=>p.key===NO_PROJECT_KEY).length,1);
+  const catalog = buildFixtures({view:'project-groups'}).pageData.projectCatalog;
+  assert.equal(catalog.filter(p=>p.key===NO_PROJECT_KEY).length,1);
+  const conversations = buildFixtures({view:'conversations',projectFilter:NO_PROJECT_KEY,pageSize:2});
+  assert.equal(conversations.pageData.total,3);
+  assert.equal(conversations.sessions.length,2);
+  assert.ok(conversations.sessions.every(s=>s.id.startsWith('unnamed-') && s.tableProject==='Sans projet'));
+  assert.equal(buildFixtures({view:'conversations',projectFilter:NO_PROJECT_KEY,node:'a'}).pageData.total,1);
+  assert.equal(buildFixtures({view:'conversations',projectFilter:NO_PROJECT_KEY,model:'absent'}).pageData.total,0);
+  const projectGroups = [{id:'combined',name:'Combined',members:[NO_PROJECT_KEY,'name:named']}];
+  assert.equal(buildFixtures({view:'conversations',projectFilter:'group:combined',projectGroups}).pageData.total,4);
+  assert.equal(buildFixtures({view:'detail',id:'named-no-folder',projectFilter:NO_PROJECT_KEY}).sessions.length,0);
+  assert.equal(buildFixtures({view:'pricing',projectFilter:NO_PROJECT_KEY}).sessions.length,3);
+  assert.throws(()=>buildFixtures({view:'conversations',projectFilter:42}));
 });

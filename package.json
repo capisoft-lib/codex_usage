@@ -6,6 +6,7 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
+    "benchmark:pages": "node scripts/benchmark-pages.mjs",
     "benchmark:storage": "node scripts/benchmark-storage.mjs",
     "test:storage:docker": "node scripts/smoke-relational-docker.mjs",
     "build:ui": "node scripts/build-dashboard-ui.mjs",

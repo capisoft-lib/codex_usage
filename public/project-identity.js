@@ -1,4 +1,5 @@
 export const OVERVIEW_PROJECT_LIMIT = 5;
+export const NO_PROJECT_KEY = "no-project";
 
 function visibleProjectName(session) {
   const explicit = String(session?.projectName || "").trim();
@@ -21,8 +22,7 @@ function originalProjectIdentity(session, unknownLabel = "No project") {
   const name = visibleProjectName(session);
   if (githubUrl) return { key: `github:${githubUrl.toLowerCase()}`, name: name || unknownLabel, githubUrl };
   if (name) return { key: `name:${normalizedName(name)}`, name, githubUrl: null };
-  const uniqueSessionId = session?.sourceSessionId || session?.id || crypto.randomUUID();
-  return { key: `session:${session?.nodeId || "local"}:${uniqueSessionId}`, name: unknownLabel, githubUrl: null };
+  return { key: NO_PROJECT_KEY, name: unknownLabel, githubUrl: null };
 }
 
 export function normalizeProjectGroups(value) {
@@ -34,7 +34,7 @@ export function normalizeProjectGroups(value) {
       || !Array.isArray(group.members) || group.members.length < 2) throw new Error('Invalid project group');
     ids.add(group.id);
     for (const key of group.members) {
-      if (typeof key !== 'string' || !/^(github|name|session):/.test(key) || members.has(key)) throw new Error('Invalid project member');
+      if (typeof key !== 'string' || (key !== NO_PROJECT_KEY && !/^(github|name|session):/.test(key)) || members.has(key)) throw new Error('Invalid project member');
       members.add(key);
     }
     return { id: group.id, name: group.name.trim(), members: [...group.members] };
@@ -43,7 +43,11 @@ export function normalizeProjectGroups(value) {
 
 export function projectIdentity(session, unknownLabel = 'No project', groups = []) {
   const original = originalProjectIdentity(session, unknownLabel);
-  const group = groups.find(group => group.members.includes(original.key));
+  // Keep existing per-session memberships when upgrading the unnamed fallback.
+  const sessionId = session?.sourceSessionId || session?.id;
+  const legacyKey = original.key === NO_PROJECT_KEY && sessionId
+    ? `session:${session?.nodeId || "local"}:${sessionId}` : null;
+  const group = groups.find(group => group.members.includes(original.key) || (legacyKey && group.members.includes(legacyKey)));
   return group ? { key: `group:${group.id}`, name: group.name, githubUrl: null } : original;
 }
 

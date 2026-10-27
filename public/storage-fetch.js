@@ -3,13 +3,24 @@
 export async function fetchUsage(
   url,
   options = {},
-  { fetchImpl = fetch, maxRetries = 60, delayMs = 500, onMigration = () => {} } = {},
+  { fetchImpl = fetch, maxRetries = 60, delayMs = 500, timeoutMs = 30000, onMigration = () => {} } = {},
 ) {
   let migrating = false;
   try {
   for (let attempt = 0; ; attempt++) {
     options.signal?.throwIfAborted();
-    const response = await fetchImpl(url, options);
+    const controller = new AbortController();
+    const signal = options.signal ? AbortSignal.any([options.signal,controller.signal]) : controller.signal;
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      if (timeoutMs > 0) timer = setTimeout(() => {
+        const error = new DOMException('Server response timed out.', 'TimeoutError');
+        controller.abort(error); reject(error);
+      }, timeoutMs);
+    });
+    let response;
+    try { response = await Promise.race([fetchImpl(url, {...options, signal}), timeout]); }
+    finally { clearTimeout(timer); }
     if (response.status !== 503 || attempt >= maxRetries) return response;
     let details;
     try {
