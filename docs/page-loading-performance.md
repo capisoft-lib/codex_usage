@@ -1,6 +1,6 @@
 # Page loading measurements — 2026-10-19
 
-Work branch: `codex/page-loading-performance`. The initial dirty working tree was preserved. Existing local changes were included in the baseline; this work is not a production deployment.
+Work branch: `codex/page-loading-performance`; release branch: `codex/page-loading-release`. The initial dirty working tree was preserved. Existing local changes were included in the baseline and excluded from the release PR. The final forecast changes were deployed to private Site version 54; hosted measurements appear below.
 
 ## Hosted baseline
 
@@ -49,7 +49,7 @@ node scripts/benchmark-pages.mjs
 
 `BENCH_SOURCE_ROOT` selects an alternative preserved source tree. `BENCH_DATABASE` selects an existing SQLite file, always opened read-only; omit it for the generated fixture. `BENCH_PASSES` changes the sample count. Frozen data and raw measurement JSON are retained under ignored `.cache/page-performance/`; no user history is committed.
 
-Functional validation covers owner/revocation isolation, events spanning quota batch boundaries, invalid dates, exact forecast output, cache invalidation, current-day freshness, graph/range boundaries, concurrent ingestion, request timeout and cancellation. The root build/check passed 355 tests; the Sites build and 15 tests passed, including real workerd/D1 execution; TypeScript passed. Production after measurements and browser-rendering measurements require deployment; no production change was made in this work branch.
+Functional validation covers owner/revocation isolation, events spanning quota batch boundaries, invalid dates, exact forecast output, cache invalidation, current-day freshness, graph/range boundaries, concurrent ingestion, request timeout and cancellation. At this initial checkpoint the root build/check passed 355 tests; the Sites build and 15 tests passed, including real workerd/D1 execution; TypeScript passed. Deployment and browser measurements followed in the forecast work below. These counts include the pre-existing local features; the isolated release is validated separately.
 
 ## Weekly forecast follow-up
 
@@ -62,3 +62,7 @@ Using the same fixed local database and the captured 44-period metadata, three s
 A browser measurement of the version-52 refresh completed the forecast chart in **9,960 ms**, with **9,571 ms** in the detail request and approximately **53 ms** between its response and DOM update. Version 53 reduced the detail request to **3,904 ms**. Server timings identified remaining sequential per-machine reads and two sets of three metadata requests. The next revision batches metadata atomically and reads selected-week events across active machines with one shared keyset cursor. Tests verify cross-machine paging and both metadata adapter paths.
 
 Version 54 was deployed successfully to the same owner-private Site. Three authenticated, uncached detail requests measured **3,971 / 2,767 / 2,112 ms** (all HTTP 200, ready forecasts). A full page reload displayed the forecast SVG after **4,408 ms**, including startup and metadata; its detail request took **2,148 ms**. These are observed production/browser timings, not local estimates. Evidence, Server-Timing headers and a screenshot are retained in `.cache/page-performance/weekly-chart-final.json`, `weekly-graph-reload-final.json` and `weekly-forecast-deployed.png`.
+
+## Isolated 1.6.2 release validation
+
+The release excludes the pre-existing project allocation and grouping edits. Its root check passes **354 tests**; the Sites build and **15 tests**, TypeScript and lint pass. A Docker build was exercised with a read-only root filesystem, isolated test volume, relational migration, replacement-container persistence, local collection and compressed-archive recovery. No existing user volume or running application container was replaced by these tests. A request-local summary regression verifies repeated groups, count preservation and custom-price isolation.

@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+## 1.7.0 — 2026-10-27
+
+- Automatically show available Codex reset-credit expirations in the forecast, with a vertical marker and projected usage at each deadline. Used or expired credits disappear on synchronization.
+- Add multiple personal target dates in UTC, with editable names, forecast markers, and browser-local persistence. Dates outside the selected quota period remain listed without projecting across a reset.
+- Preserve the newest expiry reading across mixed collector versions, and synchronize only expiry dates and quantities, without credit identifiers or descriptions.
+- Pin the Docker base to Node 22.23.4 and Alpine 3.24.3, require the stable-branch musl security fix, and audit installed APKs against the correct Alpine branch in CI.
+- Update the Sites image renderer to `@vercel/og` 1.0.3 with Satori 0.33.5 to resolve its SVG escaping advisory.
+- Package all shared browser modules in both Docker targets, fixing missing transitive imports in the headless agent, and verify its startup in CI.
+
+Docker: `capitaine/codex-usage-dashboard:1.7.0` and `:latest` (Linux AMD64 and ARM64). Recreate containers with their existing configuration and storage volumes. Automatic expiry readings require an updated reporting agent with access to its signed-in Codex App Server; session-only Docker collectors still work without account credentials.
+
+## 1.6.2 — 2026-10-19
+
+- Speed up weekly quota forecasts by reading exact selected-week calls and aggregating older EMA samples and calibration history in SQL, preserving the forecast formula and dated subscription prices.
+- Batch Sites metadata and read quota events across active machines with bounded keyset pagination. Measured uncached forecast requests on the private Site fell from 9.7 seconds to 2.1–4.0 seconds; a full reload displayed the chart in 4.4 seconds.
+- Cache completed days from recent ranges, including the last seven days, with atomic preparation and invalidation after late writes. Today and partial days remain live.
+- Return completed reads during concurrent synchronization without caching them, clear stale quota ETags, and time out requests whose response headers never arrive.
+- Reuse bounded request-local pricing summaries without sharing custom prices between requests.
+
+Docker: `capitaine/codex-usage-dashboard:1.6.2` and `:latest` (Linux AMD64 and ARM64). Recreate containers with their existing configuration and storage volumes.
+
 ## 1.6.1 — 2026-10-19
 
 - Read Codex's Zstandard-compressed `.jsonl.zst` session archives directly, alongside plain JSONL logs. Compression no longer makes historical usage disappear locally or propagate as Mesh deletions.

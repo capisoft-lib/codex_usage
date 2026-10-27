@@ -1,4 +1,4 @@
-FROM node:22-alpine AS ui-build
+FROM node:22.23.4-alpine3.24@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS ui-build
 
 WORKDIR /build
 COPY public ./public
@@ -6,11 +6,12 @@ COPY scripts ./scripts
 COPY src/cli-locale.mjs ./src/cli-locale.mjs
 RUN node scripts/build-dashboard-ui.mjs
 
-FROM node:22-alpine AS runtime
+FROM node:22.23.4-alpine3.24@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS runtime
 
 # The runtime uses Node.js directly and has no npm dependencies. Remove the
 # bundled package managers so their unused dependency trees are not shipped.
 RUN apk upgrade --no-cache \
+    && apk add --no-cache 'musl>=1.2.6-r3' 'musl-utils>=1.2.6-r3' \
     && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* \
     && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
       /usr/local/bin/yarn /usr/local/bin/yarnpkg
@@ -20,7 +21,7 @@ LABEL org.opencontainers.image.source="https://github.com/capisoft-lib/codex_usa
       org.opencontainers.image.licenses="AGPL-3.0-or-later" \
       org.opencontainers.image.title="Local Usage Dashboard for Codex" \
       org.opencontainers.image.description="Independent local dashboard for Codex usage, token activity, and cost estimates" \
-      org.opencontainers.image.version="1.6.1"
+      org.opencontainers.image.version="1.7.0"
 
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
@@ -37,8 +38,9 @@ WORKDIR /app
 COPY --chown=node:node package.json agent.mjs LICENSE ./
 COPY --chown=node:node src ./src
 COPY --chown=node:node sites-hub/drizzle ./sites-hub/drizzle
-COPY --chown=node:node public/quota-periods.js ./public/quota-periods.js
-COPY --chown=node:node public/pricing-catalog.js ./public/pricing-catalog.js
+# Both entrypoints import shared modules from the source layout. Keep the full
+# module set so headless agents do not lose transitive imports as features grow.
+COPY --from=ui-build --chown=node:node /build/dist/dashboard/*.js ./public/
 
 RUN mkdir -p /app-cache /codex-data/sessions /codex-data/archived_sessions \
     && touch /codex-data/session_index.jsonl \
@@ -55,8 +57,6 @@ FROM runtime AS dashboard
 
 COPY --chown=node:node server.mjs ./
 COPY --from=ui-build --chown=node:node /build/dist/dashboard ./dist/dashboard
-# Shared modules are also imported by the Node server from the source layout.
-COPY --from=ui-build --chown=node:node /build/dist/dashboard/*.js ./public/
 
 EXPOSE 4317
 

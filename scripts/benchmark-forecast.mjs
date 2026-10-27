@@ -8,8 +8,9 @@ import {createQuotaDetail} from '../public/quota-data.js';
 import {readQuotaCalls,readQuotaCalibration,readQuotaSamples} from '../src/storage/relational-reader.mjs';
 
 const metadata=JSON.parse(readFileSync(process.env.BENCH_METADATA || '.cache/page-performance/weekly-metadata.json','utf8'));
-const {createQuotaDetail:beforeBuilder}=await import(pathToFileURL(path.resolve(process.env.BENCH_BEFORE || '.cache/page-performance/weekly-before/public/quota-data.js')).href);
-const {readQuotaCalls:readBeforeCalls}=await import(pathToFileURL(path.resolve('.cache/page-performance/weekly-before/src/storage/relational-reader.mjs')).href);
+const beforeModule=pathToFileURL(path.resolve(process.env.BENCH_BEFORE || '.cache/page-performance/weekly-before/public/quota-data.js'));
+const {createQuotaDetail:beforeBuilder}=await import(beforeModule.href);
+const {readQuotaCalls:readBeforeCalls}=await import(new URL('../src/storage/relational-reader.mjs',beforeModule).href);
 const raw=new DatabaseSync(process.env.BENCH_DATABASE || '.cache/page-performance/fixture.sqlite',{readOnly:true});
 try {
   raw.exec('BEGIN');

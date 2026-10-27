@@ -17,6 +17,7 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "codex-usage-dashboard": "file:..",
     "drizzle-orm": "0.45.2",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -55,7 +56,9 @@
       "esbuild": "0.25.12"
     },
     "sharp": "0.35.5",
-    "undici": "7.29.1"
+    "undici": "7.30.1",
+    "@vercel/og": "1.0.3",
+    "fflate": "0.7.5"
   },
   "type": "module"
 }

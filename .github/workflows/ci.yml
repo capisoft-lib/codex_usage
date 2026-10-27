@@ -20,6 +20,8 @@ jobs:
         run: node --test --test-concurrency=1 test/windows-agent-diagnostic.test.mjs test/windows-agent-supervision.test.mjs test/windows-window-probe.test.mjs test/windows-tray.test.mjs
       - name: Install optional desktop test dependencies
         run: npm ci --prefix desktop
+      - name: Audit desktop dependencies
+        run: npm audit --audit-level=low --prefix desktop
       - name: Build shared UI for native smoke test
         run: npm run build:ui
       - name: Validate native window and server lifecycle
@@ -53,6 +55,12 @@ jobs:
         run: npm run audit:deps --prefix sites-hub
       - name: Build container
         run: docker build --tag codex-usage-dashboard:ci .
+      - name: Audit installed Alpine packages against their branch
+        run: node scripts/audit-container.mjs codex-usage-dashboard:ci
+      - name: Verify headless agent container
+        run: |
+          docker build --target agent --tag codex-usage-agent:ci .
+          docker run --rm --network none --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true --mount type=bind,source=${{ github.workspace }}/scripts/smoke-agent-docker.mjs,target=/verify-agent.mjs,readonly codex-usage-agent:ci node /verify-agent.mjs
       - name: Verify relational storage and persistent Docker volume
         run: npm run test:storage:docker
         env:
