@@ -5,6 +5,15 @@ import { MeshRequestError, readJsonBody, validatePayload, validateReadPayload, v
 import { publicMeshIngressUrl } from "../lib/mesh-config.ts";
 import { sanitizeUsageForMesh } from "../../src/mesh-privacy.mjs";
 
+test("Sites accepts automatic reset expiry metadata but rejects private or malformed credit fields", () => {
+  const quota = { resetDeadlines: [{ expiresAt: "2026-10-29T19:04:04Z", count: 1 }], resetDeadlinesObservedAt: "2026-10-27T20:00:00Z" };
+  const payload = { kind: "sync", snapshotVersion: 1, generatedAt: "2026-10-27T20:00:00Z", privacy: { projectMode: "hash", includeTitles: false }, upserts: [], removals: [], quota };
+  for (const resetDeadlines of [quota.resetDeadlines, [], null]) assert.doesNotThrow(() => validatePayload({ ...payload, quota: { ...quota, resetDeadlines } }));
+  for (const invalid of [{ ...quota.resetDeadlines[0], id: "private" }, { expiresAt: "bad", count: 1 }, { expiresAt: quota.resetDeadlines[0].expiresAt, count: 0 }]) {
+    assert.throws(() => validatePayload({ ...payload, quota: { ...quota, resetDeadlines: [invalid] } }), /Quota/);
+  }
+});
+
 test("Sites preserves measured quota history while rejecting private or invalid point fields", () => {
   const quota = { usedPercent: 25, observations: [{ observedAt: "2026-09-01T01:00:00Z", usedPercent: 10 }] };
   const payload = { kind: "sync", snapshotVersion: 1, generatedAt: "2026-09-01T02:00:00Z", privacy: { projectMode: "hash", includeTitles: false }, upserts: [], removals: [], quota, quotaHistory: [quota] };

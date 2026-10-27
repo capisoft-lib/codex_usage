@@ -20,6 +20,8 @@ export const DASHBOARD_ASSETS = Object.freeze([
   "pricing-catalog.js",
   "pricing-ui.js",
   "quota-forecast.js",
+  "forecast-goals.js",
+  "reset-deadlines.js",
   "quota-display.js",
   "quota-data.js",
   "quota-periods.js",

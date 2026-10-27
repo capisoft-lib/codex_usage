@@ -1,3 +1,4 @@
+import { FORECAST_GOALS_I18N } from "../public/forecast-goals.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -60,13 +61,13 @@ test("fully translates every label used by the runtime", async () => {
     readFile(new URL("../public/app.js", import.meta.url), "utf8"),
     readFile(new URL("../public/index.html", import.meta.url), "utf8"),
   ]);
-  const requiredKeys = [...new Set([...messageKeysIn(app), ...attributeKeysIn(html), ...dynamicKeys])].sort();
+  const requiredKeys = [...new Set([...messageKeysIn(app), ...attributeKeysIn(html), ...dynamicKeys, ...Object.keys(FORECAST_GOALS_I18N.en)])].sort();
   const englishBody = app.match(/\r?\n  en: \{([\s\S]*?)\r?\n  \},\r?\n  de:/)?.[1];
   assert.ok(englishBody, "English reference catalogue not found");
-  const english = { ...vm.runInNewContext(`({${englishBody}\n})`), ...PRICING_I18N.en, ...THEME_I18N.en, ...TIME_FORMAT_I18N.en, ...MIGRATION_I18N.en, ...GROUP_I18N.en };
+  const english = { ...vm.runInNewContext(`({${englishBody}\n})`), ...PRICING_I18N.en, ...THEME_I18N.en, ...TIME_FORMAT_I18N.en, ...MIGRATION_I18N.en, ...GROUP_I18N.en, ...FORECAST_GOALS_I18N.en };
 
   for (const [language, baseMessages] of Object.entries(ADDITIONAL_I18N)) {
-    const messages = { ...baseMessages, ...PRICING_I18N[language], ...THEME_I18N[language], ...TIME_FORMAT_I18N[language], ...MIGRATION_I18N[language], ...GROUP_I18N[language] };
+    const messages = { ...baseMessages, ...PRICING_I18N[language], ...THEME_I18N[language], ...TIME_FORMAT_I18N[language], ...MIGRATION_I18N[language], ...GROUP_I18N[language], ...FORECAST_GOALS_I18N[language] };
     const missing = requiredKeys.filter((key) => !Object.hasOwn(messages, key));
     assert.deepEqual(missing, [], `${language} is missing runtime translations`);
     for (const key of requiredKeys) {

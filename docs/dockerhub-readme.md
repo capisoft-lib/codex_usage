@@ -6,7 +6,7 @@
 
 Local Usage turns the Codex session metadata stored on your computer into a fast, privacy-conscious usage dashboard. It can run entirely on one machine, or several machines can send signed, minimized usage snapshots to an optional central dashboard.
 
-[**Stable release 1.6.2**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.6.2) · [Docker image 1.6.2](https://hub.docker.com/r/capitaine/codex-usage-dashboard/tags) · [Source code](https://github.com/capisoft-lib/codex_usage) · [AGPL-3.0-or-later](https://github.com/capisoft-lib/codex_usage/blob/main/LICENSE) · [Changelog](https://github.com/capisoft-lib/codex_usage/blob/main/CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
+[**Stable release 1.7.0**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.0) · [Docker image 1.7.0](https://hub.docker.com/r/capitaine/codex-usage-dashboard/tags) · [Source code](https://github.com/capisoft-lib/codex_usage) · [AGPL-3.0-or-later](https://github.com/capisoft-lib/codex_usage/blob/main/LICENSE) · [Changelog](https://github.com/capisoft-lib/codex_usage/blob/main/CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
 
 ## Donate
 
@@ -22,11 +22,16 @@ If you like this project and want to support its ongoing development, you can [b
 - project, model, period, usage, and conversation filters;
 - nine interface languages.
 
-## New in 1.6.2
+## New in 1.7.0
 
-- Faster weekly quota projections with SQL aggregation of historical calibration and EMA samples, preserving the forecast formula.
-- Cached completed days for recent ranges, including the last seven days; current-day activity stays live and late writes invalidate affected days.
-- Completed reads remain available during synchronization, with bounded quota-event pages and batched Sites metadata.
+- Available Codex resets appear automatically at their expiry dates, with vertical forecast markers and projected usage. Used or expired resets disappear on synchronization.
+- Add, edit and remove personal UTC target dates; their markers and estimates are saved in your browser.
+- Reset metadata stays minimized and works alongside older reporting agents. An updated agent with access to its signed-in Codex App Server supplies the expiry readings; session-only Docker collectors do not need account credentials.
+
+### Included since 1.6.2
+
+- Faster weekly forecasts and recent-page reads, cached completed days, and bounded history queries.
+- Windows tray controls, refreshed dashboard screenshots, and dependency security fixes.
 
 ## Included from 1.6.1
 
@@ -43,18 +48,18 @@ Restore historical usage from Codex's compressed `.jsonl.zst` archives without e
 The public image supports Linux AMD64 and ARM64 and runs as a non-root user:
 
 ```text
-capitaine/codex-usage-dashboard:1.6.2
+capitaine/codex-usage-dashboard:1.7.0
 ```
 
 ```bash
-docker pull capitaine/codex-usage-dashboard:1.6.2
+docker pull capitaine/codex-usage-dashboard:1.7.0
 docker compose up -d
 ```
 
 Inspect the published multi-platform manifest and digest:
 
 ```text
-docker buildx imagetools inspect capitaine/codex-usage-dashboard:1.6.2
+docker buildx imagetools inspect capitaine/codex-usage-dashboard:1.7.0
 ```
 
 The published manifests include SBOM and provenance attestations. See the [full README](https://github.com/capisoft-lib/codex_usage#readme) for scoped read-only mounts, PowerShell/macOS/Linux commands, Compose configuration, and hardened deployment examples.

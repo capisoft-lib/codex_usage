@@ -1,4 +1,4 @@
-const CACHE_NAME = "codex-usage-shell-v12-title-fallback";
+const CACHE_NAME = "codex-usage-shell-v16-reset-deadlines";
 const SHELL_ASSETS = [
   "./api-pricing.js",
   "./app.js",
@@ -17,6 +17,8 @@ const SHELL_ASSETS = [
   "./pricing-catalog.js",
   "./pricing-ui.js",
   "./quota-forecast.js",
+  "./forecast-goals.js",
+  "./reset-deadlines.js",
   "./quota-display.js",
   "./quota-data.js",
   "./quota-periods.js",

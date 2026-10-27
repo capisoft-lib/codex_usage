@@ -1,3 +1,5 @@
+import { latestResetDeadlineMetadata } from "../public/reset-deadlines.js";
+
 export const QUOTA_RESET_CLUSTER_MS = 5 * 60 * 1_000;
 
 function time(value) {
@@ -89,6 +91,7 @@ export function mergeWeeklyQuotaObservations(values = []) {
         ? null
         : Number.isFinite(Number(latest.resetsAvailable)) ? Math.max(0, Number(latest.resetsAvailable)) : null,
       observedAt: latest.observedAt,
+      ...latestResetDeadlineMetadata(chronological),
       firstObservedAt: chronological.map((item) => item.firstObservedAt || item.observedAt).sort()[0],
       planType: plan(latest.planType) || planTypes.at(-1) || null,
       planTypes,
