@@ -14,7 +14,6 @@ import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, 
 import { latestTimestamp as rawLatestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { createForecastGoalsController, FORECAST_GOALS_I18N } from "./forecast-goals.js";
 import { buildQuotaForecast, estimateQuotaCapacityCredits, interpolateForecastPercent, weeklyForecastTicks } from "./quota-forecast.js";
-import { createForecastGoalsController, FORECAST_GOALS_I18N } from "./forecast-goals.js";
 import { OVERVIEW_PROJECT_LIMIT, NO_PROJECT_KEY, projectIdentity, normalizeProjectGroups, automaticProjectGroups, collapseProjectCatalog } from "./project-identity.js";
 
 // Summary arrays keep the renderer shared with the quota/detail paths.
@@ -383,7 +382,6 @@ function renderGroupEditor() {
 
 for (const [language, messages] of Object.entries(FORECAST_GOALS_I18N)) Object.assign(I18N[language], messages);
 const PAGES = ["project-groups", "overview", "projects", "quota", "conversations", "settings"];
-for (const [language, messages] of Object.entries(FORECAST_GOALS_I18N)) Object.assign(I18N[language], messages);
 for (const [language, messages] of Object.entries(PRICING_I18N)) Object.assign(I18N[language], messages);
 const PAGE_TITLE_KEYS = {
   "project-groups": "groups.title",
