@@ -173,7 +173,16 @@ async function routeApi(request, response, url) {
           const filters = await readFilters(database,LOCAL_OWNER);
           for(const cwd of filters.folders) builder.add({cwd,models:filters.models,calls:[],turns:[]});
         }
-      } else for (const session of data.sessions) builder.add(toPublicUsage({ sessions: [session] }).sessions[0]);
+        if (builder.weekly) await readSessionSlices(database,LOCAL_OWNER,new Date(builder.weekly.from).toISOString(),new Date(builder.weekly.to).toISOString(),false,null,row => {
+          let session = JSON.parse(row.snapshot_json);
+          if(meshHub) session = {...session,id:`${row.node_id}:${row.session_id}`,sourceSessionId:row.session_id,nodeId:row.node_id};
+          builder.addWeekly({...toPublicUsage({sessions:[session]}).sessions[0],calls:session.calls});
+        },false,{aggregate:true,prepareCache:false});
+      } else for (const session of data.sessions) {
+        const safeSession = toPublicUsage({ sessions: [session] }).sessions[0];
+        builder.add(safeSession);
+        builder.addWeekly(safeSession);
+      }
     }
     if(database && (meshHub?meshHub.metadata():usageCollector.store.repository.metadata()).revision !== data.revision) {
       response.removeHeader('ETag');

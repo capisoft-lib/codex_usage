@@ -61,6 +61,12 @@ The September 8 API announcement explicitly says GPT-Rosalind Research billing b
 
 The GPT-6 Standard rates are unchanged. API usage-tier names (Build/Launch/Grow), plan availability, GPT-5.5's forthcoming Codex retirement and image-encoding fixes do not alter token charges. Voice duration, tools, images, regional uplifts and negotiated rates require measurements not present in these counters; this release does not invent them.
 
+### October 27 review: GPT-6.1 Terra
+
+The [API changelog](https://developers.openai.com/api/docs/changelog) dates the release to October 26. Its [model card](https://developers.openai.com/api/docs/models/gpt-6.1-terra) and [API rate card](https://developers.openai.com/api/docs/pricing) give $1 / $0.05 / $5 per million input / cached input / output, $1.25 per million 30-minute cache writes, Fast at 2x, Batch and Flex at 0.5x, and the 272,000-token long-context rule. The [Codex rate card](https://learn.chatgpt.com/docs/pricing#token-rates) was observed on October 27 at 25 / 1.25 / 125 credits; Fast uses 2x purchased credits and 2.5x included usage. Credit coverage starts on the observation date. Ultrafast remains unsupported for Terra: the [published API guide](https://developers.openai.com/api/docs/guides/ultrafast-mode) lists Astra and Sol 6.1 only. Launch-day estimates use the existing UTC day convention.
+
+The API introduced optional 12-hour cache retention on October 20, priced at 2.5x input. The collector does not record retention duration, so its existing 1.25x cache-write estimate reflects the 30-minute card and cannot establish a 12-hour charge.
+
 ## Evidence, precision and missing history
 
 - `documented`: dated announcement plus published amounts/rules. Base periods continue until the next documented change. This cannot prove the absence of an unannounced/account-specific change.

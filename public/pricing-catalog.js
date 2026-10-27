@@ -1,7 +1,7 @@
 // Public, offline rate history. Evidence and maintenance: docs/pricing-history.md.
 // Day-only announcements use 00:00 UTC; their boundary day remains estimated.
-export const PRICING_CATALOG_VERSION = "2026-10-09.1";
-export const PRICING_VERIFIED_AT = "2026-10-09";
+export const PRICING_CATALOG_VERSION = "2026-10-27.1";
+export const PRICING_VERIFIED_AT = "2026-10-27";
 export const PRICING_RESEARCHED_FROM = "2025-08-07";
 export const PRICING_REVIEW_AFTER = "2026-11-09";
 export const PRICING_SOURCES = Object.freeze({
@@ -22,6 +22,7 @@ export const PRICING_SOURCES = Object.freeze({
   gpt6Sol: "https://developers.openai.com/api/docs/models/gpt-6-sol",
   gpt6Luna: "https://developers.openai.com/api/docs/models/gpt-6-luna",
   gpt61Sol: "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+  gpt61Terra: "https://developers.openai.com/api/docs/models/gpt-6.1-terra",
   ultrafast: "https://developers.openai.com/api/docs/guides/ultrafast-mode",
 });
 
@@ -89,10 +90,14 @@ api("gpt-6.1-sol", "2026-09-29", [2, 0.1, 10], {
   cacheWriteMultiplier: 1.25, ultrafastMultiplier: 6, ultrafastFrom: "2026-10-08",
   sources: ["gpt61Sol", "api", "changelog", "ultrafast"],
 });
+api("gpt-6.1-terra", "2026-10-26", [1, 0.05, 5], {
+  ...long, fastMultiplier: 2, fastFrom: "2026-10-26", fastLongContextFrom: "2026-10-26",
+  cacheWriteMultiplier: 1.25, sources: ["gpt61Terra", "api", "changelog"],
+});
 // Only exact proportional Batch/Flex cards reviewed here are supported. Older
 // eligibility is unknown, so discounted requests before this review stay unrated.
 for (const entry of entries.filter(entry => entry.model.startsWith("gpt-6") || entry.model.startsWith("gpt-5.6-"))) {
-  entry.discountedFrom = "2026-10-09";
+  entry.discountedFrom = entry.model === "gpt-6.1-terra" ? "2026-10-26" : "2026-10-09";
   entry.batchMultiplier = 0.5;
   entry.flexMultiplier = 0.5;
 }
@@ -124,6 +129,11 @@ credits("gpt-6-luna", "2026-09-22", [2.5, 0.25, 12.5], { fastMultiplier: 2.5, fa
 credits("gpt-6.1-sol", "2026-09-29", [50, 2.5, 250], {
   fastMultiplier: 2, subscriptionFastMultiplier: 2.5, fastFrom: "2026-09-29",
   sources: ["credits", "speed", "changelog"],
+});
+// Credit rates and Fast availability observed on October 27, not backdated.
+credits("gpt-6.1-terra", "2026-10-27", [25, 1.25, 125], {
+  fastMultiplier: 2, subscriptionFastMultiplier: 2.5, fastFrom: "2026-10-27",
+  sources: ["credits", "speed"], evidence: "observed",
 });
 credits("gpt-rosalind-research", "2026-10-09", [125, 12.5, 625], { evidence: "observed", sources: ["credits"] });
 

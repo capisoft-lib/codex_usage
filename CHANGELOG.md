@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.7.1 — 2026-10-27
+
+- Add GPT-6.1 Terra API and Codex credit rates with dated speed and long-context rules.
+- Show project-level estimates of weekly quota and subscription allocation, and compare current and historical quota forecasts.
+- Preserve project filters and improve page data handling.
+
 ## 1.7.0 — 2026-10-27
 
 - Automatically show available Codex reset-credit expirations in the forecast, with a vertical marker and projected usage at each deadline. Used or expired credits disappear on synchronization.

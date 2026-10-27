@@ -76,7 +76,7 @@ export function createQuotaDetail(data, reset = null, now = new Date()) {
       const capacities = calibration.filter((period) => !period.unrated && period.credits > 0).sort((a, b) => a.end - b.end).map((period) => period.credits * 100 / period.percent);
       const capacityCredits = capacities.length ? exponentialWeightedAverage(capacities, DEFAULT_CAPACITY_HALF_LIFE_PERIODS) : null;
       const forecast = buildQuotaForecast({
-        samples, observations: quota?.observations, rangeStart: start, rangeEnd: end,
+        samples, observations: quota?.observations, quotaPeriods: periods, planType: quota?.planType, nodeId: quota?.nodeId, rangeStart: start, rangeEnd: end,
         observedAt: current || quota?.observations?.length ? (quota?.observedAt || now) : end,
         asOf: current ? now : end, usedPercent: current ? quota?.usedPercent : quota?.peakUsedPercent,
         project: current, capacityCredits: current ? capacityCredits : null,

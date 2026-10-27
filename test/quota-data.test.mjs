@@ -36,7 +36,7 @@ for (const variation of ["normal", "unrated", "invalid", "measured", "other-plan
     assert.deepEqual(quotaMetadata(data).sessions, []);
     const samples = calls.map((value) => { const priced = codexCreditsOfCalls([value]); return { timestamp: value.timestamp, value: priced.credits, rated: !priced.unratedCalls }; });
     const isCurrent = selected === quota;
-    const expected = buildQuotaForecast({ samples, observations: selected.observations, rangeStart: selected.startsAt, rangeEnd: selected.resetsAt, observedAt: isCurrent ? selected.observedAt : selected.resetsAt, asOf: isCurrent ? now : selected.resetsAt, usedPercent: selected.peakUsedPercent, project: isCurrent, capacityCredits: isCurrent ? estimateQuotaCapacityCredits({ samples, quotaPeriods: periods, planType: selected.planType, nodeId: selected.nodeId }) : null });
+    const expected = buildQuotaForecast({ samples, observations: selected.observations, quotaPeriods: periods, planType: selected.planType, nodeId: selected.nodeId, rangeStart: selected.startsAt, rangeEnd: selected.resetsAt, observedAt: isCurrent ? selected.observedAt : selected.resetsAt, asOf: isCurrent ? now : selected.resetsAt, usedPercent: selected.peakUsedPercent, project: isCurrent, capacityCredits: isCurrent ? estimateQuotaCapacityCredits({ samples, quotaPeriods: periods, planType: selected.planType, nodeId: selected.nodeId }) : null });
     near(result.quotaDetail.forecast, expected);
   });
 }

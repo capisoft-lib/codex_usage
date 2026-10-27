@@ -6,7 +6,7 @@ import {spawn} from 'node:child_process';
 import {once} from 'node:events';
 import {zstdCompressSync} from 'node:zlib';
 
-assert.equal(JSON.parse(await readFile('/app/package.json','utf8')).version,'1.7.0');
+assert.equal(JSON.parse(await readFile('/app/package.json','utf8')).version,'1.7.1');
 const root='/tmp/codex-compression-smoke';
 await mkdir(root+'/sessions',{recursive:true});
 await mkdir(root+'/archives');
@@ -36,5 +36,5 @@ try {
   const preserved=await usage();assert.deepEqual(preserved.sessions,compressed.sessions);
   const health=await (await fetch('http://127.0.0.1:4317/api/health')).json();
   assert.match(health.lastError,/archive Codex impossible/);
-  console.log(`PASS: ${process.arch} v1.7.0 HTTP collector preserves identity/tokens after Zstandard compression and retains history on archive failure.`);
+  console.log(`PASS: ${process.arch} v1.7.1 HTTP collector preserves identity/tokens after Zstandard compression and retains history on archive failure.`);
 } finally {server.kill('SIGTERM');await closed;}

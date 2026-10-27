@@ -244,6 +244,17 @@ for (const [language, messages] of Object.entries(pwaMessages)) {
   Object.assign({ es, it, pt, ja, ru, zh }[language], messages);
 }
 
+const forecastMessages = {
+  es: ["Desde el inicio del cupo", "Media móvil de 30 días", "Ritmo medio desde el reinicio", "Historial disponible: {n} días · créditos estimados", "Datos insuficientes", "Media desde la primera llamada registrada en 30 días; no se pueden identificar períodos sin datos."],
+  it: ["Dall’inizio della quota", "Media mobile 30 giorni", "Ritmo medio dal reset", "Storico disponibile: {n} g · crediti stimati", "Dati insufficienti", "Media dalla prima chiamata registrata negli ultimi 30 giorni; i periodi mancanti non sono identificabili."],
+  pt: ["Desde o início da quota", "Média móvel de 30 dias", "Ritmo médio desde o reset", "Histórico disponível: {n} dias · créditos estimados", "Dados insuficientes", "Média desde a primeira chamada registada nos últimos 30 dias; períodos em falta não são identificáveis."],
+  ja: ["クォータ開始から", "過去30日間の平均", "リセットからの平均ペース", "利用可能な履歴: {n}日 · 推定クレジット", "データ不足", "過去30日の最初の記録からの平均です。記録が欠けた期間は識別できません。"],
+  ru: ["С начала квоты", "Среднее за 30 дней", "Средний темп с начала квоты", "Доступная история: {n} дн. · оценка кредитов", "Недостаточно данных", "Среднее с первого вызова за 30 дней; пропуски в данных определить невозможно."],
+  zh: ["额度开始以来", "滚动30天平均", "重置以来的平均速度", "可用历史：{n} 天 · 估算点数", "数据不足", "平均值从最近30天内首次记录的调用开始；无法识别缺失的时段。"],
+};
+const forecastKeys = ["quota.currentPace", "quota.historyPace", "quota.currentHint", "quota.historyHint", "quota.paceUnavailable", "quota.historyCaveat"];
+for (const [language, values] of Object.entries(forecastMessages)) Object.assign({ es, it, pt, ja, ru, zh }[language], Object.fromEntries(forecastKeys.map((key, i) => [key, values[i]])));
+
 export const ADDITIONAL_I18N = Object.freeze({ es, it, pt, ja, ru, zh });
 
 export function resolveLanguage(preferences, fallback = "fr") {

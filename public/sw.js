@@ -14,6 +14,7 @@ const SHELL_ASSETS = [
   "./index.html",
   "./manifest.webmanifest",
   "./project-identity.js",
+  "./project-allocation.js",
   "./pricing-catalog.js",
   "./pricing-ui.js",
   "./quota-forecast.js",

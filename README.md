@@ -6,7 +6,7 @@
 
 Local Usage turns the Codex session metadata stored on your computer into a fast, privacy-conscious usage dashboard. It can run entirely on one machine, or several machines can send signed, minimized usage snapshots to an optional central dashboard hosted with OpenAI Sites or on your own server.
 
-[**Stable release 1.7.0**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.0) · [Docker image 1.7.0](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
+[**Stable release 1.7.0**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.0) · [Docker image 1.7.1](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
 
 ![Local Usage dashboard showing API-equivalent cost, Codex credits, activity and a project breakdown](docs/screenshots/overview.png)
 
@@ -23,6 +23,7 @@ Setup guides: [deploy the central dashboard with OpenAI Sites](docs/sites-deploy
 - a transient **Custom** date range while drilling into a chart, applied to the rest of the page without overwriting the user's saved Custom range;
 - current and historical weekly quota periods, including the subscription tier observed during each period;
 - early or free-reset boundaries, hourly activity bars, cumulative quota consumption, and a projection to the end of the current quota period;
+- editable target dates on the forecast, with vertical markers and the projected usage at each deadline;
 - filters by project, model, period, usage, and conversation name.
 
 The interface is available in French, English, German, Spanish, Italian, Portuguese, Japanese, Russian, and Simplified Chinese. The browser language is used on first visit when supported. Explicit language choices, date preferences, and custom pricing remain in browser storage.
@@ -32,6 +33,8 @@ Available Codex reset credits automatically appear under the quota forecast with
 **Target dates → Add a date** also lets you name personal deadlines, such as a project delivery. Dates are entered and displayed in UTC and saved in this browser. Each date within the displayed quota period gets a numbered vertical guide and the corresponding usage estimate. Dates outside that period remain listed; forecasts do not extend across a reset. Targets can be edited or deleted and do not change the quota or simulate a reset.
 
 Choose **Settings → Appearance** for the original green theme or the blue, violet and amber palettes. The choice applies immediately to the dashboard and its charts, persists in this browser and synchronizes across tabs on the same origin. Local and hosted dashboards share the same themes. See [UI themes](docs/ui-themes.md) to add a palette.
+
+The **Projects** page combines conversations without an identifiable project into one **No project** entry, across machines. Its totals and recent conversations follow the selected period. Open its conversations to filter by this project identity, including sessions without a working folder. The entry also appears in the overview and project group settings when relevant sessions exist.
 
 The server indexes sessions incrementally and persists a derived snapshot. An open page checks for newer data every 15 seconds, while **Refresh** forces an immediate source check.
 
@@ -188,7 +191,7 @@ The dashboard image runs as a non-root user with all Linux capabilities removed.
 The public Linux AMD64/ARM64 image is:
 
 ```text
-capitaine/codex-usage-dashboard:1.7.0
+capitaine/codex-usage-dashboard:1.7.1
 ```
 
 The 1.0.2 release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.2`.
@@ -197,7 +200,7 @@ On Windows PowerShell:
 
 ```powershell
 $codexData = Join-Path $env:USERPROFILE ".codex"
-$image = "capitaine/codex-usage-dashboard:1.7.0"
+$image = "capitaine/codex-usage-dashboard:1.7.1"
 
 docker pull $image
 docker volume create codex-usage-dashboard-storage
@@ -221,7 +224,7 @@ docker run -d `
 On macOS or Linux:
 
 ```bash
-IMAGE="capitaine/codex-usage-dashboard:1.7.0"
+IMAGE="capitaine/codex-usage-dashboard:1.7.1"
 
 docker pull "$IMAGE"
 docker volume create codex-usage-dashboard-storage
@@ -513,19 +516,21 @@ The dashboard derives two separate estimates from locally observed model calls. 
 - **Codex credits** use the published ChatGPT Codex rate card. Each call inherits its recorded service tier, and known Fast/Priority calls receive the documented credit multiplier.
 - **API-equivalent cost** estimates what the same calls would have cost through the API. Standard prices, published API Fast rates, and long-context adjustments are applied independently from ChatGPT credit multipliers.
 - Both estimates select the rate applicable at each call's original timestamp from a shared, versioned catalog. Later price cuts do not reduce earlier consumption; late imports retain their historical rate.
-- GPT-6 Astra, Sol, Luna and GPT-6.1 Sol are supported with distinct model IDs, dated rates and API long-context rules. Fast uses 2x purchased credits and 2.5x included-subscription weighting. Astra and Sol 6.1 Ultrafast use 6x API/credits and 8x quota weighting, with independent dated availability. Historical speed factors before September 30 are explicitly reconstructed. Supported Batch/Flex API cards use a 50% discount from the October 9 observation; unsupported tiers remain unrated.
+- GPT-6 Astra, Sol, Luna and GPT-6.1 Sol and Terra are supported with distinct model IDs, dated rates and API long-context rules. Fast uses 2x purchased credits and 2.5x included-subscription weighting. Astra and Sol 6.1 Ultrafast use 6x API/credits and 8x quota weighting, with independent dated availability. Historical speed factors before September 30 are explicitly reconstructed. Supported Batch/Flex API cards use a 50% discount from the October 9 observation; unsupported tiers remain unrated.
 - Unknown models, dates outside documented coverage and unsupported tiers remain visibly unrated and are excluded from totals. A reference API price is available only in explicitly selected custom simulation.
 - The pricing dialog includes historical/current/custom modes, sourced rate history, catalog verification status and an export of the applied calculation. Legacy custom browser prices are preserved for custom simulation.
 
-See [Dated pricing research and maintenance](docs/pricing-history.md) for the August 2025–September 2026 research ledger, evidence gaps, UTC day-boundary convention and update procedure. Historical Codex credit coverage begins at the documented observation on August 11, 2026; older credit rates are not invented.
+See [Dated pricing research and maintenance](docs/pricing-history.md) for the August 2025–October 2026 research ledger, evidence gaps, UTC day-boundary convention and update procedure. Historical Codex credit coverage begins at the documented observation on August 11, 2026; older credit rates are not invented.
 
 Weekly quota history is reconstructed only from observed 10,080-minute rate-limit windows. Reset timestamps within five minutes are grouped. If a free or early reset starts a new quota before the previous nominal reset, the new start becomes the previous period's effective end.
 
-Each historical period displays the plan code observed at that time, hourly activity bars, and cumulative usage through its effective end. Capacity is calibrated from rated credits and the peak observed quota percentage; it is an estimate, not an official plan allowance, and no plan-specific capacity is invented. The current-period forecast projects the observed consumption curve to the effective reset using a 24-hour EMA.
+Each historical period displays the plan code observed at that time, hourly activity bars, and cumulative usage through its effective end. Capacity is calibrated from rated credits and the peak observed quota percentage; it is an estimate, not an official plan allowance, and no plan-specific capacity is invented. The current-period chart compares two projections anchored at the latest quota percentage: the average quota pace since this window started, and the arithmetic average of estimated subscription credits over the available history within the last 30 days. Historical credits are converted to quota percentage using an estimated capacity, not an official allowance. The chart reports the span since the first recorded call; missing collection periods cannot be distinguished from inactivity. If credits are not fully rated, it instead averages usable measured quota intervals within the last 30 days and reports their total coverage, excluding outages and saturated readings. The target-date markers use the current-window pace.
 
 Pricing references: [ChatGPT Codex plans and credits](https://learn.chatgpt.com/docs/pricing), [Codex Fast multipliers](https://learn.chatgpt.com/docs/agent-configuration/speed), [API pricing](https://developers.openai.com/api/docs/pricing), and [API Fast mode](https://developers.openai.com/api/docs/guides/fast-mode).
 
-The displayed dollar amount is theoretical API-equivalent cost, not a bill or the subscription price. Observed cache writes are included with their dated rates. Tool fees and unobserved charges remain excluded. Analyzer v8 preserves optional cache-write counters; deploy the receiving hub before updating reporting agents.
+The main dollar amount is theoretical API-equivalent cost, not a bill or the subscription price. Observed cache writes are included with their dated rates. Tool fees and unobserved charges remain excluded. Analyzer v8 preserves optional cache-write counters; deploy the receiving hub before updating reporting agents.
+
+Project rows also show an **estimated share of the current weekly quota** and a separate **weekly subscription allocation**. The weekly quota's observed consumption is distributed proportionally to each project's API-equivalent cost within the current weekly window, across all projects and machines in the selected data source. Search, the top-five overview and the selected activity period do not change this weekly denominator. The subscription amount entered in **Settings** is monthly: its average weekly base is `monthly amount × 12 ÷ 52`, equivalent to approximately 4.33 weeks per month. For example, projects representing 60% and 40% of a week with 10% consumed receive 6% and 4% of the full weekly quota. With $223/month, the weekly base is approximately $51.46, and the project amounts are $3.09 and $2.06. Calculations retain full precision until display. These are allocations, not measured project-level quota or charges. Missing quota, unrated calls or consumed quota without recorded calls leave the estimates unavailable. Monthly amounts are saved per observed tier in this browser; existing saved amounts remain monthly. Pro starts at the user-provided $223/month base; other tiers require an entered amount.
 
 ## Privacy and security
 

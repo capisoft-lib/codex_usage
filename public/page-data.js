@@ -2,11 +2,12 @@ import { conversationTitle } from './conversation-title.js';
 import { apiCostOfCalls, mergeApiPricing } from './api-pricing.js';
 import { codexCreditsOfCalls, usageProfilesOfCalls, compareUsageProfiles } from './usage-pricing.js';
 import { projectIdentity, normalizeProjectGroups, OVERVIEW_PROJECT_LIMIT } from './project-identity.js';
+import { weeklyAllocationWindow } from './project-allocation.js';
 
 export function parsePageQuery(value) {
   const q = typeof value === 'string' ? JSON.parse(value) : value;
   if (!q || !['project-groups', 'overview', 'projects', 'conversations', 'settings', 'detail', 'pricing'].includes(q.view)) throw new Error('Invalid page');
-  if (['id','node','model'].some(key=>q[key]!=null && typeof q[key]!=='string') || (q.folders!=null && (!Array.isArray(q.folders) || q.folders.some(value=>typeof value!=='string')))) throw new Error('Invalid filters');
+  if (['id','node','model','projectFilter'].some(key=>q[key]!=null && typeof q[key]!=='string') || (q.folders!=null && (!Array.isArray(q.folders) || q.folders.some(value=>typeof value!=='string')))) throw new Error('Invalid filters');
   const start = q.start == null ? -Infinity : Date.parse(q.start);
   const end = q.end == null ? Infinity : Date.parse(q.end);
   if (Number.isNaN(start) || Number.isNaN(end) || start > end) throw new Error('Invalid range');
@@ -76,7 +77,7 @@ const normalized = (v, locale) => String(v || '').normalize('NFD').replace(/\p{D
 
 // Consume bounded database batches. Only summaries survive between batches;
 // individual calls and turns are returned solely for explicit detail/report requests.
-export function createPageData(metadata, query) {
+export function createPageData(metadata, query, now = new Date()) {
   const q = parsePageQuery(query);
   const summaryCache = new Map();
   const summarizeCalls = calls => summarize(calls, q.pricing, summaryCache);
@@ -86,10 +87,26 @@ export function createPageData(metadata, query) {
   const buckets = (q.buckets || []).map(b => ({ ...b, summary: summarize([], q.pricing) }));
   const rawSessions = [];
   const projectCatalog = new Map();
+  const weekly = ['overview', 'projects'].includes(q.view) ? weeklyAllocationWindow(metadata, now) : null;
+  const weeklyAllocation = weekly ? { ...weekly, totalCost: 0, unratedCalls: 0, projects: {} } : null;
   let matched = 0;
   const inRange = timestamp => { const n = Date.parse(timestamp); return n >= q.start && n <= q.end; };
   return {
     query: q,
+    weekly,
+    addWeekly(session) {
+      if (!weekly) return;
+      const calls = (session.calls || []).filter(call => {
+        const time = Date.parse(call.timestamp);
+        return time >= weekly.from && time <= weekly.to;
+      });
+      if (!calls.length) return;
+      const key = projectIdentity(session, q.unknownProject || 'No project', q.projectGroups).key;
+      const cost = summarizeCalls(calls).cost;
+      weeklyAllocation.totalCost += cost.cost;
+      weeklyAllocation.unratedCalls += cost.unratedCalls;
+      weeklyAllocation.projects[key] = (weeklyAllocation.projects[key] || 0) + cost.cost;
+    },
     add(session) {
       if (q.view === 'settings') return;
       if (q.view === 'project-groups') {
@@ -103,13 +120,14 @@ export function createPageData(metadata, query) {
       const scoped = ['conversations', 'detail', 'pricing'].includes(q.view);
       if (scoped && q.node && q.node !== 'all' && session.nodeId !== q.node) return;
       if (scoped && q.folders.length && !q.folders.includes(session.cwd || '')) return;
+      const identity = projectIdentity(session, q.unknownProject || 'No project', q.projectGroups);
+      if (scoped && q.projectFilter && identity.key !== q.projectFilter) return;
       const calls = (session.calls || []).filter(c => inRange(c.timestamp) && (!scoped || !q.model || q.model === 'all' || c.model === q.model));
       if (!calls.length) return;
       const turns = (session.turns || []).filter(t => inRange(t.startedAt) && (!scoped || !q.model || q.model === 'all' || t.model === q.model));
       const summary = summarizeCalls(calls);
       const row = { id: session.id, sourceSessionId: session.sourceSessionId, title: conversationTitle(session), nodeId: session.nodeId, nodeAlias: session.nodeAlias, cwd: session.cwd, projectName: session.projectName, projectGitHubUrl: session.projectGitHubUrl, startedAt: session.startedAt, models: [...new Set(calls.map(c => c.model))], summary, usage: summary.usage, modelCalls: summary.count, exchanges: turns.reduce((n,t)=>n+(t._count ?? 1),0), durationMs: turns.reduce((n, t) => n + (t.durationMs || 0), 0), calls: [], turns: [] };
       if (['detail', 'pricing'].includes(q.view)) { rawSessions.push({ ...row, calls, turns }); return; }
-      const identity = projectIdentity(row, q.unknownProject || 'No project', q.projectGroups);
       if (q.view === 'conversations') {
         const profiles = summary.profiles.map(p => `${p.model} ${(q.effortLabels || {})[p.effort] || p.effort || ''} ${p.tier}`).join(' ');
         const title = row.title === 'Conversation sans titre' ? q.untitled : row.title;
@@ -148,7 +166,7 @@ export function createPageData(metadata, query) {
       }
       const projects = [...groups.values()].sort((a,b) => b.summary.cost.cost - a.summary.cost.cost);
       const serializeGroup = g => ({ ...g, paths: [...g.paths], sessions: g.key === q.project ? g.sessions : [], models: [...g.models].map(([model, summary]) => ({model, summary})), cost: g.summary.cost, calls: [] });
-      return { ...data, sessions: q.view === 'overview' ? rows : [], pageData: { view: q.view, totals, matched, projectCount: projects.length, projects: (q.view === 'overview' ? projects.slice(0, OVERVIEW_PROJECT_LIMIT) : projects).map(serializeGroup), buckets, filters } };
+      return { ...data, sessions: q.view === 'overview' ? rows : [], pageData: { view: q.view, totals, matched, projectCount: projects.length, projects: (q.view === 'overview' ? projects.slice(0, OVERVIEW_PROJECT_LIMIT) : projects).map(serializeGroup), weeklyAllocation, buckets, filters } };
     },
   };
 }

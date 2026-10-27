@@ -201,6 +201,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .mobile-settings svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 .periods { display: flex; align-items: flex-end; justify-self: end; gap: 4px; }
+body[data-page="projects"] .periods { flex-wrap: wrap; min-width: 0; max-width: 100%; }
 .periods button {
   padding: 8px 10px 10px;
   border: 0;
@@ -825,7 +826,13 @@ body[data-page="quota"] .cost-chart.is-hourly .chart-column:first-child label { 
 }
 .project-name { overflow: hidden; font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .project-value { font-size: 13px; font-weight: 750; }
-.project-meta { color: var(--subtle); font-size: 10px; font-family: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace; }
+.project-meta { grid-column: 1 / -1; color: var(--subtle); font-size: 10px; font-family: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace; }
+.project-allocation { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.project-weekly { color: var(--accent); font-weight: 650; }
+.project-subscription { color: var(--muted); }
+.subscription-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.subscription-controls input { width: 160px; max-width: 100%; height: 38px; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--text); }
+.subscription-controls input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .project-bar { grid-column: 1 / -1; height: 6px; align-self: center; background: var(--surface-high); }
 .project-bar::-webkit-progress-value { background: linear-gradient(90deg, var(--cached), var(--accent)); }
 .project-bar::-moz-progress-bar { background: linear-gradient(90deg, var(--cached), var(--accent)); }
@@ -1167,11 +1174,19 @@ dialog::backdrop { background: #000b; backdrop-filter: blur(3px); }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
 
+@media (min-width: 1181px) {
+  body[data-page="projects"] .topbar { grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1.5fr) max-content; }
+}
+
 @media (max-width: 1180px) {
   .topbar { grid-template-columns: minmax(280px, 1fr) auto auto auto; }
   .page-heading { display: none; }
   .periods { justify-self: end; }
   .quota-history-nav { top: 72px; }
+}
+
+@media (min-width: 1061px) and (max-width: 1180px) {
+  body[data-page="projects"] .topbar { grid-template-columns: auto minmax(0, 1fr) auto; }
 }
 
 @media (max-width: 1060px) {
@@ -1373,3 +1388,18 @@ body[data-page="project-groups"] .periods { display: none; }
 .quota-reset-marker .quota-goal-badge { stroke: var(--green, #8bd5b0); }
 .quota-reset-marker text { fill: var(--green, #8bd5b0) !important; }
 .quota-reset-marker text.quota-reset-value { font-size: 12px !important; font-weight: 700; paint-order: stroke; stroke: var(--bg, #101318); stroke-width: 3px; }
+
+.forecast-key.history { border-color: var(--green, #8bd5b0); border-top-style: dashed; }
+.quota-history-line { fill: none; stroke: var(--green, #8bd5b0); stroke-width: 3; stroke-dasharray: 3 6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.forecast-heading .forecast-legend { flex-wrap: wrap; white-space: normal; justify-content: flex-end; }
+.forecast-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 600px) { .forecast-summary { grid-template-columns: 1fr; } }
+
+.forecast-key.projected { border-color: var(--output); }
+.quota-projected-line { stroke: var(--output); }
+
+.quota-hover-history { fill: var(--green, #8bd5b0) !important; font-size: 10px !important; font-weight: 700; }
+.quota-hover-value { font-size: 10px !important; }
+.forecast-summary .forecast-stat:nth-child(1) { border-left: 3px solid var(--output); }
+.forecast-summary .forecast-stat:nth-child(2) { border-left: 3px solid var(--green, #8bd5b0); }
+@media (max-width: 700px) { .forecast-heading .forecast-legend { display: flex; justify-content: flex-start; } }

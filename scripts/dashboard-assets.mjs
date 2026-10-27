@@ -17,6 +17,7 @@ export const DASHBOARD_ASSETS = Object.freeze([
   "mini-data.js",
   "mini.css",
   "project-identity.js",
+  "project-allocation.js",
   "pricing-catalog.js",
   "pricing-ui.js",
   "quota-forecast.js",
