@@ -520,7 +520,7 @@ The dashboard derives two separate estimates from locally observed model calls. 
 - Unknown models, dates outside documented coverage and unsupported tiers remain visibly unrated and are excluded from totals. A reference API price is available only in explicitly selected custom simulation.
 - The pricing dialog includes historical/current/custom modes, sourced rate history, catalog verification status and an export of the applied calculation. Legacy custom browser prices are preserved for custom simulation.
 
-See [Dated pricing research and maintenance](docs/pricing-history.md) for the August 2025–September 2026 research ledger, evidence gaps, UTC day-boundary convention and update procedure. Historical Codex credit coverage begins at the documented observation on August 11, 2026; older credit rates are not invented.
+See [Dated pricing research and maintenance](docs/pricing-history.md) for the August 2025–October 2026 research ledger, evidence gaps, UTC day-boundary convention and update procedure. Historical Codex credit coverage begins at the documented observation on August 11, 2026; older credit rates are not invented.
 
 Weekly quota history is reconstructed only from observed 10,080-minute rate-limit windows. Reset timestamps within five minutes are grouped. If a free or early reset starts a new quota before the previous nominal reset, the new start becomes the previous period's effective end.
 
