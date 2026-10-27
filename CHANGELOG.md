@@ -7,6 +7,7 @@
 - Automatically show available Codex reset-credit expirations in the forecast, with a vertical marker and projected usage at each deadline. Used or expired credits disappear on synchronization.
 - Add multiple personal target dates in UTC, with editable names, forecast markers, and browser-local persistence. Dates outside the selected quota period remain listed without projecting across a reset.
 - Preserve the newest expiry reading across mixed collector versions, and synchronize only expiry dates and quantities, without credit identifiers or descriptions.
+- Pin the Docker base to Node 22.23.4 and Alpine 3.24.3, require the stable-branch musl security fix, and audit installed APKs against the correct Alpine branch in CI.
 - Update the Sites image renderer to `@vercel/og` 1.0.3 with Satori 0.33.5 to resolve its SVG escaping advisory.
 - Package all shared browser modules in both Docker targets, fixing missing transitive imports in the headless agent, and verify its startup in CI.
 
