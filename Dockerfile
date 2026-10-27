@@ -37,8 +37,9 @@ WORKDIR /app
 COPY --chown=node:node package.json agent.mjs LICENSE ./
 COPY --chown=node:node src ./src
 COPY --chown=node:node sites-hub/drizzle ./sites-hub/drizzle
-COPY --chown=node:node public/quota-periods.js public/reset-deadlines.js ./public/
-COPY --chown=node:node public/pricing-catalog.js ./public/pricing-catalog.js
+# Both entrypoints import shared modules from the source layout. Keep the full
+# module set so headless agents do not lose transitive imports as features grow.
+COPY --from=ui-build --chown=node:node /build/dist/dashboard/*.js ./public/
 
 RUN mkdir -p /app-cache /codex-data/sessions /codex-data/archived_sessions \
     && touch /codex-data/session_index.jsonl \
@@ -55,8 +56,6 @@ FROM runtime AS dashboard
 
 COPY --chown=node:node server.mjs ./
 COPY --from=ui-build --chown=node:node /build/dist/dashboard ./dist/dashboard
-# Shared modules are also imported by the Node server from the source layout.
-COPY --from=ui-build --chown=node:node /build/dist/dashboard/*.js ./public/
 
 EXPOSE 4317
 
