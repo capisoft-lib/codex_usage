@@ -60,3 +60,11 @@ test('subscription amounts stay independent across tiers',()=>{
   assert.equal(amounts.pro,223);assert.equal(amounts.prolite,100);
   assert.equal(normalizeSubscriptionAmounts({prolite:112}).prolite,112);
 });
+
+test('returning to an earlier plan preserves the full ordered transition history',()=>{
+  const current=history()[0];
+  const merged=mergeWeeklyQuotaObservations([current,{resetsAt,windowMinutes:10080,observedAt:'2026-11-02T13:33:43.898Z',usedPercent:34,planType:'pro'}]);
+  assert.deepEqual(merged[0].planTypes,['pro','prolite','pro']);
+  assert.deepEqual(normalizeQuotaPeriods({weeklyQuota:merged[0],weeklyQuotaHistory:merged})[0].planTypes,['pro','prolite','pro']);
+  assert.deepEqual(mergeWeeklyQuotaObservations(merged)[0].planTypes,['pro','prolite','pro']);
+});

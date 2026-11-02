@@ -23,7 +23,9 @@ export function mergeQuotaPlans(items) {
   const changes = [...byTime.values()].sort((a,b)=>Date.parse(a.observedAt)-Date.parse(b.observedAt));
   const planChanges = changes.filter((change,index)=>index === 0 || change.planType !== changes[index-1].planType);
   // Older summaries may contain types without dated boundaries. Retain them.
-  const planTypes = [...new Set([...types, ...planChanges.map(change=>change.planType)])];
+  const datedTypes = planChanges.map(change=>change.planType);
+  const planTypes = datedTypes.length && types.every(type=>datedTypes.includes(type))
+    ? datedTypes : [...new Set([...types, ...datedTypes])];
   return {planTypes, ...(planChanges.length ? {planChanges} : {})};
 }
 
