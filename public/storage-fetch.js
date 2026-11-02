@@ -1,5 +1,4 @@
-// Only the idempotent legacy-storage migration is retried. Other 503 responses
-// remain visible, and changing view immediately aborts the outstanding work.
+// Retry only explicit migration or temporary-storage errors on reads.
 export async function fetchUsage(
   url,
   options = {},
@@ -28,8 +27,10 @@ export async function fetchUsage(
     } catch {
       return response;
     }
-    if (details.code !== "storage_migrating") return response;
-    if (!migrating) { migrating = true; onMigration(true); }
+    const temporary = details.code === 'storage_unavailable' && (!options.method || options.method === 'GET');
+    if (details.code !== "storage_migrating" && !temporary) return response;
+    if (temporary && attempt >= 2) return response;
+    if (!temporary && !migrating) { migrating = true; onMigration(true); }
     await new Promise((resolve, reject) => {
       const abort = () => {
         clearTimeout(timer);

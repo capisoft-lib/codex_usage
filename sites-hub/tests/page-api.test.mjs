@@ -42,7 +42,7 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
     database.exec(await readFile(new URL("../drizzle/0005_wise_anthem.sql", import.meta.url), "utf8"));
     database.exec("ALTER TABLE mesh_nodes ADD last_payload_hash TEXT");
     database.exec(await readFile(new URL("../drizzle/0006_relational_usage.sql", import.meta.url), "utf8"));
-    const prefix = `import { readSessionSlices, readFilters, migrateLegacySessions, StorageMigrationPending } from ${JSON.stringify(new URL("../lib/session-reader.ts", import.meta.url).href)};\nimport { normalizeQuotaPeriods, matchesQuotaEtag } from ${JSON.stringify(new URL("../../public/quota-periods.js", import.meta.url).href)};\nconst db = () => globalThis[${JSON.stringify(globalsKey)}];\n`;
+    const prefix = `import { storageErrorResponse } from ${JSON.stringify(new URL("../lib/storage-health.mjs", import.meta.url).href)};\nimport { readSessionSlices, readFilters, migrateLegacySessions, StorageMigrationPending } from ${JSON.stringify(new URL("../lib/session-reader.ts", import.meta.url).href)};\nimport { normalizeQuotaPeriods, matchesQuotaEtag } from ${JSON.stringify(new URL("../../public/quota-periods.js", import.meta.url).href)};\nconst db = () => globalThis[${JSON.stringify(globalsKey)}];\n`;
     const usage = await load("../lib/usage.ts", prefix);
     globalThis[`${globalsKey}Metadata`] = usage.quotaMetadataForOwner;
     const route = await load("../app/api/page/route.ts", prefix + `
@@ -109,6 +109,13 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
     assert.equal(database.prepare("SELECT invalid_call_dates FROM mesh_sessions WHERE session_id='new'").get().invalid_call_dates,0);
     const plan=database.prepare("EXPLAIN QUERY PLAN SELECT session_id FROM mesh_sessions WHERE node_id=? AND last_call_day>=julianday(?) AND first_call_day<=julianday(?)").all('a',start,now);
     assert.ok(plan.some(row=>row.detail.includes('USING INDEX mesh_sessions_node_call_range')));
+    database.prepare("UPDATE mesh_nodes SET quota_history_json='broken-history', quota_json='broken-quota' WHERE id='a'").run();
+    const resilient=await route.GET(request({...query,view:'projects'}));
+    assert.equal(resilient.status,200,'Projects must not depend on parsing quota data');
+    const available=await resilient.json();
+    assert.ok(available.pageData.projects.length>0);
+    assert.equal(available.pageData.weeklyAllocation,null);
+
   } finally {
     database.close();
     delete globalThis[globalsKey];

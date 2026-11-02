@@ -1,3 +1,4 @@
+import { storageErrorResponse } from '../../../lib/storage-health.mjs';
 import { readQuotaCalls, readQuotaCalibration, readQuotaSamples, StorageMigrationPending } from '../../../lib/session-reader';
 import { requireViewer } from "../../../lib/auth";
 import { json } from "../../../lib/mesh";
@@ -43,6 +44,6 @@ export async function GET(request: Request) {
   } catch (error) {
     if (error instanceof Response) return error;
     if (error instanceof StorageMigrationPending) return json({error:error.message,code:error.code},503);
-    return json({ error: "Lecture du quota impossible." }, 500);
+    return storageErrorResponse(error,'/api/quota');
   }
 }

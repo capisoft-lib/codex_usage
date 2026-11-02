@@ -1,4 +1,5 @@
 import { latestResetDeadlineMetadata } from "./reset-deadlines.js";
+import { mergeQuotaPlans } from "./quota-plans.js";
 
 export const QUOTA_RESET_TOLERANCE_MS = 5 * 60_000;
 
@@ -39,7 +40,7 @@ export function normalizeQuotaPeriods(data) {
       ...latestResetDeadlineMetadata(items),
       peakUsedPercent: peak.peakUsedPercent ?? peak.usedPercent ?? null,
       peakObservedAt: peak.peakObservedAt || peak.observedAt || null,
-      planTypes: [...new Set(items.flatMap((item) => item.planTypes?.length ? item.planTypes : [item.planType]).filter(Boolean))],
+      ...mergeQuotaPlans(items),
       ...(nodes.size > 1 ? { nodeId: null, nodeAlias: null } : {}),
       observations: [...byTime.values()].sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt)),
     };

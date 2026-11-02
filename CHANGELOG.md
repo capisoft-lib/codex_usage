@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 1.7.2 — 2026-11-02
+
+- Retain dated subscription changes through repeated quota merges and recalibrate forecasts and estimated capacity after a change, without counting the adjustment as consumption.
+- Keep project pages independent of quota history; retain matching cached pages with a visible stale-data notice after refresh failures.
+- Retry temporary D1 reads with bounded backoff and emit sanitized diagnostics with request IDs; never replay signed ingestion writes automatically.
+- Keep subscription amounts separate per tier, with an editable $100 Pro Lite base.
+
+Docker: `capitaine/codex-usage-dashboard:1.7.2` / `:latest` (dashboard) and `:1.7.2-agent` / `:agent` (headless collector), each for Linux AMD64 and ARM64. Update the receiving hub before collectors so dated plan-change metadata is accepted. Preserve existing mounts, storage volumes, and Mesh identity when recreating containers.
+
 ## 1.7.1 — 2026-10-27
 
 - Add GPT-6.1 Terra API and Codex credit rates with dated speed and long-context rules.

@@ -14,7 +14,7 @@ const EMPTY_USAGE = Object.freeze({
   totalTokens: 0,
 });
 
-export const ANALYZER_VERSION = 12;
+export const ANALYZER_VERSION = 13;
 
 function projectNameFromCwd(value) {
   const name = String(value || "").replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop()?.trim();

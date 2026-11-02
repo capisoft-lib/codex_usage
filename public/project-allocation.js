@@ -2,13 +2,14 @@ import { weeklyQuotaPeriods } from "./quota-display.js";
 
 export const SUBSCRIPTION_AMOUNTS_KEY = "codex-usage-subscription-amounts-v1";
 // User-supplied amount, not an official subscription price catalog.
-export const DEFAULT_SUBSCRIPTION_AMOUNTS = Object.freeze({ pro: 223 });
+export const DEFAULT_SUBSCRIPTION_AMOUNTS = Object.freeze({ pro: 223, prolite: 100 });
 
 export function weeklySubscriptionAmount(monthlyAmount) {
   return Number.isFinite(monthlyAmount) && monthlyAmount >= 0 ? monthlyAmount * 12 / 52 : null;
 }
 
 export function subscriptionPlan(quota) {
+  if (quota?.planType) return String(quota.planType).trim().toLowerCase();
   const plans = [...new Set((quota?.planTypes?.length ? quota.planTypes : [quota?.planType])
     .filter(Boolean).map(plan => String(plan).trim().toLowerCase()))];
   return plans.length === 1 ? plans[0] : "unknown";

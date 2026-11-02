@@ -1,3 +1,4 @@
+import { storageErrorResponse, temporaryStorageError } from '../../../../lib/storage-health.mjs';
 import { db } from "../../../../lib/db";
 import { json, MeshRequestError, readJsonBody, validatePayload, verifyEnvelope, type SyncEnvelope } from "../../../../lib/mesh";
 
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
     if (!results[0].meta.changes) return json({ error: "Séquence déjà traitée." }, 409);
     return json({ accepted: true, sequence: envelope.sequence });
   } catch (error) {
+    if (temporaryStorageError(error)) return storageErrorResponse(error,'/api/mesh/ingest');
     return json({ error: error instanceof Error ? error.message : "Ingestion refusée." }, error instanceof MeshRequestError ? error.status : 400);
   }
 }
