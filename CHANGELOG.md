@@ -8,6 +8,7 @@
 - Keep project pages independent of quota history; retain matching cached pages with a visible stale-data notice after refresh failures.
 - Retry temporary D1 reads with bounded backoff and emit sanitized diagnostics with request IDs; never replay signed ingestion writes automatically.
 - Keep subscription amounts separate per tier, with an editable $100 Pro Lite base.
+- Update development glob matching to patched Minimatch 11.0.4 while preserving the CommonJS interface required by ESLint and its plugins; dependency audits retain zero exceptions.
 
 Docker: `capitaine/codex-usage-dashboard:1.7.2` / `:latest` (dashboard) and `:1.7.2-agent` / `:agent` (headless collector), each for Linux AMD64 and ARM64. Update the receiving hub before collectors so dated plan-change metadata is accepted. Preserve existing mounts, storage volumes, and Mesh identity when recreating containers.
 

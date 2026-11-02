@@ -23,7 +23,7 @@ const eslintConfig = defineConfig([
   jsxA11y.flatConfigs.recommended,
   next.configs["core-web-vitals"],
   {
-    files: ["vendor/braces/**/*.js"],
+    files: ["vendor/braces/**/*.js", "vendor/minimatch-compat/index.cjs"],
     rules: { "@typescript-eslint/no-require-imports": "off" },
   },
   {

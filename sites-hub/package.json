@@ -12,7 +12,7 @@
     "dev": "npm run sync:dashboard && node scripts/run-vinext.mjs dev",
     "build": "npm run sync:dashboard && node scripts/run-vinext.mjs build",
     "start": "node scripts/run-vinext.mjs start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/mesh-protocol.test.mjs tests/migrations.test.mjs tests/quota-api.test.mjs tests/page-api.test.mjs tests/relational-d1.test.mjs tests/braces-depth.test.mjs tests/storage-health.test.mjs",
+    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/mesh-protocol.test.mjs tests/migrations.test.mjs tests/quota-api.test.mjs tests/page-api.test.mjs tests/relational-d1.test.mjs tests/braces-depth.test.mjs tests/storage-health.test.mjs tests/minimatch-compat.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
@@ -42,6 +42,7 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "16.4.0",
     "miniflare": "5.20260811.1-alpha",
+    "minimatch": "file:vendor/minimatch-compat",
     "react-server-dom-webpack": "19.2.8",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
@@ -58,7 +59,8 @@
     "sharp": "0.35.5",
     "undici": "7.30.1",
     "@vercel/og": "1.0.3",
-    "fflate": "0.7.5"
+    "fflate": "0.7.5",
+    "minimatch": "$minimatch"
   },
   "type": "module"
 }

@@ -1,0 +1,10 @@
+{
+  "name": "@codex-usage/minimatch-compat",
+  "version": "11.0.4-compat.1",
+  "private": true,
+  "description": "Legacy callable CommonJS interface backed by patched minimatch 11",
+  "main": "index.cjs",
+  "license": "AGPL-3.0-or-later",
+  "engines": { "node": ">=22.13.0" },
+  "dependencies": { "minimatch-core": "npm:minimatch@11.0.4" }
+}
