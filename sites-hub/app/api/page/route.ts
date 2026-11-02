@@ -1,3 +1,4 @@
+import { storageErrorResponse } from '../../../lib/storage-health.mjs';
 import { readSessionSlices, readFilters, StorageMigrationPending } from '../../../lib/session-reader';
 import { requireViewer } from '../../../lib/auth';
 import { json } from '../../../lib/mesh';
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
     if (raw.length > 64000) return json({error:'Requête trop longue.'},400);
     let parsed;
     try { parsed=JSON.parse(raw); } catch { return json({error:'Filtres invalides.'},400); }
-    const metadata = await quotaMetadataForOwner(owner, parsed?.view === 'overview' && Date.parse(parsed.start) === 0);
+    const metadata = await quotaMetadataForOwner(owner, parsed?.view === 'overview' && Date.parse(parsed.start) === 0, false);
     let builder;
     try { builder = createPageData(metadata, raw); } catch { return json({error:'Filtres invalides.'},400); }
     if (builder.query.view === 'project-groups') {
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
       // Ingestion and quota updates can advance the revision during a long
       // history read. The completed summaries remain useful, but must never
       // be cached as an exact representation of the starting revision.
-      if((await quotaMetadataForOwner(owner)).revision !== metadata.revision) {
+      if((await quotaMetadataForOwner(owner, false, false)).revision !== metadata.revision) {
         return Response.json(builder.finish(), {headers: {'Cache-Control':'private, no-store', Vary:headers.Vary}});
       }
     }
@@ -62,6 +63,6 @@ export async function GET(request: Request) {
   } catch(error) {
     if(error instanceof Response) return error;
     if(error instanceof StorageMigrationPending) return json({error:error.message,code:error.code},503);
-    return json({error:'Lecture de la page impossible.'},500);
+    return storageErrorResponse(error,'/api/page');
   }
 }

@@ -94,6 +94,7 @@ function publicQuota(quota) {
     firstObservedAt: quota.firstObservedAt || null,
     peakObservedAt: quota.peakObservedAt || quota.observedAt || null,
     planType: quota.planType || null,
+    ...(Array.isArray(quota.planChanges) ? {planChanges:quota.planChanges.map(change=>({observedAt:change.observedAt,usedPercent:change.usedPercent,planType:change.planType}))} : {}),
     planTypes: Array.isArray(quota.planTypes) ? quota.planTypes.filter((value) => typeof value === "string").slice(0, 20) : [],
     nodeId: quota.nodeId || null,
     nodeAlias: quota.nodeAlias || null,

@@ -4,6 +4,21 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { fetchUsage } from "../public/storage-fetch.js";
 
+test('temporary storage retries are bounded, cancellable and limited to reads',async()=>{
+  for (const method of ['GET','POST']) {
+    let attempts=0;
+    const response=await fetchUsage('/api/page',{method},{delayMs:0,fetchImpl:async()=>{
+      attempts++;return Response.json({code:'storage_unavailable'},{status:503});
+    }});
+    assert.equal(response.status,503);assert.equal(attempts,method==='GET'?3:1);
+  }
+  const controller=new AbortController();
+  const request=fetchUsage('/api/page',{signal:controller.signal},{fetchImpl:async()=>{
+    controller.abort();return Response.json({code:'storage_unavailable'},{status:503});
+  }});
+  await assert.rejects(request,{name:'AbortError'});
+});
+
 test("migration retries are bounded and never conceal other failures", async () => {
   let attempts = 0;
   const migrationStates = [];

@@ -1,6 +1,7 @@
 import { weeklyQuotaPeriods } from "./quota-display.js";
 import { resolveWeeklyRange } from "./date-range.js";
 import { sameQuotaReset } from "./quota-periods.js";
+import { quotaPlanSegment } from "./quota-plans.js";
 import { codexCreditsOfCalls } from "./usage-pricing.js";
 import { buildQuotaForecast, DEFAULT_LOOKBACK_HOURS, FORECAST_HOUR_MS, exponentialWeightedAverage, DEFAULT_CAPACITY_HALF_LIFE_PERIODS } from "./quota-forecast.js";
 
@@ -23,7 +24,11 @@ export function createQuotaDetail(data, reset = null, now = new Date()) {
   const calibration = periods.filter((period) => {
     const otherPlan = String(period.planType || "").trim().toLowerCase();
     return !(plan && otherPlan && plan !== otherPlan) && !(quota?.nodeId && period.nodeId && quota.nodeId !== period.nodeId);
-  }).map((period) => ({ start: Date.parse(period.startsAt), end: Date.parse(period.peakObservedAt || period.observedAt), percent: Number(period.peakUsedPercent ?? period.usedPercent), credits: 0, unrated: false }))
+  }).map((period) => {
+    const segment = quotaPlanSegment(period);
+    return {start:Date.parse(segment.startsAt), end:Date.parse(segment.changed ? period.observedAt : period.peakObservedAt || period.observedAt),
+      percent:Number(segment.changed ? period.usedPercent : period.peakUsedPercent ?? period.usedPercent) - Number(segment.baselinePercent), credits:0, unrated:false};
+  })
     .filter((period) => Number.isFinite(period.start) && Number.isFinite(period.end) && period.end > period.start && Number.isFinite(period.percent) && period.percent > 0);
   const calls = [];
   const samples = [];
@@ -76,7 +81,7 @@ export function createQuotaDetail(data, reset = null, now = new Date()) {
       const capacities = calibration.filter((period) => !period.unrated && period.credits > 0).sort((a, b) => a.end - b.end).map((period) => period.credits * 100 / period.percent);
       const capacityCredits = capacities.length ? exponentialWeightedAverage(capacities, DEFAULT_CAPACITY_HALF_LIFE_PERIODS) : null;
       const forecast = buildQuotaForecast({
-        samples, observations: quota?.observations, quotaPeriods: periods, planType: quota?.planType, nodeId: quota?.nodeId, rangeStart: start, rangeEnd: end,
+        samples, observations: quota?.observations, quotaPeriods: periods, planType: quota?.planType, planChanges:quota?.planChanges, planTypes:quota?.planTypes, nodeId: quota?.nodeId, rangeStart: start, rangeEnd: end,
         observedAt: current || quota?.observations?.length ? (quota?.observedAt || now) : end,
         asOf: current ? now : end, usedPercent: current ? quota?.usedPercent : quota?.peakUsedPercent,
         project: current, capacityCredits: current ? capacityCredits : null,

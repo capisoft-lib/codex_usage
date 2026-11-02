@@ -4,12 +4,13 @@ import { weeklyQuotaPeriods, shortQuotaDisplay, quotaCountdownText, normalizeTim
 import { quotaMetadata } from "./quota-data.js";
 import { createPageData } from "./page-data.js";
 import { SUBSCRIPTION_AMOUNTS_KEY, normalizeSubscriptionAmounts, subscriptionPlan, weeklySubscriptionAmount, projectWeeklyAllocation } from "./project-allocation.js";
+import { quotaPlanSegment } from "./quota-plans.js";
 import { sameQuotaReset } from "./quota-periods.js";
 import { codexCreditsOfCalls as rawCreditsOfCalls, fastMultiplierFor, usageProfilesOfCalls as rawUsageProfilesOfCalls } from "./usage-pricing.js";
 import { apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 import { PRICING_CATALOG } from "./pricing-catalog.js";
 import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryMarkup, pricingDiagnosticsMarkup, serviceTierBadge } from "./pricing-ui.js";
-import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, GROUP_I18N, MIGRATION_I18N, resolveLanguage } from "./translations.js";
+import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, GROUP_I18N, MIGRATION_I18N, QUOTA_CHANGE_I18N, resolveLanguage } from "./translations.js";
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp as rawLatestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { createForecastGoalsController, FORECAST_GOALS_I18N } from "./forecast-goals.js";
@@ -250,6 +251,8 @@ const QUOTA_HEADER_I18N = {
 };
 for (const [language, messages] of Object.entries(QUOTA_HEADER_I18N)) Object.assign(I18N[language], messages);
 
+for (const [language, messages] of Object.entries(QUOTA_CHANGE_I18N)) Object.assign(I18N[language], messages);
+
 const MINI_QUOTA_I18N = {
   fr: { "settings.miniQuotaTitle": "Fenêtre de quotas miniature", "settings.miniQuotaCopy": "Choisissez les limites à afficher, puis ouvrez la fenêtre compacte et déplaçable.", "settings.miniQuotaOptions": "Limites de quota visibles", "settings.showFiveHour": "Afficher l’utilisation sur 5 heures", "settings.showWeekly": "Afficher l’utilisation hebdomadaire", "settings.openMiniQuota": "Ouvrir la fenêtre de quotas", "settings.oneQuotaRequired": "Au moins une limite doit rester visible." },
   en: { "settings.miniQuotaTitle": "Mini quota window", "settings.miniQuotaCopy": "Choose which usage limits appear, then open the compact movable window.", "settings.miniQuotaOptions": "Visible quota limits", "settings.showFiveHour": "Show 5-hour usage", "settings.showWeekly": "Show weekly usage", "settings.openMiniQuota": "Open mini quota window", "settings.oneQuotaRequired": "At least one usage limit must remain visible." },
@@ -299,14 +302,14 @@ async function ensureProjectCatalog(source) {
     const request = (async () => {
       try {
         const query = {view:"project-groups", unknownProject:t("projects.unknown")};
-        const response = await fetch(`/api/page?${new URLSearchParams({source,query:JSON.stringify(query)})}`, {signal:AbortSignal.timeout(15000)});
+        const response = await fetchDashboardUsage(`/api/page?${new URLSearchParams({source,query:JSON.stringify(query)})}`, {signal:AbortSignal.timeout(15000)});
         const data = await readUsageResponse(response);
         projectCatalogCache.set(source, {projects:data.pageData.projectCatalog, at:Date.now()});
         return true;
       } catch (error) {
         $("#freshness").textContent = t("load.error", {error:error.message});
         setPageLoading(false);
-        return false;
+        return true;
       } finally { projectCatalogRequests.delete(source); }
     })();
     projectCatalogRequests.set(source, request);
@@ -1083,17 +1086,18 @@ function renderQuotaPage() {
   const usage = sumUsage(calls);
   const cost = costOfCalls(calls);
   const credits = codexCreditsOfCalls(calls);
-  const calibrationAt = Date.parse(quota?.peakObservedAt || quota?.observedAt);
-  const calibrationCalls = Number.isFinite(calibrationAt) ? calls.filter((call) => Date.parse(call.timestamp) <= calibrationAt) : [];
+  const segment = quotaPlanSegment(quota || {});
+  const calibrationAt = Date.parse(segment.changed ? quota?.observedAt : quota?.peakObservedAt || quota?.observedAt);
+  const calibrationCalls = Number.isFinite(calibrationAt) ? calls.filter((call) => Date.parse(call.timestamp) <= calibrationAt && (!segment.changed || Date.parse(call.timestamp) > Date.parse(segment.startsAt))) : [];
   const calibrationCredits = codexCreditsOfCalls(calibrationCalls, { billing: "subscription" });
-  const observedPercent = Number(quota?.peakUsedPercent ?? quota?.usedPercent);
+  const observedPercent = Number(segment.changed ? quota?.usedPercent : quota?.peakUsedPercent ?? quota?.usedPercent) - Number(segment.baselinePercent);
   const estimatedCapacity = observedPercent > 0 && calibrationCredits.credits > 0 ? calibrationCredits.credits * 100 / observedPercent : null;
   const capacityPartial = calibrationCredits.unratedCalls > 0;
   const capacityValue = estimatedCapacity === null ? "—" : `${capacityPartial ? "≥ " : ""}${formatCredits(estimatedCapacity)}`;
   const capacityMeta = estimatedCapacity === null
     ? t("quota.capacityUnavailable")
     : [
-        t("quota.capacityMeta", { n: new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(observedPercent), plan: quotaPlanSummary(quota) }),
+        t("quota.capacityMeta", { n: new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(observedPercent), plan: quotaPlanLabel(quota?.planType) }),
         capacityPartial ? t("kpi.unrated", { n: formatInt(calibrationCredits.unratedCalls) }) : null,
       ].filter(Boolean).join(" · ");
   const cards = [
@@ -1342,7 +1346,7 @@ function renderQuotaForecast() {
   let forecast = state.data?.quotaDetail?.forecast || buildQuotaForecast({
     samples,
     observations: quota.observations,
-    quotaPeriods: quotaPeriods(), planType: quota.planType, nodeId: quota.nodeId,
+    quotaPeriods: quotaPeriods(), planType: quota.planType, planChanges:quota.planChanges, planTypes:quota.planTypes, nodeId: quota.nodeId,
     rangeStart: range.start,
     rangeEnd: range.resetsAt,
     observedAt: current || quota.observations?.length ? (quota.observedAt || new Date()) : range.resetsAt,
@@ -1369,7 +1373,9 @@ function renderQuotaForecast() {
     projectedLegend.hidden = !forecast.projected.length;
     if (projectedLegend.nextElementSibling) projectedLegend.nextElementSibling.hidden = !forecast.projected.length;
   }
-  const historyNote = `<p class="quota-forecast-history-note">${escapeHtml(t(forecast.historySource === "observed" ? "dated.measuredHistoryNote" : "dated.estimatedHistoryNote"))}</p>`;
+  const segment = quotaPlanSegment(quota);
+  const planNote = segment.changed ? `<p class="quota-forecast-history-note">${escapeHtml(t("quota.planChanged", {date:new Date(segment.startsAt).toLocaleString(locale())}))}${forecast.provisional ? ` · ${escapeHtml(t("quota.provisional"))}` : ""}</p>` : "";
+  const historyNote = planNote + `<p class="quota-forecast-history-note">${escapeHtml(t(forecast.historySource === "observed" ? "dated.measuredHistoryNote" : "dated.estimatedHistoryNote"))}</p>`;
   if (!current || forecast.projectionUnavailable) {
     summary.innerHTML = historyNote + (forecast.projectionUnavailable ? `<p class="quota-forecast-history-note">${escapeHtml(t(forecast.reason ? "dated.blocked." + forecast.reason : "quota.insufficient"))}</p>` : "");
     chart.innerHTML = quotaForecastSvg(forecast);
@@ -1379,7 +1385,7 @@ function renderQuotaForecast() {
   const currentPace = forecast.forecasts?.current;
   const historicalPace = forecast.forecasts?.historical;
   const card = (title, pace, hint) => `<article class="forecast-stat forecast-outcome${pace && pace.expectedFinalPercent > 100 ? " is-over" : ""}"><span>${escapeHtml(title)}</span><strong>${pace ? `${forecastPercent(pace.expectedFinalPercent)} %` : "—"}</strong><small>${escapeHtml(pace ? hint : t("quota.paceUnavailable"))}</small></article>`;
-  summary.innerHTML = card(t("quota.currentPace"), currentPace, t("quota.currentHint"))
+  summary.innerHTML = card(t(segment.changed ? "quota.sincePlanChange" : "quota.currentPace"), currentPace, t(segment.changed ? "quota.sincePlanChange" : "quota.currentHint"))
     + card(t("quota.historyPace"), historicalPace, t(historicalPace?.source === "observations" ? "quota.observedPaceHint" : "quota.historyHint", { n: historicalPace ? forecastPercent(historicalPace.historyHours / 24) : 0 }))
     + historyNote + `<p class="quota-forecast-history-note">${escapeHtml(t(historicalPace?.source === "observations" ? "quota.observedPaceCaveat" : "quota.historyCaveat"))}</p>`;
   chart.innerHTML = quotaForecastSvg(forecast);
@@ -1781,6 +1787,9 @@ function renderFreshness() {
     $("#freshness").textContent = mesh
       ? t("freshness.mesh", { n: state.data.sessionCount ?? state.data.sessions.length, nodes: (state.data.nodes || []).filter((node) => !node.revokedAt).length, time })
       : t("freshness", { n: state.data.sessionCount ?? state.data.sessions.length, time });
+    if (state.data.stale) $("#freshness").textContent = t("load.stale",{time:new Date(state.data.generatedAt).toLocaleString(locale())});
+    const status = $("#dataStatus");
+    if (status) { status.hidden = !state.data.stale; status.textContent = state.data.stale ? t('load.stale',{time:new Date(state.data.generatedAt).toLocaleString(locale())}) : ''; }
   }
 }
 
@@ -1871,7 +1880,7 @@ function savePricing() {
 
 function applyUsageData(data) {
   if (data.pageData?.projectCatalog) projectCatalogCache.set(state.dataMode, {projects:data.pageData.projectCatalog, at:Date.now()});
-  const changed = (state.data?.revision || state.data?.generatedAt) !== (data.revision || data.generatedAt) || state.data?.quotaOnly !== data.quotaOnly || state.data?.requestKey !== data.requestKey;
+  const changed = (state.data?.revision || state.data?.generatedAt) !== (data.revision || data.generatedAt) || state.data?.quotaOnly !== data.quotaOnly || state.data?.requestKey !== data.requestKey || state.data?.stale !== data.stale;
   state.data = hydratePage(data);
   if (!changed) return;
   populateNodes();
@@ -1917,7 +1926,7 @@ async function loadQuotaData(force, source, signal) {
   const cached = quotaResponses.get(key) || [...quotaResponses.entries()].find(([entry, response]) => entry.startsWith(`${source}:`) && sameQuotaReset(response.data.quotaDetail?.reset, reset))?.[1];
   if (!force && cached?.data.revision === metadata.revision) {
     const alreadyRendered = state.data?.quotaDetail === cached.data.quotaDetail;
-    state.data = { ...cached.data, ...metadata, sessions: cached.data.sessions, quotaDetail: cached.data.quotaDetail };
+    state.data = { ...cached.data, ...metadata, sessions: cached.data.sessions, quotaDetail: cached.data.quotaDetail, stale:false };
     if (alreadyRendered) { renderQuotaNav(); renderFreshness(); }
     else render();
     return;
@@ -1944,6 +1953,7 @@ async function loadQuotaData(force, source, signal) {
   quotaResponses.set(key, { data, etag: response.headers.get("etag") || (response.status === 304 ? cached?.etag : null) });
   while (quotaResponses.size > 3) quotaResponses.delete(quotaResponses.keys().next().value);
   state.data = data;
+  state.data.stale = false;
   render();
 }
 
@@ -1986,7 +1996,14 @@ async function loadData(force = false, silent = false) {
       if (force && !controller.signal.aborted) toast(t(source === "centralized" ? "refresh.doneCentralized" : "refresh.done"));
     } catch (error) {
       if (controller.signal.aborted) return;
-      if (missingPage) pageError = t("load.error", { error: error.message });
+      const fallback = quotaView ? [...quotaResponses.entries()].find(([entry,value])=>entry.startsWith(`${source}:`) && sameQuotaReset(value.data.quotaDetail?.reset,state.selectedQuotaReset))?.[1]
+        : pageCache.get(key);
+      if (fallback && !quotaView) applyUsageData({...fallback.data,stale:true});
+      if (fallback && quotaView) {
+        if (state.data?.quotaDetail === fallback.data.quotaDetail) { state.data.stale = true; renderFreshness(); }
+        else { state.data = {...fallback.data,stale:true}; render(); }
+      }
+      if (missingPage && !fallback) pageError = t("load.error", { error: error.message });
       if (quotaView && state.data?.quotaOnly && !state.data.quotaDetail) {
         $("#quotaChart").innerHTML = `<p role="alert">${escapeHtml(t("load.error", { error: error.message }))}</p>`;
       }
@@ -1994,7 +2011,7 @@ async function loadData(force = false, silent = false) {
         $("#groupStatus").textContent = t("load.error", { error: error.message });
       }
       if (!silent || !state.data || missingPage || state.view === "project-groups") {
-        $("#freshness").textContent = t("load.error", { error: error.message });
+        $("#freshness").textContent = state.data && (!missingPage || fallback) ? t('load.stale', {time:new Date(state.data.generatedAt).toLocaleString(locale())}) : t("load.error", { error: error.message });
         toast(t("load.errorToast"));
       }
     } finally {

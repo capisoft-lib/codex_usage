@@ -40,3 +40,6 @@ usage-snapshot*.json
 *.jks
 credentials*.json
 service-account*.json
+
+# Local validation, release evidence and private Site source checkout.
+.local/

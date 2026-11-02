@@ -1,3 +1,5 @@
+import { quotaPlanSegment } from './quota-plans.js';
+
 export const FORECAST_HOUR_MS = 60 * 60 * 1_000;
 export const DEFAULT_EMA_HALF_LIFE_HOURS = 24;
 export const DEFAULT_LOOKBACK_HOURS = 30 * 24;
@@ -89,9 +91,10 @@ export function estimateQuotaCapacityCredits({
   halfLifePeriods = DEFAULT_CAPACITY_HALF_LIFE_PERIODS,
 } = {}) {
   const estimates = (quotaPeriods || []).filter((period) => comparableQuota(period, planType, nodeId)).map((period) => {
-    const startTime = validTime(period?.startsAt);
-    const observedTime = validTime(period?.peakObservedAt || period?.observedAt);
-    const usedPercent = Number(period?.peakUsedPercent ?? period?.usedPercent);
+    const segment = quotaPlanSegment(period);
+    const startTime = validTime(segment.startsAt);
+    const observedTime = validTime(segment.changed ? period.observedAt : period?.peakObservedAt || period?.observedAt);
+    const usedPercent = Number(segment.changed ? period.usedPercent : period?.peakUsedPercent ?? period?.usedPercent) - Number(segment.baselinePercent);
     if (startTime === null || observedTime === null || observedTime <= startTime || !Number.isFinite(usedPercent) || usedPercent <= 0) return null;
     if (hasUnratedSamples(samples, startTime, observedTime)) return null;
     const consumedCredits = normalizedSamples(samples, startTime, observedTime).reduce((sum, sample) => sum + sample.value, 0);
@@ -199,6 +202,8 @@ function buildLegacyQuotaForecast({
   halfLifeHours = DEFAULT_EMA_HALF_LIFE_HOURS,
   lookbackHours = DEFAULT_LOOKBACK_HOURS,
   capacityCredits = null,
+  forecastStart = rangeStart,
+  baselinePercent = 0,
 } = {}) {
   const startTime = validTime(rangeStart);
   const endTime = validTime(rangeEnd);
@@ -227,7 +232,7 @@ function buildLegacyQuotaForecast({
     }
   }
   const measured = [...measuredByTime.entries()].sort((a, b) => a[0] - b[0]).map(([, point]) => point);
-  const measuredPace = measuredQuotaPace(measured, anchorTime, halfLifeHours);
+  const measuredPace = measuredQuotaPace(measured.filter(point=>validTime(point.timestamp) >= validTime(forecastStart)), anchorTime, halfLifeHours);
   const historySource = measured.length ? "observed" : "estimated";
   const actual = measured.length ? [...measured] : cumulativePoints(observedSamples, startTime, observedAnchorTime, safeUsedPercent, currentCredits);
   const lastObservedAt = actual.at(-1).timestamp;
@@ -257,7 +262,10 @@ function buildLegacyQuotaForecast({
     };
   };
   const historicalCapacityCredits = finiteNonNegative(capacityCredits);
-  const currentCapacityCredits = (!partialHistory || !shouldProject) && safeUsedPercent > 0 && currentCredits > 0 ? currentCredits * 100 / safeUsedPercent : 0;
+  const segmentSamples = observedSamples.filter(sample=>sample.time > validTime(forecastStart));
+  const segmentCredits = validTime(forecastStart) === startTime ? currentCredits : segmentSamples.reduce((sum,sample)=>sum+sample.value,0);
+  const consumed = safeUsedPercent - baselinePercent;
+  const currentCapacityCredits = (!partialHistory || !shouldProject) && consumed > 0 && segmentCredits > 0 ? segmentCredits * 100 / consumed : 0;
   const calibratedCapacityCredits = historicalCapacityCredits || currentCapacityCredits;
   if (calibratedCapacityCredits <= 0) return withoutCreditCalibration(partialHistory ? "unrated-usage" : undefined);
 
@@ -311,8 +319,10 @@ export function measuredHistoricalQuotaPace(periods, from, to, planType = null, 
   let coveredHours = 0, increase = 0;
   for (const period of periods || []) {
     if (!comparableQuota(period, planType, nodeId)) continue;
+    const segment = quotaPlanSegment(period);
     const points = (period.observations || []).map(p => ({time:validTime(p.observedAt), value:Number(p.usedPercent)}))
       .filter(p => p.time !== null && Number.isFinite(p.value) && p.value >= 0 && p.value <= 100)
+      .filter(p => !segment.changed || p.time >= validTime(segment.startsAt))
       .sort((a,b) => a.time - b.time);
     for (let i = 1; i < points.length; i++) {
       const left = points[i-1], right = points[i], hours = (right.time-left.time)/FORECAST_HOUR_MS;
@@ -329,6 +339,8 @@ export function measuredHistoricalQuotaPace(periods, from, to, planType = null, 
 // Keep the old EMA fields for consumers of the API; the dashboard displays these
 // two explicitly named, independent projections instead.
 export function buildQuotaForecast(options = {}) {
+  const segment = quotaPlanSegment({...options, startsAt:options.rangeStart});
+  if (segment.changed) options = {...options, forecastStart:segment.startsAt, baselinePercent:segment.baselinePercent};
   let result = buildLegacyQuotaForecast(options);
   if (result.status === "insufficient" && options.project !== false) {
     const start = validTime(options.rangeStart), end = validTime(options.rangeEnd), observed = validTime(options.observedAt), asOf = validTime(options.asOf ?? options.observedAt);
@@ -340,13 +352,15 @@ export function buildQuotaForecast(options = {}) {
       result = { ...result, status: "ready", rangeStart: new Date(start).toISOString(), rangeEnd: new Date(end).toISOString(), observedAt: new Date(observed).toISOString(), asOf: new Date(anchor).toISOString(), usedPercent: used, historySource: "observed", actual, projected: [], expectedFinalPercent: used, projectionUnavailable: true, completed: anchor >= end, capacityCredits: Number(options.capacityCredits) || 0 };
     }
   }
+  if (segment.changed) result = {...result,planChange:segment,provisional:validTime(options.observedAt)-validTime(segment.startsAt)<24*FORECAST_HOUR_MS};
   if (result.status !== "ready" || result.completed) return result;
-  const start = validTime(options.rangeStart), observed = validTime(options.observedAt);
+  const start = validTime(options.forecastStart ?? options.rangeStart), observed = validTime(options.observedAt);
   const anchor = validTime(result.asOf), end = validTime(options.rangeEnd);
   const used = Number(options.usedPercent);
   const fresh = observed !== null && anchor - observed <= 24 * FORECAST_HOUR_MS;
   const elapsed = (observed - start) / FORECAST_HOUR_MS;
-  const currentRate = fresh && elapsed >= 1 && used < 100 ? used / elapsed : null;
+  const consumed = used - (options.baselinePercent || 0);
+  const currentRate = fresh && elapsed >= 1 && used < 100 && consumed >= 0 ? consumed / elapsed : null;
   const makeProjection = rate => rate === null || !Number.isFinite(rate) ? null : ({
     percentPerHour: rate, expectedFinalPercent: used + (end - anchor) / FORECAST_HOUR_MS * rate,
     projected: projectedPoints(anchor, end, used, rate),

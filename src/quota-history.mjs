@@ -1,4 +1,5 @@
 import { latestResetDeadlineMetadata } from "../public/reset-deadlines.js";
+import { mergeQuotaPlans } from "../public/quota-plans.js";
 
 export const QUOTA_RESET_CLUSTER_MS = 5 * 60 * 1_000;
 
@@ -70,11 +71,8 @@ export function mergeWeeklyQuotaObservations(values = []) {
       if (best === null || candidate > current || (candidate === current && time(item.observedAt) > time(best.observedAt))) return item;
       return best;
     }, null);
-    const planTypes = [];
-    for (const item of chronological) {
-      const value = plan(item.planType);
-      if (value && planTypes.at(-1) !== value) planTypes.push(value);
-    }
+    const plans = mergeQuotaPlans(chronological);
+    const {planTypes} = plans;
     const usedPercent = boundedPercent(latest.usedPercent);
     const peakUsedPercent = boundedPercent(peak?.peakUsedPercent ?? peak?.usedPercent);
     const resetTime = time(latest.resetsAt);
@@ -94,7 +92,7 @@ export function mergeWeeklyQuotaObservations(values = []) {
       ...latestResetDeadlineMetadata(chronological),
       firstObservedAt: chronological.map((item) => item.firstObservedAt || item.observedAt).sort()[0],
       planType: plan(latest.planType) || planTypes.at(-1) || null,
-      planTypes,
+      ...plans,
       observations: measured,
     };
   }).filter((period) => period.peakUsedPercent > 0 || clusterContainsLatest(period, latestObservation))

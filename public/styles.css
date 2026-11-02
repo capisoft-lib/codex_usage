@@ -1403,3 +1403,6 @@ body[data-page="project-groups"] .periods { display: none; }
 .forecast-summary .forecast-stat:nth-child(1) { border-left: 3px solid var(--output); }
 .forecast-summary .forecast-stat:nth-child(2) { border-left: 3px solid var(--green, #8bd5b0); }
 @media (max-width: 700px) { .forecast-heading .forecast-legend { display: flex; justify-content: flex-start; } }
+
+.data-status { margin: 12px 24px 0; padding: 10px 14px; border: 1px solid var(--output); border-radius: 10px; color: var(--text); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+@media (max-width: 700px) { .data-status { margin: 12px 12px 0; } }

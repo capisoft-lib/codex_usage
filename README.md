@@ -6,7 +6,7 @@
 
 Local Usage turns the Codex session metadata stored on your computer into a fast, privacy-conscious usage dashboard. It can run entirely on one machine, or several machines can send signed, minimized usage snapshots to an optional central dashboard hosted with OpenAI Sites or on your own server.
 
-[**Stable release 1.7.0**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.0) · [Docker image 1.7.1](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
+[**Stable release 1.7.2**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.2) · [Docker image 1.7.2](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
 
 ![Local Usage dashboard showing API-equivalent cost, Codex credits, activity and a project breakdown](docs/screenshots/overview.png)
 
@@ -38,6 +38,10 @@ The **Projects** page combines conversations without an identifiable project int
 
 The server indexes sessions incrementally and persists a derived snapshot. An open page checks for newer data every 15 seconds, while **Refresh** forces an immediate source check.
 
+Subscription changes within a quota week retain their observed date and percentage. Forecasts and capacity estimates use consumption since the latest plan change, without treating the capacity adjustment as new activity or a weekly reset. The first 24 hours are marked provisional. Monthly amounts are saved separately per plan; the user-reported Pro Lite base is $100 and remains editable in Settings.
+
+Project pages read lightweight quota metadata independently of the full quota history. Temporary D1 read failures receive bounded retries; a failed refresh keeps the matching cached page visible with its original update time. Cached pages remain in the current browser tab and are never substituted across filters or data sources.
+
 ## Screenshots
 
 Compare projects and their recent conversations, or follow your weekly quota through to its projected reset.
@@ -67,6 +71,8 @@ The same dashboard supports four complementary modes:
 | Local GUI + reporting agent | Local GUI with `MESH_HUB_URL` configured | Local and Centralized views | Signed minimized snapshots are sent to the selected hub |
 | Headless reporting agent | `npm run start:agent` or the Docker `agent` target | None; no HTTP port | Signed minimized snapshots are sent to the selected hub |
 | Central hub | `sites-hub/` on OpenAI Sites, or `DASHBOARD_MODE=hub` locally | Aggregated web GUI and machine administration | D1 on Sites, or the self-hosted hub store |
+
+Published Docker tags are `capitaine/codex-usage-dashboard:1.7.2` / `:latest` for the dashboard and `:1.7.2-agent` / `:agent` for the headless collector. Both support Linux AMD64 and ARM64. The `1.7.1` dashboard tag remains available for rollback.
 
 The “agent” in this README is a collector and reporter belonging to this project. It is not an autonomous Codex AI agent: it cannot execute tasks, read arbitrary files, or receive commands from the hub.
 
@@ -191,7 +197,7 @@ The dashboard image runs as a non-root user with all Linux capabilities removed.
 The public Linux AMD64/ARM64 image is:
 
 ```text
-capitaine/codex-usage-dashboard:1.7.1
+capitaine/codex-usage-dashboard:1.7.2
 ```
 
 The 1.0.2 release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.2`.
@@ -200,7 +206,7 @@ On Windows PowerShell:
 
 ```powershell
 $codexData = Join-Path $env:USERPROFILE ".codex"
-$image = "capitaine/codex-usage-dashboard:1.7.1"
+$image = "capitaine/codex-usage-dashboard:1.7.2"
 
 docker pull $image
 docker volume create codex-usage-dashboard-storage
@@ -224,7 +230,7 @@ docker run -d `
 On macOS or Linux:
 
 ```bash
-IMAGE="capitaine/codex-usage-dashboard:1.7.1"
+IMAGE="capitaine/codex-usage-dashboard:1.7.2"
 
 docker pull "$IMAGE"
 docker volume create codex-usage-dashboard-storage

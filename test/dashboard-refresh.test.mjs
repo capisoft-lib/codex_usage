@@ -24,7 +24,7 @@ function dashboard({ mode = "centralized", view = "overview", data = { generated
   const state = { data, dataMode: mode, view };
   const document = { hidden: false, addEventListener: (event, callback) => listeners.set(event, callback) };
   const context = vm.createContext({
-    state, document, Date: ClockDate, URL, hydratePage: (data) => data, clearTimeout() {}, pageQuery: () => ({view:state.view, period:state.period}), pageRequestKey: () => `${state.dataMode}:${state.view}:${state.period}`, URLSearchParams, AbortController, weeklyQuotaPeriods, sameQuotaReset,
+    state, document, Date: ClockDate, locale:()=> 'fr-FR', URL, hydratePage: (data) => data, clearTimeout() {}, pageQuery: () => ({view:state.view, period:state.period}), pageRequestKey: () => `${state.dataMode}:${state.view}:${state.period}`, URLSearchParams, AbortController, weeklyQuotaPeriods, sameQuotaReset,
     fetch: async (url, options) => {
       const normalized = new URL(url, "http://localhost"); normalized.searchParams.delete("query"); requests.push(normalized.pathname + normalized.search);
       return fetchImpl ? fetchImpl(url, requests.length, options) : { ok: true, json: async () => ({ generatedAt: String(now) }) };
@@ -282,4 +282,20 @@ test('a quota read completed during sync cannot reuse an old ETag', async () => 
   }});
   await ui.load(); await ui.load(); await ui.load();
   assert.deepEqual(headers,[undefined,'"old"',undefined]);
+});
+
+
+test('a failed return to a cached project page preserves its own filters and marks it stale',async()=>{
+  let fail=false;
+  const ui=dashboard({view:'projects',fetch:async()=>{
+    if(fail) return Response.json({error:'temporarily unavailable'},{status:500});
+    return Response.json({generatedAt:'2026-11-02T12:00:00Z',pageOnly:true,pageData:{view:'projects',projects:[{name:'Example'}]}});
+  }});
+  ui.state.period='today';await ui.load();
+  ui.state.period='all';await ui.load();
+  fail=true;ui.state.period='today';await ui.load(false,true);
+  assert.equal(ui.state.data.stale,true);
+  assert.equal(ui.state.data.pageData.projects[0].name,'Example');
+  assert.equal(ui.loadingStates.at(-1).active,false);
+  fail=false;await ui.load();assert.ok(!ui.state.data.stale);
 });

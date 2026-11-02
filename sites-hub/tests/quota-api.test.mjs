@@ -48,7 +48,7 @@ test("quota API filters calls in SQLite, isolates owners, paginates and validate
     database.exec(await readFile(new URL("../drizzle/0005_wise_anthem.sql", import.meta.url), "utf8"));
     database.exec("ALTER TABLE mesh_nodes ADD last_payload_hash TEXT");
     database.exec(await readFile(new URL("../drizzle/0006_relational_usage.sql", import.meta.url), "utf8"));
-    const prefix = `import { readSessionSlices, readQuotaCalls, readQuotaCalibration, readQuotaSamples, readFilters, migrateLegacySessions, StorageMigrationPending } from ${JSON.stringify(new URL("../lib/session-reader.ts", import.meta.url).href)};\nimport { normalizeQuotaPeriods, matchesQuotaEtag } from ${JSON.stringify(new URL("../../public/quota-periods.js", import.meta.url).href)};\nconst db = () => globalThis[${JSON.stringify(globalsKey)}];\n`;
+    const prefix = `import { storageErrorResponse } from ${JSON.stringify(new URL("../lib/storage-health.mjs", import.meta.url).href)};\nimport { readSessionSlices, readQuotaCalls, readQuotaCalibration, readQuotaSamples, readFilters, migrateLegacySessions, StorageMigrationPending } from ${JSON.stringify(new URL("../lib/session-reader.ts", import.meta.url).href)};\nimport { normalizeQuotaPeriods, matchesQuotaEtag } from ${JSON.stringify(new URL("../../public/quota-periods.js", import.meta.url).href)};\nconst db = () => globalThis[${JSON.stringify(globalsKey)}];\n`;
     const usage = await load("../lib/usage.ts", prefix);
     globalThis[`${globalsKey}Metadata`] = usage.quotaMetadataForOwner;
     const route = await load("../app/api/quota/route.ts", prefix + `
