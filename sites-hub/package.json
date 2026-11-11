@@ -19,8 +19,8 @@
   "dependencies": {
     "codex-usage-dashboard": "file:..",
     "drizzle-orm": "0.45.2",
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react": "19.2.9",
+    "react-dom": "19.2.9"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.52.1",
@@ -43,7 +43,7 @@
     "globals": "16.4.0",
     "miniflare": "5.20260811.1-alpha",
     "minimatch": "file:vendor/minimatch-compat",
-    "react-server-dom-webpack": "19.2.8",
+    "react-server-dom-webpack": "19.2.9",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
     "typescript-eslint": "8.59.3",
