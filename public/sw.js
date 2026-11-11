@@ -1,8 +1,9 @@
-const CACHE_NAME = "codex-usage-shell-v16-reset-deadlines";
+const CACHE_NAME = "codex-usage-shell-v17-credit-balance";
 const SHELL_ASSETS = [
   "./api-pricing.js",
   "./app.js",
   "./conversation-title.js",
+  "./credit-balance.js",
   "./page-data.js",
   "./storage-fetch.js",
   "./date-range.js",

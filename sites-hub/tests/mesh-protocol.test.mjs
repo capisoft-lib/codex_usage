@@ -18,6 +18,9 @@ test("Sites preserves measured quota history while rejecting private or invalid 
   const quota = { usedPercent: 25, observations: [{ observedAt: "2026-09-01T01:00:00Z", usedPercent: 10 }] };
   const payload = { kind: "sync", snapshotVersion: 1, generatedAt: "2026-09-01T02:00:00Z", privacy: { projectMode: "hash", includeTitles: false }, upserts: [], removals: [], quota, quotaHistory: [quota] };
   assert.doesNotThrow(() => validatePayload(payload));
+  const credit = { observedAt: quota.observations[0].observedAt, balance: 42.5 };
+  assert.doesNotThrow(() => validatePayload({ ...payload, quota: { ...quota, creditBalanceObservations: [credit] } }));
+  assert.throws(() => validatePayload({ ...payload, quota: { ...quota, creditBalanceObservations: [{ ...credit, id: "private" }] } }), /Quota/);
   for (const point of [{ observedAt: "bad", usedPercent: 10 }, { observedAt: "2026-09-01T01:00:00Z", usedPercent: null }, { ...quota.observations[0], prompt: "private" }]) {
     assert.throws(() => validatePayload({ ...payload, quota: { ...quota, observations: [point] } }), /Quota/);
   }

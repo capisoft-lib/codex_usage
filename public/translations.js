@@ -323,6 +323,18 @@ const GROUP_MESSAGES = {
 export const GROUP_I18N = Object.fromEntries(["fr", "en", "de", ...Object.keys(ADDITIONAL_I18N)].map(language => [language, GROUP_MESSAGES[language] || GROUP_MESSAGES.en]));
 
 
+export const CREDIT_BALANCE_I18N = {
+  fr: { "credit.available": "Crédits Codex disponibles", "credit.lastBalance": "Dernier solde de la période", "credit.chart": "Solde des crédits Codex", "credit.change": "{amount} crédits nets depuis le {date}", "credit.quotaExhausted": "Quota hebdomadaire inclus épuisé." },
+  en: { "credit.available": "Available Codex credits", "credit.lastBalance": "Last balance in period", "credit.chart": "Codex credit balance", "credit.change": "{amount} net credits since {date}", "credit.quotaExhausted": "Included weekly quota exhausted." },
+  de: { "credit.available": "Verfügbare Codex-Credits", "credit.lastBalance": "Letzter Stand im Zeitraum", "credit.chart": "Codex-Guthaben", "credit.change": "{amount} Credits netto seit {date}", "credit.quotaExhausted": "Inklusives Wochenkontingent aufgebraucht." },
+  es: { "credit.available": "Créditos Codex disponibles", "credit.lastBalance": "Último saldo del periodo", "credit.chart": "Saldo de créditos Codex", "credit.change": "{amount} créditos netos desde el {date}", "credit.quotaExhausted": "Cuota semanal incluida agotada." },
+  it: { "credit.available": "Crediti Codex disponibili", "credit.lastBalance": "Ultimo saldo del periodo", "credit.chart": "Saldo dei crediti Codex", "credit.change": "{amount} crediti netti dal {date}", "credit.quotaExhausted": "Quota settimanale inclusa esaurita." },
+  pt: { "credit.available": "Créditos Codex disponíveis", "credit.lastBalance": "Último saldo do período", "credit.chart": "Saldo de créditos Codex", "credit.change": "{amount} créditos líquidos desde {date}", "credit.quotaExhausted": "Quota semanal incluída esgotada." },
+  ja: { "credit.available": "利用可能な Codex クレジット", "credit.lastBalance": "期間内の最終残高", "credit.chart": "Codex クレジット残高", "credit.change": "{date} からの増減：{amount} クレジット", "credit.quotaExhausted": "プランに含まれる週次利用枠を使い切りました。" },
+  ru: { "credit.available": "Доступные кредиты Codex", "credit.lastBalance": "Последний баланс за период", "credit.chart": "Баланс кредитов Codex", "credit.change": "Изменение с {date} · {amount} кр.", "credit.quotaExhausted": "Включённая недельная квота исчерпана." },
+  zh: { "credit.available": "可用 Codex 积分", "credit.lastBalance": "所选周期的最后余额", "credit.chart": "Codex 积分余额", "credit.change": "自 {date} 起净变化 {amount} 积分", "credit.quotaExhausted": "套餐包含的每周额度已用尽。" },
+};
+
 export const QUOTA_CHANGE_I18N = {
   fr: {'quota.sincePlanChange':'Depuis le changement d’abonnement','load.stale':'Données précédentes · relevé du {time} · actualisation indisponible','quota.planChanged':'Changement d’abonnement le {date} · calcul des prévisions depuis ce changement','quota.provisional':'Prévision provisoire après changement d’abonnement'},
   en: {'quota.sincePlanChange':'Since subscription change','load.stale':'Previous data · updated {time} · refresh unavailable','quota.planChanged':'Subscription changed on {date} · forecasts use activity since this change','quota.provisional':'Provisional forecast after subscription change'},

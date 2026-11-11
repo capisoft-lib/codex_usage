@@ -102,6 +102,7 @@ function publicQuota(quota) {
     ...(Array.isArray(quota.observations) ? { observations: quota.observations.map((point) => ({
       observedAt: point.observedAt, usedPercent: point.usedPercent,
     })) } : {}),
+    ...(Array.isArray(quota.creditBalanceObservations) ? { creditBalanceObservations: quota.creditBalanceObservations.map(({ observedAt, balance }) => ({ observedAt, balance })) } : {}),
   };
 }
 

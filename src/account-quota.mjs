@@ -2,8 +2,11 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import dashboardPackage from "../package.json" with { type: "json" };
 import { normalizeFiveHourQuota, normalizeWeeklyQuota } from "./analyzer.mjs";
 import { mergeWeeklyQuotaObservations } from "./quota-history.mjs";
+import { mergeCreditBalanceHistory } from "../public/credit-balance.js";
+import { sameQuotaReset } from "../public/quota-periods.js";
 
 function resetDeadlines(credits, observedAt) {
   if (credits?.availableCount === 0) return [];
@@ -30,7 +33,7 @@ export function normalizeAccountQuotas(result, observedAt = new Date().toISOStri
     window_minutes: value.windowDurationMins, resets_at: value.resetsAt });
   const raw = { primary: window(limits.primary), secondary: window(limits.secondary),
     individual_limit: window(limits.individualLimit), plan_type: limits.planType,
-    resets_available: resets };
+    resets_available: resets, credits: limits.credits };
   const metadata = { resetDeadlines: resetDeadlines(result.rateLimitResetCredits, observedAt), resetDeadlinesObservedAt: observedAt };
   const enrich = quota => quota ? { ...quota, ...metadata } : quota;
   return { weeklyQuota: enrich(normalizeWeeklyQuota(raw, observedAt)), fiveHourQuota: enrich(normalizeFiveHourQuota(raw, observedAt)) };
@@ -82,15 +85,25 @@ export function readAccountQuotas({ executable, timeoutMs = 15_000, spawnImpl = 
         } catch { /* Ignore non-protocol output; the deadline remains bounded. */ }
       });
       send({ id: 1, method: "initialize", params: {
-        clientInfo: { name: "codex_usage_dashboard", version: "1.7.0" },
+        clientInfo: { name: "codex_usage_dashboard", version: dashboardPackage.version },
         capabilities: { experimentalApi: true },
       } });
     } catch { stop(); finish(); }
   });
 }
 
-export function applyAccountQuotas(data, account) {
-  const live = account?.weeklyQuota;
+export function applyAccountQuotas(data, account, previousData = null) {
+  let live = account?.weeklyQuota;
+  if (previousData && previousData !== data) {
+    const previous = previousData.weeklyQuotaHistory || [];
+    const carryBalance = (quota) => {
+      if (!quota) return quota;
+      const earlier = previous.find(period => sameQuotaReset(period.resetsAt, quota.resetsAt));
+      return earlier?.creditBalanceObservations ? { ...quota, ...mergeCreditBalanceHistory([earlier, quota]) } : quota;
+    };
+    live = carryBalance(live);
+    data = { ...data, weeklyQuota: carryBalance(data.weeklyQuota), weeklyQuotaHistory: data.weeklyQuotaHistory?.map(carryBalance) };
+  }
   if (!live) {
     // A failed/unsupported read must not present an old credit count as current.
     const observedAt = new Date().toISOString();

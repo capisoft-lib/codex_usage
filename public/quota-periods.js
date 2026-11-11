@@ -1,5 +1,6 @@
 import { latestResetDeadlineMetadata } from "./reset-deadlines.js";
 import { mergeQuotaPlans } from "./quota-plans.js";
+import { mergeCreditBalanceHistory } from "./credit-balance.js";
 
 export const QUOTA_RESET_TOLERANCE_MS = 5 * 60_000;
 
@@ -41,6 +42,7 @@ export function normalizeQuotaPeriods(data) {
       peakUsedPercent: peak.peakUsedPercent ?? peak.usedPercent ?? null,
       peakObservedAt: peak.peakObservedAt || peak.observedAt || null,
       ...mergeQuotaPlans(items),
+      ...mergeCreditBalanceHistory(items),
       ...(nodes.size > 1 ? { nodeId: null, nodeAlias: null } : {}),
       observations: [...byTime.values()].sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt)),
     };

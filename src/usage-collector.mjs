@@ -115,7 +115,7 @@ export async function createUsageCollector({
   const store = new UsageStore({
     analyze,
     enrich: env.CODEX_ACCOUNT_QUOTA_MODE !== "off" && quotaReader
-      ? async (data) => applyAccountQuotas(data, await quotaReader()) : null,
+      ? async (data, previousData) => applyAccountQuotas(data, await quotaReader(), previousData) : null,
     fingerprint,
     serialize: serializePublicUsage,
     snapshotPath,

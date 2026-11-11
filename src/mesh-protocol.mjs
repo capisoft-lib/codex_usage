@@ -1,4 +1,5 @@
 import { validQuotaPlanChanges } from "../public/quota-plans.js";
+import { validCreditBalanceHistory } from "../public/credit-balance.js";
 import { validResetDeadlineMetadata } from "../public/reset-deadlines.js";
 import {
   createHash,
@@ -106,10 +107,10 @@ const SESSION_KEYS = new Set(["id", "sourceSessionId", "nodeId", "nodeAlias", "t
 const TURN_KEYS = new Set(["id", "startedAt", "completedAt", "durationMs", "model", "effort", "serviceTier", "calls", "usage"]);
 const CALL_KEYS = new Set(["timestamp", "turnId", "model", "effort", "serviceTier", "usage"]);
 const USAGE_KEYS = new Set(["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens", "cacheWriteInputTokens"]);
-const QUOTA_KEYS = new Set(["usedPercent", "remainingPercent", "peakUsedPercent", "windowMinutes", "startsAt", "endsAt", "resetsAt", "resetsAvailable", "resetDeadlines", "resetDeadlinesObservedAt", "observedAt", "firstObservedAt", "peakObservedAt", "planType", "planTypes", "planChanges", "nodeId", "nodeAlias", "receivedAt", "observations"]);
+const QUOTA_KEYS = new Set(["usedPercent", "remainingPercent", "peakUsedPercent", "windowMinutes", "startsAt", "endsAt", "resetsAt", "resetsAvailable", "resetDeadlines", "resetDeadlinesObservedAt", "observedAt", "firstObservedAt", "peakObservedAt", "planType", "planTypes", "planChanges", "nodeId", "nodeAlias", "receivedAt", "observations", "creditBalanceObservations"]);
 
 function validQuota(quota) {
-  return hasOnlyKeys(quota, QUOTA_KEYS) && validResetDeadlineMetadata(quota) && validQuotaPlanChanges(quota) && (quota.observations === undefined || Array.isArray(quota.observations)
+  return hasOnlyKeys(quota, QUOTA_KEYS) && validResetDeadlineMetadata(quota) && validQuotaPlanChanges(quota) && validCreditBalanceHistory(quota) && (quota.observations === undefined || Array.isArray(quota.observations)
     && quota.observations.length <= 10000 && quota.observations.every((point) =>
       hasOnlyKeys(point, new Set(["observedAt", "usedPercent"]))
       && typeof point.observedAt === "string" && Number.isFinite(Date.parse(point.observedAt))

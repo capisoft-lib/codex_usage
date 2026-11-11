@@ -115,7 +115,7 @@ export class MeshAgent {
   async persist() {
     await mkdir(path.dirname(this.statePath), { recursive: true });
     const temporaryPath = `${this.statePath}.${process.pid}.tmp`;
-    await writeFile(temporaryPath, JSON.stringify(this.state), { encoding: "utf8", mode: 0o600 });
+    await writeFile(temporaryPath, JSON.stringify(this.state), { encoding: "utf8", mode: 0o600, flush: true });
     await rename(temporaryPath, this.statePath);
   }
 
@@ -207,6 +207,13 @@ export class MeshAgent {
 
     let accepted = 0;
     let includeShortQuota = true;
+    let { quota, quotaHistory } = sanitized;
+    let includeCreditHistory = Boolean(quota?.creditBalanceObservations || quotaHistory.some(period => period.creditBalanceObservations));
+    const omitCreditHistory = (period) => {
+      if (!period) return period;
+      const { creditBalanceObservations, ...rest } = period;
+      return rest;
+    };
     for (const batch of batches) {
       const payload = {
         kind: "sync",
@@ -215,21 +222,28 @@ export class MeshAgent {
         generatedAt: sanitized.generatedAt,
         privacy: sanitized.privacy,
         ...(includeShortQuota ? { shortQuota: sanitized.shortQuota } : {}),
-        quota: sanitized.quota,
-        quotaHistory: sanitized.quotaHistory,
+        quota,
+        quotaHistory,
         upserts: batch.upserts,
         removals: batch.removals,
       };
-      try {
-        await this.sendSigned("/api/mesh/ingest", payload);
-      } catch (error) {
-        if (!includeShortQuota || error.status !== 400 || error.message !== "Charge utile Mesh invalide."
-          || (error.code !== undefined && error.code !== "mesh_invalid")) throw error;
-        // Legacy hubs reject unknown fields. Retry only this schema error with
-        // a fresh signed sequence, and probe support again on the next sync.
-        includeShortQuota = false;
-        delete payload.shortQuota;
-        await this.sendSigned("/api/mesh/ingest", payload);
+      for (;;) {
+        try {
+          await this.sendSigned("/api/mesh/ingest", payload);
+          break;
+        } catch (error) {
+          // Legacy hubs reject unknown fields before applying a batch. Retry with
+          // a fresh signed sequence and probe support again on the next sync.
+          if (error.status !== 400 || error.code !== undefined && error.code !== "mesh_invalid") throw error;
+          if (includeShortQuota && error.message === "Charge utile Mesh invalide.") {
+            includeShortQuota = false;
+            delete payload.shortQuota;
+          } else if (includeCreditHistory && ["Quota Mesh invalide.", "Historique de quota Mesh invalide."].includes(error.message)) {
+            includeCreditHistory = false;
+            payload.quota = quota = omitCreditHistory(quota);
+            payload.quotaHistory = quotaHistory = quotaHistory.map(omitCreditHistory);
+          } else throw error;
+        }
       }
       accepted += batch.upserts.length;
     }

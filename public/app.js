@@ -6,11 +6,12 @@ import { createPageData } from "./page-data.js";
 import { SUBSCRIPTION_AMOUNTS_KEY, normalizeSubscriptionAmounts, subscriptionPlan, weeklySubscriptionAmount, projectWeeklyAllocation } from "./project-allocation.js";
 import { quotaPlanSegment } from "./quota-plans.js";
 import { sameQuotaReset } from "./quota-periods.js";
+import { mergeCreditBalanceHistory } from "./credit-balance.js";
 import { codexCreditsOfCalls as rawCreditsOfCalls, fastMultiplierFor, usageProfilesOfCalls as rawUsageProfilesOfCalls } from "./usage-pricing.js";
 import { apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 import { PRICING_CATALOG } from "./pricing-catalog.js";
 import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryMarkup, pricingDiagnosticsMarkup, serviceTierBadge } from "./pricing-ui.js";
-import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, GROUP_I18N, MIGRATION_I18N, QUOTA_CHANGE_I18N, resolveLanguage } from "./translations.js";
+import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, GROUP_I18N, MIGRATION_I18N, QUOTA_CHANGE_I18N, CREDIT_BALANCE_I18N, resolveLanguage } from "./translations.js";
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp as rawLatestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { createForecastGoalsController, FORECAST_GOALS_I18N } from "./forecast-goals.js";
@@ -252,6 +253,8 @@ const QUOTA_HEADER_I18N = {
 for (const [language, messages] of Object.entries(QUOTA_HEADER_I18N)) Object.assign(I18N[language], messages);
 
 for (const [language, messages] of Object.entries(QUOTA_CHANGE_I18N)) Object.assign(I18N[language], messages);
+
+for (const [language, messages] of Object.entries(CREDIT_BALANCE_I18N)) Object.assign(I18N[language], messages);
 
 const MINI_QUOTA_I18N = {
   fr: { "settings.miniQuotaTitle": "Fenêtre de quotas miniature", "settings.miniQuotaCopy": "Choisissez les limites à afficher, puis ouvrez la fenêtre compacte et déplaçable.", "settings.miniQuotaOptions": "Limites de quota visibles", "settings.showFiveHour": "Afficher l’utilisation sur 5 heures", "settings.showWeekly": "Afficher l’utilisation hebdomadaire", "settings.openMiniQuota": "Ouvrir la fenêtre de quotas", "settings.oneQuotaRequired": "Au moins une limite doit rester visible." },
@@ -949,20 +952,26 @@ function renderQuota() {
   const target = $("#quotaHero");
   if (!target) return;
   const quota = selectedQuota();
+  const current = isCurrentQuotaSelection();
+  const { creditBalanceObservations = [] } = current
+    ? mergeCreditBalanceHistory(quotaPeriods().map(period => ({ creditBalanceObservations: period.creditBalanceObservations?.slice(-1) })))
+    : mergeCreditBalanceHistory([quota], Date.parse(quota?.startsAt), Date.parse(quota?.endsAt || quota?.resetsAt));
+  const balance = creditBalanceObservations.at(-1);
+  const creditMarkup = balance ? `<div class="quota-credit-balance"><div><span class="kpi-label">${escapeHtml(t(current ? "credit.available" : "credit.lastBalance"))}</span><strong>${formatCredits(balance.balance)}</strong></div><small>${escapeHtml(t("quota.observedAt", { date: forecastDateTimeLabel(Date.parse(balance.observedAt)) }))}</small></div>` : "";
   const label = `<span class="kpi-label">${t("kpi.weeklyQuota")}<b class="kpi-icon">%</b></span>`;
   if (quota?.theoretical) {
     const resetAt = weeklyRange().resetsAt;
     const resetText = resetAt
       ? t("kpi.weeklyReset", { date: resetAt.toLocaleString(locale(), clockOptions({ dateStyle: "medium", timeStyle: "short" })) })
       : t("kpi.weeklyReset", { date: "—" });
-    target.innerHTML = `${label}<strong class="kpi-value">—</strong><div class="weekly-quota-meta"><span class="quota-badge">${escapeHtml(t("quota.awaitingObservation"))}</span><span class="quota-badge">${escapeHtml(resetText)}</span><span class="quota-badge">${escapeHtml(t("quota.theoretical"))}</span></div>`;
+    target.innerHTML = `${label}<strong class="kpi-value">—</strong><div class="weekly-quota-meta"><span class="quota-badge">${escapeHtml(t("quota.awaitingObservation"))}</span><span class="quota-badge">${escapeHtml(resetText)}</span><span class="quota-badge">${escapeHtml(t("quota.theoretical"))}</span></div>${creditMarkup}`;
     return;
   }
-  const usedPercent = isCurrentQuotaSelection() ? quota?.usedPercent : quota?.peakUsedPercent;
+  const usedPercent = current ? quota?.usedPercent : quota?.peakUsedPercent;
   const remaining = Number.isFinite(usedPercent) ? Math.max(0, 100 - usedPercent) : quota?.remainingPercent;
   const available = quota && Number.isFinite(remaining);
   if (!available) {
-    target.innerHTML = `${label}<strong class="kpi-value">—</strong><span class="kpi-meta">${t("kpi.weeklyUnavailable")}</span>`;
+    target.innerHTML = `${label}<strong class="kpi-value">—</strong><span class="kpi-meta">${t("kpi.weeklyUnavailable")}</span>${creditMarkup}`;
     return;
   }
   const resetAt = weeklyRange().resetsAt;
@@ -975,6 +984,7 @@ function renderQuota() {
   const planText = quotaPlanSummary(quota);
   const observationText = quota.observedAt ? t("quota.observedAt", { date: new Date(quota.observedAt).toLocaleString(locale(), clockOptions({ dateStyle: "medium", timeStyle: "short" })) }) : t("quota.planUnknown");
   target.innerHTML = `${label}<strong class="kpi-value">${t("kpi.remaining", { n: new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(remaining) })}</strong><progress class="weekly-quota-bar${remaining < 20 ? " is-low" : ""}" max="100" value="${remaining}" aria-label="${escapeHtml(t("kpi.remaining", { n: remaining }))}"></progress><div class="weekly-quota-meta"><span class="quota-badge">${escapeHtml(resetText)}</span><span class="quota-badge">${escapeHtml(resetsText)}</span><span class="quota-badge">${escapeHtml(t("quota.plan", { plan: planText }))}</span><span class="quota-badge">${escapeHtml(observationText)}</span></div>`;
+  target.insertAdjacentHTML("beforeend", creditMarkup);
 }
 
 function quotaPlanLabel(value) {
@@ -1079,6 +1089,7 @@ function renderQuotaPage() {
     $("#quotaChart").innerHTML = `<p role="status">${escapeHtml(t("quota.loading"))}</p>`;
     $("#quotaForecastSummary").innerHTML = "";
     $("#quotaForecastChart").innerHTML = "";
+    renderQuotaCreditChart(quota, +weeklyRange().start, +weeklyRange().resetsAt);
     return;
   }
   const sessions = sessionsInRange({ range: weeklyRange() });
@@ -1113,6 +1124,37 @@ function renderQuotaPage() {
 
 function forecastPercent(value) {
   return new Intl.NumberFormat(locale(), { maximumFractionDigits: value < 10 ? 1 : 0 }).format(value);
+}
+
+function renderQuotaCreditChart(quota, start, end) {
+  const chart = $("#quotaCreditChart");
+  const { creditBalanceObservations: points = [] } = mergeCreditBalanceHistory([quota], start, end);
+  chart.hidden = !points.length || !(end > start);
+  if (chart.hidden) { chart.innerHTML = ""; return; }
+
+  const width = Math.max(320, Math.round($("#quotaForecastChart").clientWidth || 760));
+  const height = 144;
+  const plot = { left: 62, right: width - 22, top: 12, bottom: height - 30 };
+  const maxBalance = Math.max(1, ...points.map(point => point.balance));
+  const step = 10 ** Math.floor(Math.log10(maxBalance)) / 2;
+  const maximum = Math.ceil(maxBalance / step) * step;
+  const x = (time) => plot.left + (time - start) / (end - start) * (plot.right - plot.left);
+  const y = (balance) => plot.bottom - balance / maximum * (plot.bottom - plot.top);
+  const first = points[0];
+  const last = points.at(-1);
+  const ticks = weeklyForecastTicks(start, end);
+  const grid = [0, maximum / 2, maximum].map(value => `<g class="quota-axis-grid"><line x1="${plot.left}" x2="${plot.right}" y1="${y(value)}" y2="${y(value)}"></line><text x="${plot.left - 10}" y="${y(value) + 4}" text-anchor="end">${escapeHtml(formatCompact(value))}</text></g>`).join("");
+  const dates = ticks.filter((_, index) => width > 480 || index % 2 === (ticks.length - 1) % 2).map(time => `<text x="${x(time)}" y="${height - 12}" text-anchor="middle">${escapeHtml(forecastDateLabel(time))}</text>`).join("");
+  const path = points.map((point, index) => {
+    const time = Date.parse(point.observedAt);
+    const gap = index === 0 || time - Date.parse(points[index - 1].observedAt) > 24 * 60 * 60_000;
+    return `${gap ? "M" : "L"}${x(time).toFixed(2)},${y(point.balance).toFixed(2)}`;
+  }).join(" ");
+  const dots = points.filter((point, index) => index === points.length - 1 || Date.parse(points[index + 1].observedAt) - Date.parse(point.observedAt) > 24 * 60 * 60_000).map(point => `<circle cx="${x(Date.parse(point.observedAt))}" cy="${y(point.balance)}" r="4"><title>${escapeHtml(`${forecastDateTimeLabel(Date.parse(point.observedAt))} · ${formatCredits(point.balance)}`)}</title></circle>`).join("");
+  const delta = new Intl.NumberFormat(locale(), { signDisplay: "exceptZero", maximumFractionDigits: 2 }).format(last.balance - first.balance);
+  const summary = points.length > 1 ? t("credit.change", { amount: delta, date: forecastDateLabel(Date.parse(first.observedAt)) }) : forecastDateTimeLabel(Date.parse(last.observedAt));
+  chart.innerHTML = `<div class="quota-credit-heading"><h3 id="quotaCreditTitle">${escapeHtml(t("credit.chart"))}</h3><p id="quotaCreditSummary">${escapeHtml(summary)}</p></div>
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="quotaCreditTitle" aria-describedby="quotaCreditSummary">${grid}${dates}<path d="${path}"></path>${dots}</svg>`;
 }
 
 function forecastDateLabel(value) {
@@ -1175,8 +1217,9 @@ function quotaForecastSvg(forecast) {
   const description = !forecast.projected.length
     ? `${t("quota.actual")} · ${forecastPercent(actualPoint.percent)} %`
     : t(forecast.marginPercent >= 0 ? "quota.margin" : "quota.overrun", { n: forecastPercent(Math.abs(forecast.marginPercent)) });
+  const observedNearEdge = observedX > width - plot.right - 70;
   const observedMarker = forecast.completed ? "" : `<line class="quota-observed-line" x1="${observedX}" y1="${plot.top}" x2="${observedX}" y2="${height - plot.bottom}"></line>
-    <text class="quota-observed-label" x="${Math.min(width - plot.right - 4, observedX + 7)}" y="${plot.top + 13}">${escapeHtml(t("quota.observed"))}</text>`;
+    <text class="quota-observed-label" x="${observedX + (observedNearEdge ? -7 : 7)}" y="${plot.top + 13}" text-anchor="${observedNearEdge ? "end" : "start"}">${escapeHtml(t("quota.observed"))}</text>`;
   const projectedLine = projectedPoint ? `<polyline class="quota-projected-line${dangerClass}" points="${polyline(forecast.projected)}"></polyline>` : "";
   return `<svg class="quota-forecast-svg" data-history-source="${forecast.historySource}" viewBox="0 0 ${width} ${height}" role="group" aria-labelledby="quotaForecastSvgTitle quotaForecastSvgDescription">
     <title id="quotaForecastSvgTitle">${escapeHtml(t("quota.forecastAria"))}</title>
@@ -1190,7 +1233,7 @@ function quotaForecastSvg(forecast) {
     ${forecast.forecasts?.historical ? `<polyline class="quota-history-line" points="${polyline(forecast.forecasts.historical.projected)}"><title>${escapeHtml(t("quota.historyPace"))}</title></polyline>` : ""}
     <circle class="quota-actual-point" cx="${x(actualPoint.timestamp)}" cy="${y(actualPoint.percent)}" r="4"><title>${escapeHtml(`${t("quota.actual")} · ${forecastPercent(actualPoint.percent)} %`)}</title></circle>
     ${projectedPoint ? `<circle class="quota-projected-point${dangerClass}" cx="${x(projectedPoint.timestamp)}" cy="${y(projectedPoint.percent)}" r="5"><title>${escapeHtml(`${t("quota.forecastAtReset")} · ${forecastPercent(projectedPoint.percent)} %`)}</title></circle>` : ""}
-    <text class="quota-endpoint-label${dangerClass}" x="${x(endpoint.timestamp) - 8}" y="${Math.max(plot.top + 14, y(endpoint.percent) - 10)}" text-anchor="end">${escapeHtml(`${forecastPercent(endpoint.percent)} %`)}</text>
+    <text class="quota-endpoint-label${dangerClass}" x="${x(endpoint.timestamp) - 8}" y="${Math.max(plot.top + 14, y(endpoint.percent) + (Math.abs(y(endpoint.percent) - limitY) < 14 ? 16 : -10))}" text-anchor="end">${escapeHtml(`${forecastPercent(endpoint.percent)} %`)}</text>
     ${forecastGoals().markers(forecast, { x, y, top: plot.top, bottom: height - plot.bottom })}
     <text class="quota-window-label" x="${plot.left}" y="${height - 28}" text-anchor="start">${escapeHtml(t("quota.renew"))}</text>
     <text class="quota-window-label" x="${width - plot.right}" y="${height - 28}" text-anchor="end">${escapeHtml(t("quota.reset"))}</text>
@@ -1322,9 +1365,11 @@ function renderQuotaForecast() {
   forecastGoals().render(null);
   const quota = selectedQuota();
   const range = weeklyRange();
+  renderQuotaCreditChart(quota, +range.start, +range.resetsAt);
   const current = isCurrentQuotaSelection();
   const rawUsedPercent = current ? quota?.usedPercent : quota?.peakUsedPercent;
   const usedPercent = rawUsedPercent === null || rawUsedPercent === undefined || rawUsedPercent === "" ? Number.NaN : Number(rawUsedPercent);
+  const exhaustedWithBalance = current && usedPercent >= 100 && quota?.creditBalanceObservations?.length;
   const projectedLegend = $(".forecast-key.projected");
   const historicalLegend = $(".forecast-key.history");
   if (historicalLegend) { historicalLegend.hidden = true; historicalLegend.nextElementSibling.hidden = true; }
@@ -1355,7 +1400,9 @@ function renderQuotaForecast() {
     project: current,
     capacityCredits: current ? quotaForecastCapacity(samples, quota) : null,
   });
-  if (forecast.status === "ready" && forecast.forecasts) {
+  if (forecast.status === "ready" && exhaustedWithBalance) {
+    forecast = { ...forecast, projected: [], forecasts: null, expectedFinalPercent: usedPercent, projectionUnavailable: true };
+  } else if (forecast.status === "ready" && forecast.forecasts) {
     const pace = forecast.forecasts.current;
     forecast = { ...forecast, projected: pace?.projected || [], expectedFinalPercent: pace?.expectedFinalPercent ?? forecast.actual.at(-1).percent,
       marginPercent: pace ? 100 - pace.expectedFinalPercent : null, projectionUnavailable: !pace && !forecast.forecasts.historical };
@@ -1377,7 +1424,7 @@ function renderQuotaForecast() {
   const planNote = segment.changed ? `<p class="quota-forecast-history-note">${escapeHtml(t("quota.planChanged", {date:new Date(segment.startsAt).toLocaleString(locale())}))}${forecast.provisional ? ` · ${escapeHtml(t("quota.provisional"))}` : ""}</p>` : "";
   const historyNote = planNote + `<p class="quota-forecast-history-note">${escapeHtml(t(forecast.historySource === "observed" ? "dated.measuredHistoryNote" : "dated.estimatedHistoryNote"))}</p>`;
   if (!current || forecast.projectionUnavailable) {
-    summary.innerHTML = historyNote + (forecast.projectionUnavailable ? `<p class="quota-forecast-history-note">${escapeHtml(t(forecast.reason ? "dated.blocked." + forecast.reason : "quota.insufficient"))}</p>` : "");
+    summary.innerHTML = historyNote + (forecast.projectionUnavailable ? `<p class="quota-forecast-history-note">${escapeHtml(t(exhaustedWithBalance ? "credit.quotaExhausted" : forecast.reason ? "dated.blocked." + forecast.reason : "quota.insufficient"))}</p>` : "");
     chart.innerHTML = quotaForecastSvg(forecast);
     bindQuotaForecastHover(chart, forecast);
     return;
