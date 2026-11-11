@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.7.3 — 2026-11-11
+
+- Show the reported Codex credit balance and its observation time next to the weekly quota. Plot credit balances and their net change on a separate scale within the weekly consumption panel.
+- Rebuild credit balance history from recorded sessions and synchronize the observed readings without adding balances across reporting machines. Older hubs continue to accept usage syncs from updated collectors.
+- Flush the Mesh state file to disk before replacing it to improve durability during interruptions.
+
+Docker: `capitaine/codex-usage-dashboard:1.7.3` / `:latest` (dashboard) and `:1.7.3-agent` / `:agent` (headless collector), each for Linux AMD64 and ARM64. Upgrade the receiving hub to display synchronized balances. Keep existing data volumes and Mesh identities when updating containers.
+
 ## 1.7.2 — 2026-11-02
 
 - Retain dated subscription changes through repeated quota merges and recalibrate forecasts and estimated capacity after a change, without counting the adjustment as consumption.

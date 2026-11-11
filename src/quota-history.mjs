@@ -1,5 +1,6 @@
 import { latestResetDeadlineMetadata } from "../public/reset-deadlines.js";
 import { mergeQuotaPlans } from "../public/quota-plans.js";
+import { mergeCreditBalanceHistory } from "../public/credit-balance.js";
 
 export const QUOTA_RESET_CLUSTER_MS = 5 * 60 * 1_000;
 
@@ -76,9 +77,10 @@ export function mergeWeeklyQuotaObservations(values = []) {
     const usedPercent = boundedPercent(latest.usedPercent);
     const peakUsedPercent = boundedPercent(peak?.peakUsedPercent ?? peak?.usedPercent);
     const resetTime = time(latest.resetsAt);
+    const startTime = resetTime - cluster.windowMinutes * 60_000;
     const measured = compactQuotaObservations(chronological.flatMap((item) => item.observations || [item]));
     return {
-      startsAt: new Date(resetTime - cluster.windowMinutes * 60_000).toISOString(),
+      startsAt: new Date(startTime).toISOString(),
       resetsAt: new Date(resetTime).toISOString(),
       windowMinutes: cluster.windowMinutes,
       usedPercent,
@@ -94,8 +96,9 @@ export function mergeWeeklyQuotaObservations(values = []) {
       planType: plan(latest.planType) || planTypes.at(-1) || null,
       ...plans,
       observations: measured,
+      ...mergeCreditBalanceHistory(chronological),
     };
-  }).filter((period) => period.peakUsedPercent > 0 || clusterContainsLatest(period, latestObservation))
+  }).filter((period) => period.peakUsedPercent > 0 || period.creditBalanceObservations?.length || clusterContainsLatest(period, latestObservation))
     .sort((left, right) => time(right.observedAt) - time(left.observedAt));
 
   return periods.map((period) => {

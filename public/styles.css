@@ -680,6 +680,17 @@ body[data-page="quota"] .cost-chart.is-hourly .chart-column:first-child label { 
   font-weight: 600;
 }
 .quota-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.quota-credit-balance { display: flex; align-items: baseline; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.quota-credit-balance strong { display: block; margin-top: 2px; color: var(--accent-active); font-size: clamp(22px, 2.5vw, 32px); }
+.quota-credit-balance small, .quota-credit-heading p { color: var(--subtle); font-size: 11px; }
+.quota-credit-chart { padding: 12px 14px 0; border-top: 1px solid var(--line); }
+.quota-credit-heading { display: flex; align-items: baseline; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding: 0 6px; }
+.quota-credit-heading h3, .quota-credit-heading p { margin: 0; }
+.quota-credit-heading h3 { font-size: 14px; }
+.quota-credit-chart svg { display: block; width: 100%; }
+.quota-credit-chart svg text { fill: var(--subtle); font-size: 11px; }
+.quota-credit-chart svg path { fill: none; stroke: var(--cached); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.quota-credit-chart svg circle { fill: var(--cached); }
 
 .quota-forecast-panel { overflow: hidden; }
 .forecast-heading { min-height: 62px; }

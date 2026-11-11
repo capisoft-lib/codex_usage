@@ -102,7 +102,7 @@ export class UsageStore {
       }
 
       let data = unchanged ? this.cache.data : await this.analyze(this.cache.data);
-      if (this.enrich) data = await this.enrich(data);
+      if (this.enrich) data = await this.enrich(data, this.cache.data);
       const savedAt = new Date().toISOString();
       this.repository.saveUsage(data,currentFingerprint,savedAt);
       this.cache = {

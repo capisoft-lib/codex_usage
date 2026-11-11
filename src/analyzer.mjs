@@ -14,7 +14,7 @@ const EMPTY_USAGE = Object.freeze({
   totalTokens: 0,
 });
 
-export const ANALYZER_VERSION = 13;
+export const ANALYZER_VERSION = 14;
 
 function projectNameFromCwd(value) {
   const name = String(value || "").replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop()?.trim();
@@ -172,7 +172,13 @@ export function normalizeFiveHourQuota(raw, observedAt = null) {
 }
 
 export function normalizeWeeklyQuota(raw, observedAt = null) {
-  return normalizeQuotaWindow(raw, 7 * 24 * 60, observedAt);
+  const quota = normalizeQuotaWindow(raw, 7 * 24 * 60, observedAt);
+  const value = raw?.credits?.balance;
+  const balance = typeof value === "number" || typeof value === "string" && value.trim() ? Number(value) : NaN;
+  if (quota?.observedAt && raw?.credits?.unlimited !== true && Number.isFinite(balance) && balance >= 0) {
+    quota.creditBalanceObservations = [{ observedAt: quota.observedAt, balance }];
+  }
+  return quota;
 }
 
 async function walkJsonl(root) {

@@ -6,7 +6,7 @@
 
 Local Usage turns the Codex session metadata stored on your computer into a fast, privacy-conscious usage dashboard. It can run entirely on one machine, or several machines can send signed, minimized usage snapshots to an optional central dashboard hosted with OpenAI Sites or on your own server.
 
-[**Stable release 1.7.2**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.2) · [Docker image 1.7.2](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
+[**Stable release 1.7.3**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.3) · [Docker image 1.7.3](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
 
 ![Local Usage dashboard showing API-equivalent cost, Codex credits, activity and a project breakdown](docs/screenshots/overview.png)
 
@@ -29,6 +29,8 @@ Setup guides: [deploy the central dashboard with OpenAI Sites](docs/sites-deploy
 The interface is available in French, English, German, Spanish, Italian, Portuguese, Japanese, Russian, and Simplified Chinese. The browser language is used on first visit when supported. Explicit language choices, date preferences, and custom pricing remain in browser storage.
 
 Available Codex reset credits automatically appear under the quota forecast with their account-provided expiry dates in UTC. Each expiry within the current quota period gets a vertical marker and the projected usage at that instant; used or expired credits disappear on refresh. No date needs to be entered. Credits expiring after the displayed period remain listed without extrapolating across the weekly reset.
+
+When Codex reports a finite account credit balance, the weekly quota page shows that balance and its observation time. The consumption panel plots the balance on a separate credit scale using readings from Codex session logs and the local App Server. It shows the net balance change over the observed part of the selected week. Readings can include complimentary and purchased credits in a single balance.
 
 **Target dates → Add a date** also lets you name personal deadlines, such as a project delivery. Dates are entered and displayed in UTC and saved in this browser. Each date within the displayed quota period gets a numbered vertical guide and the corresponding usage estimate. Dates outside that period remain listed; forecasts do not extend across a reset. Targets can be edited or deleted and do not change the quota or simulate a reset.
 
@@ -72,7 +74,7 @@ The same dashboard supports four complementary modes:
 | Headless reporting agent | `npm run start:agent` or the Docker `agent` target | None; no HTTP port | Signed minimized snapshots are sent to the selected hub |
 | Central hub | `sites-hub/` on OpenAI Sites, or `DASHBOARD_MODE=hub` locally | Aggregated web GUI and machine administration | D1 on Sites, or the self-hosted hub store |
 
-Published Docker tags are `capitaine/codex-usage-dashboard:1.7.2` / `:latest` for the dashboard and `:1.7.2-agent` / `:agent` for the headless collector. Both support Linux AMD64 and ARM64. The `1.7.1` dashboard tag remains available for rollback.
+Published Docker tags are `capitaine/codex-usage-dashboard:1.7.3` / `:latest` for the dashboard and `:1.7.3-agent` / `:agent` for the headless collector. Both support Linux AMD64 and ARM64. The `1.7.2` and `1.7.2-agent` tags are the previous release for rollback.
 
 The “agent” in this README is a collector and reporter belonging to this project. It is not an autonomous Codex AI agent: it cannot execute tasks, read arbitrary files, or receive commands from the hub.
 
@@ -197,7 +199,7 @@ The dashboard image runs as a non-root user with all Linux capabilities removed.
 The public Linux AMD64/ARM64 image is:
 
 ```text
-capitaine/codex-usage-dashboard:1.7.2
+capitaine/codex-usage-dashboard:1.7.3
 ```
 
 The 1.0.2 release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.2`.
@@ -206,7 +208,7 @@ On Windows PowerShell:
 
 ```powershell
 $codexData = Join-Path $env:USERPROFILE ".codex"
-$image = "capitaine/codex-usage-dashboard:1.7.2"
+$image = "capitaine/codex-usage-dashboard:1.7.3"
 
 docker pull $image
 docker volume create codex-usage-dashboard-storage
@@ -230,7 +232,7 @@ docker run -d `
 On macOS or Linux:
 
 ```bash
-IMAGE="capitaine/codex-usage-dashboard:1.7.2"
+IMAGE="capitaine/codex-usage-dashboard:1.7.3"
 
 docker pull "$IMAGE"
 docker volume create codex-usage-dashboard-storage

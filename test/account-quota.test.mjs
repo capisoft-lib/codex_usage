@@ -4,6 +4,8 @@ import { spawn } from "node:child_process";
 import { normalizeAccountQuotas, readAccountQuotas, applyAccountQuotas } from "../src/account-quota.mjs";
 import { createUsageCollector } from "../src/usage-collector.mjs";
 import { sanitizeUsageForMesh } from "../src/mesh-privacy.mjs";
+import { validateSyncPayload } from "../src/mesh-protocol.mjs";
+import { normalizeQuotaPeriods } from "../public/quota-periods.js";
 
 const stamp = "2026-09-07T14:00:00.000Z";
 const response = (count) => ({
@@ -49,6 +51,27 @@ test("merges fresh account quotas while retaining older period measurements", ()
   const data = applyAccountQuotas({ weeklyQuotaHistory: [old] }, normalizeAccountQuotas(response(3), stamp));
   assert.equal(data.weeklyQuotaHistory[0].resetsAvailable, 3);
   assert.deepEqual(data.weeklyQuotaHistory[0].observations.map(q => q.usedPercent), [5, 6]);
+});
+
+test("keeps reported credit balances through refreshes, quota history and Mesh validation", () => {
+  const read = (value, observedAt) => {
+    const raw = response(1);
+    raw.rateLimitsByLimitId.codex.credits = { balance: value, unlimited: false, id: "private-credit" };
+    return normalizeAccountQuotas(raw, observedAt);
+  };
+  const older = applyAccountQuotas({ sessions: [] }, read("1250.0000", stamp));
+  const later = "2026-09-07T15:05:00.000Z";
+  const refreshed = applyAccountQuotas({ sessions: [] }, read("940.2500", later), older);
+  const mesh = sanitizeUsageForMesh(refreshed);
+  const points = [{ observedAt: stamp, balance: 1250 }, { observedAt: later, balance: 940.25 }];
+  assert.deepEqual(mesh.quota.creditBalanceObservations, points);
+  assert.deepEqual(normalizeQuotaPeriods({ weeklyQuota: mesh.quota, weeklyQuotaHistory: mesh.quotaHistory })[0].creditBalanceObservations, points);
+  assert.equal(read("0", later).weeklyQuota.creditBalanceObservations[0].balance, 0);
+  assert.equal(read(" ", later).weeklyQuota.creditBalanceObservations, undefined);
+  assert.doesNotMatch(JSON.stringify(mesh), /private-credit/);
+  const payload = { kind: "sync", snapshotVersion: 1, generatedAt: later, privacy: mesh.privacy, quota: mesh.quota, upserts: [], removals: [] };
+  assert.doesNotThrow(() => validateSyncPayload(payload));
+  assert.throws(() => validateSyncPayload({ ...payload, quota: { ...mesh.quota, creditBalanceObservations: [{ ...points[0], id: "private" }] } }), /Quota/);
 });
 
 test("App Server transport reads only limits and exits its child before resolving", async () => {
