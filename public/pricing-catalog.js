@@ -1,9 +1,9 @@
 // Public, offline rate history. Evidence and maintenance: docs/pricing-history.md.
 // Day-only announcements use 00:00 UTC; their boundary day remains estimated.
-export const PRICING_CATALOG_VERSION = "2026-10-27.1";
-export const PRICING_VERIFIED_AT = "2026-10-27";
+export const PRICING_CATALOG_VERSION = "2026-11-17.1";
+export const PRICING_VERIFIED_AT = "2026-11-17";
 export const PRICING_RESEARCHED_FROM = "2025-08-07";
-export const PRICING_REVIEW_AFTER = "2026-11-09";
+export const PRICING_REVIEW_AFTER = "2026-11-30";
 export const PRICING_SOURCES = Object.freeze({
   api: "https://developers.openai.com/api/docs/pricing",
   credits: "https://learn.chatgpt.com/docs/pricing",
@@ -23,6 +23,8 @@ export const PRICING_SOURCES = Object.freeze({
   gpt6Luna: "https://developers.openai.com/api/docs/models/gpt-6-luna",
   gpt61Sol: "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
   gpt61Terra: "https://developers.openai.com/api/docs/models/gpt-6.1-terra",
+  gpt62Astra: "https://developers.openai.com/api/docs/models/gpt-6.2-astra",
+  gpt62Sol: "https://developers.openai.com/api/docs/models/gpt-6.2-sol",
   ultrafast: "https://developers.openai.com/api/docs/guides/ultrafast-mode",
 });
 
@@ -31,7 +33,7 @@ const price = (values) => ({ input: values[0], cached: values[1], output: values
 function add(billing, model, effectiveFrom, values, options = {}) {
   entries.push({
     id: `${billing}:${model}:${effectiveFrom}`, billing, model, effectiveFrom,
-    effectiveTo: null, datePrecision: "day", verifiedAt: PRICING_VERIFIED_AT,
+    effectiveTo: null, datePrecision: "day", verifiedAt: "2026-10-27",
     evidence: "documented", sources: ["api", "changelog"],
     standard: price(values), fastMultiplier: null, fastFrom: null,
     longContextThreshold: null, fastLongContextFrom: null,
@@ -150,6 +152,34 @@ Object.assign(entries.find(entry => entry.billing === "credits" && entry.model =
 Object.assign(entries.find(entry => entry.billing === "credits" && entry.model === "gpt-6.1-sol"), {
   ultrafastMultiplier: 6, subscriptionUltrafastMultiplier: 8, ultrafastFrom: "2026-10-08",
 });
+
+const gpt62Launch = "2026-11-17";
+// The published promotion ends at midnight Pacific Standard Time.
+const gpt62UltrafastListRateFrom = "2027-03-01T08:00:00Z";
+for (const [model, modelSource, apiRates, creditRates] of [
+  ["gpt-6.2-astra", "gpt62Astra", [8, 0.4, 40], [200, 10, 1000]],
+  ["gpt-6.2-sol", "gpt62Sol", [2, 0.1, 10], [50, 2.5, 250]],
+]) {
+  for (const [from, ultrafastMultiplier, datePrecision] of [
+    [gpt62Launch, 3, "day"],
+    [gpt62UltrafastListRateFrom, 6, "instant"],
+  ]) {
+    const speed = {
+      datePrecision, verifiedAt: PRICING_VERIFIED_AT,
+      fastMultiplier: 2, fastFrom: gpt62Launch,
+      ultrafastMultiplier, ultrafastFrom: gpt62Launch,
+    };
+    api(model, from, apiRates, {
+      ...speed, ...long, fastLongContextFrom: gpt62Launch,
+      cacheWriteMultiplier: 1.25, batchMultiplier: 0.5, discountedFrom: gpt62Launch,
+      sources: [modelSource, "api", "changelog"],
+    });
+    credits(model, from, creditRates, {
+      ...speed, subscriptionFastMultiplier: 2, subscriptionUltrafastMultiplier: 6,
+      sources: ["credits", "speed", "codexChangelog"],
+    });
+  }
+}
 
 for (const entry of entries) {
   const next = entries.filter((candidate) => candidate.billing === entry.billing && candidate.model === entry.model && candidate.effectiveFrom > entry.effectiveFrom).sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))[0];

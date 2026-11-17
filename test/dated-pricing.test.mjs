@@ -126,7 +126,8 @@ test("Codex credit changes are dated and do not follow the selected API simulati
 
 test("a promotion minimum end date does not restore older prices", () => {
   assert.equal(apiCostOfCalls([call("gpt-5.6-sol", "2026-11-22")]).cost, 20);
-  assert.equal(catalogStatus("2026-11-22").reviewDue, true);
+  assert.equal(catalogStatus("2026-11-29").reviewDue, false);
+  assert.equal(catalogStatus("2026-11-30").reviewDue, true);
 });
 
 test("current and custom simulations cannot overwrite historical rates", () => {
