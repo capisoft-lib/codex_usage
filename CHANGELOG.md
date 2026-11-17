@@ -2,9 +2,13 @@
 
 ## Unreleased
 
+## 1.7.4 — 2026-11-17
+
 - Add the dated GPT-6.2 Astra and Sol API and Codex credit rates, including the Ultrafast promotion and the separate quota multiplier.
 - Update the Docker runtime to Node.js 22.23.5 and backport the Picomatch fix for CVE-2026-112366 in the Sites build tools.
 - Update the optional desktop helper to Electron 44.11.3, including the revoked certificate block and Chromium security backports.
+
+Docker: `capitaine/codex-usage-dashboard:1.7.4` / `:latest` (dashboard) and `:1.7.4-agent` / `:agent` (headless collector), each for Linux AMD64 and ARM64. Keep existing data volumes and Mesh identities when updating containers. The `1.7.3` and `1.7.3-agent` tags remain available for rollback.
 
 ## 1.7.3 — 2026-11-11
 
