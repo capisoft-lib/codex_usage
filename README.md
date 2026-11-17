@@ -6,7 +6,7 @@
 
 Local Usage turns the Codex session metadata stored on your computer into a fast, privacy-conscious usage dashboard. It can run entirely on one machine, or several machines can send signed, minimized usage snapshots to an optional central dashboard hosted with OpenAI Sites or on your own server.
 
-[**Stable release 1.7.3**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.3) · [Docker image 1.7.3](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
+[**Stable release 1.7.4**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.4) · [Docker image 1.7.4](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
 
 ![Local Usage dashboard showing API-equivalent cost, Codex credits, activity and a project breakdown](docs/screenshots/overview.png)
 
@@ -74,7 +74,7 @@ The same dashboard supports four complementary modes:
 | Headless reporting agent | `npm run start:agent` or the Docker `agent` target | None; no HTTP port | Signed minimized snapshots are sent to the selected hub |
 | Central hub | `sites-hub/` on OpenAI Sites, or `DASHBOARD_MODE=hub` locally | Aggregated web GUI and machine administration | D1 on Sites, or the self-hosted hub store |
 
-Published Docker tags are `capitaine/codex-usage-dashboard:1.7.3` / `:latest` for the dashboard and `:1.7.3-agent` / `:agent` for the headless collector. Both support Linux AMD64 and ARM64. The `1.7.2` and `1.7.2-agent` tags are the previous release for rollback.
+Published Docker tags are `capitaine/codex-usage-dashboard:1.7.4` / `:latest` for the dashboard and `:1.7.4-agent` / `:agent` for the headless collector. Both support Linux AMD64 and ARM64. The `1.7.3` and `1.7.3-agent` tags are the previous release for rollback.
 
 The “agent” in this README is a collector and reporter belonging to this project. It is not an autonomous Codex AI agent: it cannot execute tasks, read arbitrary files, or receive commands from the hub.
 
@@ -199,7 +199,7 @@ The dashboard image runs as a non-root user with all Linux capabilities removed.
 The public Linux AMD64/ARM64 image is:
 
 ```text
-capitaine/codex-usage-dashboard:1.7.3
+capitaine/codex-usage-dashboard:1.7.4
 ```
 
 The 1.0.2 release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.2`.
@@ -208,7 +208,7 @@ On Windows PowerShell:
 
 ```powershell
 $codexData = Join-Path $env:USERPROFILE ".codex"
-$image = "capitaine/codex-usage-dashboard:1.7.3"
+$image = "capitaine/codex-usage-dashboard:1.7.4"
 
 docker pull $image
 docker volume create codex-usage-dashboard-storage
@@ -232,7 +232,7 @@ docker run -d `
 On macOS or Linux:
 
 ```bash
-IMAGE="capitaine/codex-usage-dashboard:1.7.3"
+IMAGE="capitaine/codex-usage-dashboard:1.7.4"
 
 docker pull "$IMAGE"
 docker volume create codex-usage-dashboard-storage
