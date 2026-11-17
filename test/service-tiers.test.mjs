@@ -20,6 +20,49 @@ const usage = { inputTokens: 200000, cachedInputTokens: 100000, cacheWriteInputT
 const call = (model = "gpt-6.1-sol", tier = "ultrafast", timestamp = "2026-10-09T12:00:00Z", counters = usage) => ({ model, serviceTier: tier, timestamp, effort: "high", usage: counters });
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
 
+for (const [model, dollars, credits] of [
+  ["gpt-6.2-astra", 1.32, 31],
+  ["gpt-6.2-sol", 0.33, 7.75],
+]) {
+  test(`${model} applies the published API and Codex rates from launch`, () => {
+    const beforeLaunch = call(model, "standard", "2026-11-16T23:59:59Z");
+    const launch = call(model, "standard", "2026-11-17T00:00:00Z");
+    for (const calculate of [apiCostOfCalls, codexCreditsOfCalls]) {
+      assert.equal(calculate([beforeLaunch]).unratedCalls, 1);
+      assert.equal(calculate([launch]).boundaryCalls, 1);
+    }
+    near(apiCostOfCalls([launch]).cost, dollars);
+    near(codexCreditsOfCalls([launch]).credits, credits);
+    near(apiCostOfCalls([{ ...launch, serviceTier: "priority" }]).cost, 2 * dollars);
+    near(apiCostOfCalls([{ ...launch, serviceTier: "batch" }]).cost, dollars / 2);
+    assert.equal(apiCostOfCalls([{ ...launch, serviceTier: "flex" }]).unratedCalls, 1);
+    near(codexCreditsOfCalls([{ ...launch, serviceTier: "fast" }], { billing: "subscription" }).credits, 2 * credits);
+
+    const atThreshold = { ...launch, usage: { ...usage, inputTokens: 272_000 } };
+    const long = { ...atThreshold, usage: { ...atThreshold.usage, inputTokens: 272_001 } };
+    assert.equal(apiCostOfCalls([atThreshold]).longContextCalls, 0);
+    assert.equal(apiCostOfCalls([long]).longContextCalls, 1);
+    near(apiCostOfCalls([{ ...long, serviceTier: "fast" }]).cost, 2 * apiCostOfCalls([long]).cost);
+  });
+
+  test(`${model} Ultrafast switches at midnight Pacific for API and purchased credits`, () => {
+    const before = call(model, "ultrafast", "2027-03-01T07:59:59.999Z");
+    const after = call(model, "ultrafast", "2027-03-01T08:00:00.000Z");
+    near(apiCostOfCalls([before]).cost, 3 * dollars);
+    near(apiCostOfCalls([after]).cost, 6 * dollars);
+    near(codexCreditsOfCalls([before]).credits, 3 * credits);
+    near(codexCreditsOfCalls([after]).credits, 6 * credits);
+    near(codexCreditsOfCalls([before, after], { billing: "subscription" }).credits, 12 * credits);
+
+    const report = createPricingReport([before, after], mergeApiPricing());
+    assert.equal(Object.keys(report.api.usageByRate).length, 2);
+    assert.equal(Object.keys(report.credits.usageByRate).length, 2);
+    const history = pricingHistoryMarkup(key => PRICING_I18N.en[key] || key, model);
+    assert.match(history, /Batch ×0\.5/);
+    assert.doesNotMatch(history, /Batch \/ Flex/);
+  });
+}
+
 for (const [model, apiDate, creditDate, standard] of [
   ["gpt-6-astra", "2026-09-29", "2026-09-30", 1.7],
   ["gpt-6.1-sol", "2026-10-08", "2026-10-08", 0.33],

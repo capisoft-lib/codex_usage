@@ -491,7 +491,7 @@ function rateTiersMarkup(t, rate) {
   return [
     rate.fastMultiplier && `Fast ×${rate.fastMultiplier}<small>${rate.billing === "credits" ? `${t("nav.quota")} ×${rate.subscriptionFastMultiplier || rate.fastMultiplier} · ` : ""}≥ ${rate.fastFrom}</small>${rate.fastVerifiedFrom ? `<small>${t("dated.reconstructed")} &lt; ${rate.fastVerifiedFrom}</small>` : ""}`,
     rate.ultrafastMultiplier && `Ultrafast ×${rate.ultrafastMultiplier}<small>${rate.subscriptionUltrafastMultiplier ? `${t("nav.quota")} ×${rate.subscriptionUltrafastMultiplier} · ` : ""}≥ ${rate.ultrafastFrom}</small>`,
-    rate.batchMultiplier && `Batch / Flex ×${rate.batchMultiplier}<small>≥ ${rate.discountedFrom}</small>`,
+    rate.batchMultiplier && `Batch${rate.flexMultiplier === rate.batchMultiplier ? " / Flex" : ""} ×${rate.batchMultiplier}<small>≥ ${rate.discountedFrom}</small>`,
   ].filter(Boolean).join("<br>") || "—";
 }
 

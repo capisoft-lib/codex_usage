@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add the dated GPT-6.2 Astra and Sol API and Codex credit rates, including the Ultrafast promotion and the separate quota multiplier.
+- Update the Docker runtime to Node.js 22.23.5 and backport the Picomatch fix for CVE-2026-112366 in the Sites build tools.
+- Update the optional desktop helper to Electron 44.11.3, including the revoked certificate block and Chromium security backports.
+
 ## 1.7.3 — 2026-11-11
 
 - Show the reported Codex credit balance and its observation time next to the weekly quota. Plot credit balances and their net change on a separate scale within the weekly consumption panel.

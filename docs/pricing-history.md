@@ -1,8 +1,8 @@
 # Dated OpenAI pricing
 
-Research window: **2025-08-07 to 2026-10-09**, covering more than twelve months.
-Catalog: `public/pricing-catalog.js`, version `2026-10-09.1`.
-Last source review: 2026-10-09 (Europe/Paris). Next routine review: 2026-11-09.
+Research window: **2025-08-07 to 2026-11-17**, covering more than twelve months.
+Catalog: `public/pricing-catalog.js`, version `2026-11-17.1`.
+Last source review: 2026-11-17 (Europe/Paris). Next routine review: 2026-11-30.
 
 ## What the dashboard measures
 
@@ -66,6 +66,14 @@ The GPT-6 Standard rates are unchanged. API usage-tier names (Build/Launch/Grow)
 The [API changelog](https://developers.openai.com/api/docs/changelog) dates the release to October 26. Its [model card](https://developers.openai.com/api/docs/models/gpt-6.1-terra) and [API rate card](https://developers.openai.com/api/docs/pricing) give $1 / $0.05 / $5 per million input / cached input / output, $1.25 per million 30-minute cache writes, Fast at 2x, Batch and Flex at 0.5x, and the 272,000-token long-context rule. The [Codex rate card](https://learn.chatgpt.com/docs/pricing#token-rates) was observed on October 27 at 25 / 1.25 / 125 credits; Fast uses 2x purchased credits and 2.5x included usage. Credit coverage starts on the observation date. Ultrafast remains unsupported for Terra: the [published API guide](https://developers.openai.com/api/docs/guides/ultrafast-mode) lists Astra and Sol 6.1 only. Launch-day estimates use the existing UTC day convention.
 
 The API introduced optional 12-hour cache retention on October 20, priced at 2.5x input. The collector does not record retention duration, so its existing 1.25x cache-write estimate reflects the 30-minute card and cannot establish a 12-hour charge.
+
+### November 17 review: GPT-6.2 Astra and GPT-6.2 Sol
+
+Both models launched on November 17 in the API and Codex. Standard rates per million input / cached input / output tokens are $8 / $0.40 / $40 for Astra and $2 / $0.10 / $10 for Sol. Purchased Codex credits are 200 / 10 / 1,000 and 50 / 2.5 / 250, respectively. The catalog uses the usual UTC day convention for launch-day calls. [API changelog](https://developers.openai.com/api/docs/changelog), [Codex rate card](https://learn.chatgpt.com/docs/pricing#token-rates).
+
+Above 272,000 API input tokens, the full request uses 2x input/cache and 1.5x output. The calculator prices observed cache writes at the 30-minute rate ($10 for Astra and $2.50 for Sol per million written tokens). Fast is 2x for API, credits and included quota. API Batch is 0.5x. Flex has no published GPT-6.2 rate in this review. [API rate card](https://developers.openai.com/api/docs/pricing), [Astra model card](https://developers.openai.com/api/docs/models/gpt-6.2-astra), [Sol model card](https://developers.openai.com/api/docs/models/gpt-6.2-sol).
+
+Ultrafast is 3x for API and purchased credits through February 28, 2027 Pacific time. The 6x list rate takes effect at 08:00 UTC on March 1. Included quota uses 6x throughout. [API rate card](https://developers.openai.com/api/docs/pricing), [Codex speed multipliers](https://learn.chatgpt.com/docs/pricing#speed-multipliers).
 
 ## Evidence, precision and missing history
 
