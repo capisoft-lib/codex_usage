@@ -24,6 +24,9 @@ test("past goals distinguish observed and estimated history", () => {
   assert.deepEqual(forecastGoalValue(forecast, "2026-10-27T08:00:00Z"), { kind: "observed", percent: 25, inRange: true });
   assert.equal(forecastGoalValue({ ...forecast, historySource: "estimated" }, "2026-10-27T08:00:00Z").kind, "estimated");
   assert.equal(forecastGoalValue(forecast, forecast.projected[0].timestamp).kind, "observed");
+  const reported = {...forecast,reportedOnly:true};
+  assert.equal(forecastGoalValue(reported,"2026-10-27T08:00:00Z").kind,"unavailable");
+  assert.equal(forecastGoalValue(reported,forecast.actual[1].timestamp).percent,40);
 });
 
 test("goals never extrapolate across a reset or fill missing forecast/history", () => {
