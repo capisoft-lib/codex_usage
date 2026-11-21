@@ -16,7 +16,8 @@ export async function GET(request: Request) {
     if (raw.length > 64000) return json({error:'Requête trop longue.'},400);
     let parsed;
     try { parsed=JSON.parse(raw); } catch { return json({error:'Filtres invalides.'},400); }
-    const metadata = await quotaMetadataForOwner(owner, parsed?.view === 'overview' && Date.parse(parsed.start) === 0, false);
+    const useCurrentObservations = ['overview', 'projects'].includes(parsed?.view);
+    const metadata = await quotaMetadataForOwner(owner, parsed?.view === 'overview' && Date.parse(parsed.start) === 0, false, useCurrentObservations);
     let builder;
     try { builder = createPageData(metadata, raw); } catch { return json({error:'Filtres invalides.'},400); }
     if (builder.query.view === 'project-groups') {
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
       },false,{...(['conversations','detail','pricing'].includes(q.view)?{model:q.model,node:q.node,folders:q.folders}:{}),aggregate:!['detail','pricing'].includes(q.view),buckets:q.buckets,prepareCache:false});
       if (builder.weekly) await readSessionSlices(db(),owner,new Date(builder.weekly.from).toISOString(),new Date(builder.weekly.to).toISOString(),false,null,(row: {snapshot_json:string;node_id:string;session_id:string})=>{
         builder.addWeekly({...JSON.parse(row.snapshot_json),id:`${row.node_id}:${row.session_id}`,sourceSessionId:row.session_id,nodeId:row.node_id});
-      },false,{aggregate:true,prepareCache:false});
+      },false,{aggregate:true,callBounds:true,prepareCache:false});
       if(q.view === 'conversations') {
         const filters=await readFilters(db(),owner);
         for(const cwd of filters.folders) builder.add({cwd,models:filters.models,calls:[],turns:[]});
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
       // Ingestion and quota updates can advance the revision during a long
       // history read. The completed summaries remain useful, but must never
       // be cached as an exact representation of the starting revision.
-      if((await quotaMetadataForOwner(owner, false, false)).revision !== metadata.revision) {
+      if((await quotaMetadataForOwner(owner, false, false, useCurrentObservations)).revision !== metadata.revision) {
         return Response.json(builder.finish(), {headers: {'Cache-Control':'private, no-store', Vary:headers.Vary}});
       }
     }

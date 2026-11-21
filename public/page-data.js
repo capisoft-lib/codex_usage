@@ -2,7 +2,7 @@ import { conversationTitle } from './conversation-title.js';
 import { apiCostOfCalls, mergeApiPricing } from './api-pricing.js';
 import { codexCreditsOfCalls, usageProfilesOfCalls, compareUsageProfiles } from './usage-pricing.js';
 import { projectIdentity, normalizeProjectGroups, OVERVIEW_PROJECT_LIMIT } from './project-identity.js';
-import { weeklyAllocationWindow } from './project-allocation.js';
+import { projectQuotaWindow, projectQuotaReading } from './project-allocation.js';
 
 export function parsePageQuery(value) {
   const q = typeof value === 'string' ? JSON.parse(value) : value;
@@ -87,8 +87,8 @@ export function createPageData(metadata, query, now = new Date()) {
   const buckets = (q.buckets || []).map(b => ({ ...b, summary: summarize([], q.pricing) }));
   const rawSessions = [];
   const projectCatalog = new Map();
-  const weekly = ['overview', 'projects'].includes(q.view) ? weeklyAllocationWindow(metadata, now) : null;
-  const weeklyAllocation = weekly ? { ...weekly, totalWeight: 0, unratedCalls: 0, projects: {} } : null;
+  const weekly = ['overview', 'projects'].includes(q.view) ? projectQuotaWindow(metadata, q.start, q.end, now) : null;
+  const projectCallBounds = new Map();
   let matched = 0;
   const inRange = timestamp => { const n = Date.parse(timestamp); return n >= q.start && n <= q.end; };
   return {
@@ -96,21 +96,20 @@ export function createPageData(metadata, query, now = new Date()) {
     weekly,
     addWeekly(session) {
       if (!weekly) return;
-      const calls = (session.calls || []).filter(call => {
-        const time = Date.parse(call.timestamp);
-        return time >= weekly.from && time <= weekly.to;
-      });
-      if (!calls.length) return;
-      const key = projectIdentity(session, q.unknownProject || 'No project', q.projectGroups).key;
-      let weight = 0;
-      for (const call of calls) {
-        const count = call._count ?? 1;
-        const priced = codexCreditsOfCalls([{ ...call, usage: call._totals ?? call.usage }], { billing: 'subscription' });
-        weight += priced.credits * (call._totals ? 1 : count);
-        weeklyAllocation.unratedCalls += priced.unratedCalls * count;
+      let [first, last] = session._callBounds || [Infinity, -Infinity];
+      if (!session._callBounds) {
+        for (const call of session.calls || []) {
+          const time = Date.parse(call.timestamp);
+          if (time >= weekly.from && time <= weekly.to) {
+            first = Math.min(first, time);
+            last = Math.max(last, time);
+          }
+        }
       }
-      weeklyAllocation.totalWeight += weight;
-      weeklyAllocation.projects[key] = (weeklyAllocation.projects[key] || 0) + weight;
+      if (!Number.isFinite(first) || !Number.isFinite(last) || first > last) return;
+      const key = projectIdentity(session, q.unknownProject || 'No project', q.projectGroups).key;
+      const previous = projectCallBounds.get(key) || [first, last];
+      projectCallBounds.set(key, [Math.min(previous[0], first), Math.max(previous[1], last)]);
     },
     add(session) {
       if (q.view === 'settings') return;
@@ -170,8 +169,12 @@ export function createPageData(metadata, query, now = new Date()) {
         return { ...data, sessions: rows.slice((page-1)*q.pageSize, page*q.pageSize), pageData: { view: q.view, total, page, pageSize: q.pageSize, filters } };
       }
       const projects = [...groups.values()].sort((a,b) => b.summary.cost.cost - a.summary.cost.cost);
+      const projectQuota = weekly ? { resetsAt: weekly.resetsAt, projects: Object.fromEntries([...projectCallBounds].flatMap(([key, bounds]) => {
+        const reading = projectQuotaReading(weekly.points, bounds);
+        return reading ? [[key, reading]] : [];
+      })) } : null;
       const serializeGroup = g => ({ ...g, paths: [...g.paths], sessions: g.key === q.project ? g.sessions : [], models: [...g.models].map(([model, summary]) => ({model, summary})), cost: g.summary.cost, calls: [] });
-      return { ...data, sessions: q.view === 'overview' ? rows : [], pageData: { view: q.view, totals, matched, projectCount: projects.length, projects: (q.view === 'overview' ? projects.slice(0, OVERVIEW_PROJECT_LIMIT) : projects).map(serializeGroup), weeklyAllocation, buckets, filters } };
+      return { ...data, sessions: q.view === 'overview' ? rows : [], pageData: { view: q.view, totals, matched, projectCount: projects.length, projects: (q.view === 'overview' ? projects.slice(0, OVERVIEW_PROJECT_LIMIT) : projects).map(serializeGroup), projectQuota, buckets, filters } };
     },
   };
 }

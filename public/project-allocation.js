@@ -26,25 +26,36 @@ export function normalizeSubscriptionAmounts(value) {
   return amounts;
 }
 
-export function weeklyAllocationWindow(data, now = new Date()) {
+export function projectQuotaWindow(data, start, end, now = new Date()) {
   const quota = weeklyQuotaPeriods(data, now)[0];
   const reset = Date.parse(quota?.resetsAt);
-  const from = Date.parse(quota?.startsAt);
-  const to = Date.parse(quota?.observedAt);
-  if (!quota || quota.theoretical || !Number.isFinite(from) || !Number.isFinite(to)
-    || !Number.isFinite(reset) || to < from || to > +now || to >= reset || reset <= +now
-    || quotaPlanSegment(quota).changed || !Number.isFinite(quota.usedPercent)
-    || quota.usedPercent < 0 || quota.usedPercent > 100) return null;
-  return { from, to, resetsAt: quota.resetsAt, usedPercent: quota.usedPercent,
-    observedAt: quota.observedAt, plan: subscriptionPlan(quota) };
+  const weekStart = Date.parse(quota?.startsAt);
+  const from = Math.max(weekStart, start);
+  const to = Math.min(reset - 1, end);
+  if (!quota || quota.theoretical || !Number.isFinite(from) || from > to
+    || !Number.isFinite(reset) || reset <= +now || quotaPlanSegment(quota).changed) return null;
+
+  const points = new Map();
+  for (const { observedAt, usedPercent } of [...(quota.observations || []), quota]) {
+    const time = Date.parse(observedAt);
+    if (time >= weekStart && time <= +now && Number.isFinite(usedPercent) && usedPercent >= 0 && usedPercent <= 100)
+      points.set(time, usedPercent);
+  }
+  if (points.size < 2) return null;
+  return { from, to, resetsAt: quota.resetsAt, points: [...points].sort(([a], [b]) => a - b) };
 }
 
-export function projectWeeklyAllocation(allocation, key, amounts, now = Date.now()) {
-  if (!allocation || Date.parse(allocation.resetsAt) <= +now || allocation.unratedCalls > 0
-    || !Number.isFinite(allocation.usedPercent) || !Number.isFinite(allocation.totalWeight)) return null;
-  if (allocation.totalWeight <= 0 && allocation.usedPercent > 0) return null;
-  const projectWeight = allocation.projects?.[key] || 0;
-  const weeklyPercent = allocation.totalWeight > 0 ? projectWeight / allocation.totalWeight * allocation.usedPercent : 0;
-  const amount = weeklySubscriptionAmount(amounts?.[allocation.plan]);
-  return { weeklyPercent, subscriptionCost: amount === null ? null : weeklyPercent / 100 * amount };
+export function projectQuotaReading(points, [firstCall, lastCall]) {
+  const start = points.findLastIndex(([time]) => time < firstCall);
+  const end = points.findIndex(([time]) => time > lastCall);
+  if (start < 0 || end <= start) return null;
+  const [beforeAt, beforePercent] = points[start];
+  const [afterAt, afterPercent] = points[end];
+  const enclosed = points.slice(start, end + 1);
+  if (enclosed.some(([, percent], i) => i > 0 && percent < enclosed[i - 1][1])) return null;
+  const delta = afterPercent - beforePercent;
+  // At 100% the counter can stay saturated. A flat saturated reading gives no bound.
+  if (delta === 0 && beforePercent === 100) return null;
+  return { beforeAt, afterAt, beforePercent, afterPercent, delta,
+    belowResolution: delta === 0 && enclosed.every(([, percent]) => Number.isInteger(percent)) };
 }
