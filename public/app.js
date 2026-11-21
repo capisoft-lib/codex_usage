@@ -640,8 +640,9 @@ function currentProjectQuota() {
 function projectQuotaMarkup(quota, key, showReadings = false) {
   const reading = Date.parse(quota?.resetsAt) > Date.now() ? quota.projects?.[key] : null;
   if (!reading) return showReadings ? `<span class="project-allocation project-subscription">${escapeHtml(t("projects.quotaUnavailable"))}</span>` : "";
-  const label = reading.belowResolution ? t("projects.quotaBelowResolution") : t("projects.quotaAccountChange", { n:forecastPercent(reading.delta) });
-  const formatPercent = n => new Intl.NumberFormat(locale(), {style:"percent", maximumFractionDigits:2}).format(n / 100);
+  const delta = new Intl.NumberFormat(locale(), {maximumFractionDigits:4}).format(reading.delta);
+  const label = reading.belowResolution ? t("projects.quotaBelowResolution") : t("projects.quotaAccountChange", { n:delta });
+  const formatPercent = n => new Intl.NumberFormat(locale(), {style:"percent", maximumFractionDigits:4}).format(n / 100);
   const range = t("projects.quotaReadings", { before:formatPercent(reading.beforePercent), after:formatPercent(reading.afterPercent), start:formatDate(new Date(reading.beforeAt)), end:formatDate(new Date(reading.afterAt)) });
   return `<span class="project-allocation" title="${escapeHtml(range)}"><span class="project-weekly">${escapeHtml(label)}</span>${showReadings ? `<span class="project-subscription">${escapeHtml(range)}</span>` : ""}</span>`;
 }
