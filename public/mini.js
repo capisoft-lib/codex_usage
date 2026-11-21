@@ -52,7 +52,7 @@ function render() {
     const waiting = Boolean(quota?.theoretical || short.expired);
     const remaining = waiting ? null : short.remainingPercent;
     $("[data-remaining]", section).textContent = Number.isFinite(remaining)
-      ? new Intl.NumberFormat(locale(), {style:"percent", maximumFractionDigits:4}).format(remaining / 100) : "—";
+      ? `${new Intl.NumberFormat(locale(), {maximumFractionDigits:4}).format(remaining)}%` : "—";
     $("[data-reset]", section).textContent = timeText(isWeekly ? quota?.resetsAt : short.resetsAt);
     $("[data-countdown]", section).textContent = waiting ? t("waiting") : quotaCountdownText(short.resetsAt, locale()) || "—";
     const observation = quota?.observedAt;
