@@ -150,7 +150,7 @@ async function routeApi(request, response, url) {
     const data = meshHub ? meshHub.metadata() : source === "centralized"
       ? await usageCollector.centralizedUsage(force) : usageCollector.store.repository.metadata();
     const metadata = pageMetadata(data);
-    const safeMetadata = { ...toPublicUsage(metadata), sessionCount: metadata.sessionCount, firstSessionAt: metadata.firstSessionAt };
+    const safeMetadata = { ...toPublicUsage({ ...metadata, weeklyQuota: data.weeklyQuota }), sessionCount: metadata.sessionCount, firstSessionAt: metadata.firstSessionAt };
     let builder;
     try { builder = createPageData(safeMetadata, raw); } catch { sendJson(response, 400, { error: "Filtres invalides." }); return true; }
     const q = builder.query;
@@ -176,8 +176,8 @@ async function routeApi(request, response, url) {
         if (builder.weekly) await readSessionSlices(database,LOCAL_OWNER,new Date(builder.weekly.from).toISOString(),new Date(builder.weekly.to).toISOString(),false,null,row => {
           let session = JSON.parse(row.snapshot_json);
           if(meshHub) session = {...session,id:`${row.node_id}:${row.session_id}`,sourceSessionId:row.session_id,nodeId:row.node_id};
-          builder.addWeekly({...toPublicUsage({sessions:[session]}).sessions[0],calls:session.calls});
-        },false,{aggregate:true,prepareCache:false});
+          builder.addWeekly({...toPublicUsage({sessions:[session]}).sessions[0], _callBounds:session._callBounds});
+        },false,{aggregate:true,callBounds:true,prepareCache:false});
       } else for (const session of data.sessions) {
         const safeSession = toPublicUsage({ sessions: [session] }).sessions[0];
         builder.add(safeSession);

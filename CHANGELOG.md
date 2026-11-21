@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.7.6 — 2026-11-21
+
+- Compare account quota readings before and after each project's activity in the selected period. Show unchanged whole-percent readings at their reporting resolution and identify observed increases as account-wide.
+- Distinguish Codex credit equivalents from included quota and keep the weekly subscription base in settings.
+
+Docker: `capitaine/codex-usage-dashboard:1.7.6` / `:latest` and `:1.7.6-agent` / `:agent` for Linux AMD64 and ARM64. Use `1.7.5` and `1.7.5-agent` for rollback.
+
 ## 1.7.5 — 2026-11-21
 
 - Allocate observed weekly quota using subscription weights, including the subscription-specific speed multipliers, through the last quota observation.

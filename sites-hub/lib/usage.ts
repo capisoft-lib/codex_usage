@@ -1,16 +1,16 @@
 import { db } from "./db";
 import { readSessionSlices, migrateLegacySessions } from './session-reader';
-import { normalizeQuotaPeriods } from "../public/dashboard/quota-periods.js";
+import { normalizeQuotaPeriods, sameQuotaReset } from "../public/dashboard/quota-periods.js";
 
 type NodeRow = { id: string; alias: string; enrolled_at: string; last_seen: string | null; revoked_at: string | null; privacy_json: string; short_quota_json: string | null; quota_json: string | null; quota_history_json: string | null; analyzer_version: number; last_generated_at: string | null; last_payload_hash: string | null };
 type SessionRow = { node_id: string; snapshot_json: string };
 
-export async function quotaMetadataForOwner(ownerId: string, includeFirstSession = false, includeQuotaHistory = true) {
+export async function quotaMetadataForOwner(ownerId: string, includeFirstSession = false, includeQuotaHistory = true, includeCurrentObservations = false) {
   const database = db();
   if (includeFirstSession) await migrateLegacySessions(database, ownerId);
   const statements = [
     database.prepare(`SELECT id, alias, enrolled_at, last_seen, revoked_at, privacy_json,
-      ${includeQuotaHistory ? 'short_quota_json, quota_json, quota_history_json' : "CASE WHEN json_valid(short_quota_json) THEN json_remove(short_quota_json,'$.observations') END AS short_quota_json, CASE WHEN json_valid(quota_json) THEN json_remove(quota_json,'$.observations') END AS quota_json, NULL AS quota_history_json"},
+      ${includeQuotaHistory ? 'short_quota_json, quota_json, quota_history_json' : `CASE WHEN json_valid(short_quota_json) THEN json_remove(short_quota_json,'$.observations') END AS short_quota_json, CASE WHEN json_valid(quota_json) THEN ${includeCurrentObservations ? 'quota_json' : "json_remove(quota_json,'$.observations')"} END AS quota_json, NULL AS quota_history_json`},
       analyzer_version, last_generated_at, last_payload_hash FROM mesh_nodes WHERE owner_id = ? ORDER BY alias`).bind(ownerId),
     database.prepare(`SELECT COUNT(*) AS total${includeFirstSession ? ", MIN(s.started_at) AS first_session_at" : ""} FROM mesh_sessions s JOIN mesh_nodes n ON n.id = s.node_id WHERE n.owner_id = ? AND n.revoked_at IS NULL`).bind(ownerId),
     database.prepare("SELECT theme FROM dashboard_preferences WHERE owner_id = ?").bind(ownerId),
@@ -37,7 +37,8 @@ export async function quotaMetadataForOwner(ownerId: string, includeFirstSession
     ? (JSON.parse(node.quota_history_json) as (Record<string, unknown> & {observedAt?:string})[]).map((quota) => ({ ...quota, nodeId: node.id, nodeAlias: node.alias, receivedAt: node.last_seen }))
     : []);
   quotaHistory.sort((a, b) => String(b.observedAt || b.receivedAt).localeCompare(String(a.observedAt || a.receivedAt)));
-  const uniqueQuotaHistory = normalizeQuotaPeriods({ weeklyQuotaHistory: quotaHistory, weeklyQuota: quotas[0] });
+  const currentQuotas = includeCurrentObservations && quotas.length ? quotas.filter(quota => sameQuotaReset(quota.resetsAt, quotas[0].resetsAt)) : [];
+  const uniqueQuotaHistory = normalizeQuotaPeriods({ weeklyQuotaHistory: [...quotaHistory, ...currentQuotas], weeklyQuota: quotas[0] });
   const metadata = {
     theme: preferences?.theme || null,
     apiVersion: 1,

@@ -3,7 +3,7 @@ import { fetchUsage } from './storage-fetch.js';
 import { weeklyQuotaPeriods, shortQuotaDisplay, quotaCountdownText, normalizeTimeFormat, timeFormatOptions } from "./quota-display.js";
 import { quotaMetadata } from "./quota-data.js";
 import { createPageData } from "./page-data.js";
-import { SUBSCRIPTION_AMOUNTS_KEY, normalizeSubscriptionAmounts, subscriptionPlan, weeklySubscriptionAmount, projectWeeklyAllocation } from "./project-allocation.js";
+import { SUBSCRIPTION_AMOUNTS_KEY, normalizeSubscriptionAmounts, subscriptionPlan, weeklySubscriptionAmount } from "./project-allocation.js";
 import { quotaPlanSegment } from "./quota-plans.js";
 import { sameQuotaReset } from "./quota-periods.js";
 import { mergeCreditBalanceHistory } from "./credit-balance.js";
@@ -11,7 +11,7 @@ import { codexCreditsOfCalls as rawCreditsOfCalls, fastMultiplierFor, usageProfi
 import { apiCostOfCalls, apiPriceFor, mergeApiPricing } from "./api-pricing.js";
 import { PRICING_CATALOG } from "./pricing-catalog.js";
 import { PRICING_I18N, createPricingReport, pricingCatalogLabel, pricingHistoryMarkup, pricingDiagnosticsMarkup, serviceTierBadge } from "./pricing-ui.js";
-import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, GROUP_I18N, MIGRATION_I18N, QUOTA_CHANGE_I18N, CREDIT_BALANCE_I18N, resolveLanguage } from "./translations.js";
+import { ADDITIONAL_I18N, LOCALE_TAGS, THEME_I18N, TIME_FORMAT_I18N, GROUP_I18N, MIGRATION_I18N, QUOTA_CHANGE_I18N, CREDIT_BALANCE_I18N, PROJECT_QUOTA_I18N, resolveLanguage } from "./translations.js";
 import { chartDrilldownBuckets, chartDrilldownFilterRange, monthlyChartBuckets, nextChartGranularity, percentageOf, stackedChartSegments } from "./visualization.js";
 import { latestTimestamp as rawLatestTimestamp, normalizeCustomRange, resolveDateRange, resolveWeeklyRange, timestampInRange, toDateTimeLocalValue } from "./date-range.js";
 import { createForecastGoalsController, FORECAST_GOALS_I18N } from "./forecast-goals.js";
@@ -255,6 +255,7 @@ for (const [language, messages] of Object.entries(QUOTA_HEADER_I18N)) Object.ass
 for (const [language, messages] of Object.entries(QUOTA_CHANGE_I18N)) Object.assign(I18N[language], messages);
 
 for (const [language, messages] of Object.entries(CREDIT_BALANCE_I18N)) Object.assign(I18N[language], messages);
+for (const [language, messages] of Object.entries(PROJECT_QUOTA_I18N)) Object.assign(I18N[language], messages);
 
 const MINI_QUOTA_I18N = {
   fr: { "settings.miniQuotaTitle": "Fenêtre de quotas miniature", "settings.miniQuotaCopy": "Choisissez les limites à afficher, puis ouvrez la fenêtre compacte et déplaçable.", "settings.miniQuotaOptions": "Limites de quota visibles", "settings.showFiveHour": "Afficher l’utilisation sur 5 heures", "settings.showWeekly": "Afficher l’utilisation hebdomadaire", "settings.openMiniQuota": "Ouvrir la fenêtre de quotas", "settings.oneQuotaRequired": "Au moins une limite doit rester visible." },
@@ -274,18 +275,18 @@ for (const [language, messages] of Object.entries(TIME_FORMAT_I18N)) Object.assi
 for (const [language, messages] of Object.entries(MIGRATION_I18N)) Object.assign(I18N[language], messages);
 
 for (const [language, messages] of Object.entries(GROUP_I18N)) Object.assign(I18N[language], messages);
-const ALLOCATION_I18N = {
-  es: {"projects.apiShare":"{n}% del coste API","projects.weeklyShare":"≈ {n}% de la cuota semanal","projects.subscriptionCost":"≈ {amount} suscripción/semana","projects.weeklyMissing":"Cuota semanal —","projects.subscriptionMissing":"Suscripción —","projects.allocationHint":"Cuota semanal al {date}: {used}% consumido, repartido según el peso de cada proyecto en la cuota de la suscripción. Suscripción {plan}: {amount}/mes → {weeklyAmount}/semana (× 12 ÷ 52). Importe = proporción semanal × base semanal.","projects.allocationUnavailable":"Estimación no disponible: cuota semanal o tarifas incompletas.","projects.amountMissing":"Introduce el importe de esta suscripción en los ajustes.","subscription.title":"Suscripción mensual","subscription.copy":"El importe mensual se convierte en una base semanal (× 12 ÷ 52). Con 223 $/mes, el 4% semanal ≈ 2,06 $. El importe se guarda por plan en este navegador.","subscription.amount":"Importe mensual (USD)","subscription.saved":"Importe guardado","subscription.storage":"El importe se aplica en esta pestaña; no está disponible el almacenamiento del navegador.","subscription.weeklyLabel":"Cuota semanal estimada","subscription.costLabel":"Prorrata de suscripción"},
-  it: {"projects.apiShare":"{n}% del costo API","projects.weeklyShare":"≈ {n}% della quota settimanale","projects.subscriptionCost":"≈ {amount} abbonamento/settimana","projects.weeklyMissing":"Quota settimanale —","projects.subscriptionMissing":"Abbonamento —","projects.allocationHint":"Quota settimanale al {date}: {used}% utilizzato, ripartito secondo il peso di ciascun progetto nella quota di abbonamento. Abbonamento {plan}: {amount}/mese → {weeklyAmount}/settimana (× 12 ÷ 52). Importo = quota settimanale × base settimanale.","projects.allocationUnavailable":"Stima non disponibile: quota settimanale o tariffe incomplete.","projects.amountMissing":"Inserisci l’importo dell’abbonamento nelle impostazioni.","subscription.title":"Abbonamento mensile","subscription.copy":"L’importo mensile viene convertito in una base settimanale (× 12 ÷ 52). Con 223 $/mese, il 4% settimanale ≈ 2,06 $. L’importo viene salvato per piano in questo browser.","subscription.amount":"Importo mensile (USD)","subscription.saved":"Importo salvato","subscription.storage":"L’importo vale per questa scheda; la memoria del browser non è disponibile.","subscription.weeklyLabel":"Quota settimanale stimata","subscription.costLabel":"Prorata abbonamento"},
-  pt: {"projects.apiShare":"{n}% do custo API","projects.weeklyShare":"≈ {n}% da quota semanal","projects.subscriptionCost":"≈ {amount} subscrição/semana","projects.weeklyMissing":"Quota semanal —","projects.subscriptionMissing":"Subscrição —","projects.allocationHint":"Quota semanal em {date}: {used}% consumido, repartido segundo o peso de cada projeto na quota da subscrição. Subscrição {plan}: {amount}/mês → {weeklyAmount}/semana (× 12 ÷ 52). Montante = proporção semanal × base semanal.","projects.allocationUnavailable":"Estimativa indisponível: quota semanal ou tarifas incompletas.","projects.amountMissing":"Indique o montante da subscrição nas definições.","subscription.title":"Subscrição mensal","subscription.copy":"O montante mensal é convertido numa base semanal (× 12 ÷ 52). Com 223 $/mês, 4% semanal ≈ 2,06 $. O montante é guardado por plano neste navegador.","subscription.amount":"Montante mensal (USD)","subscription.saved":"Montante guardado","subscription.storage":"O montante aplica-se neste separador; o armazenamento do navegador está indisponível.","subscription.weeklyLabel":"Quota semanal estimada","subscription.costLabel":"Proporção da subscrição"},
-  ja: {"projects.apiShare":"API費用の {n}%","projects.weeklyShare":"週間枠の約 {n}%","projects.subscriptionCost":"サブスク配分 約 {amount}/週","projects.weeklyMissing":"週間枠 —","projects.subscriptionMissing":"サブスク配分 —","projects.allocationHint":"{date}時点の週間枠使用率 {used}% を、サブスク枠の使用量に応じてプロジェクトに配分。 {plan} のサブスク: {amount}/月 → {weeklyAmount}/週（× 12 ÷ 52）。金額 = 週間枠の割合 × 週あたりの基準額。","projects.allocationUnavailable":"週間枠または料金情報が不完全なため推定できません。","projects.amountMissing":"設定でこのサブスクリプション金額を入力してください。","subscription.title":"月額サブスクリプション","subscription.copy":"月額を週あたりの基準額に換算します（× 12 ÷ 52）。月額223ドルで週間枠の4%は約2.06ドルです。プランごとにこのブラウザーに保存されます。","subscription.amount":"月額（USD）","subscription.saved":"金額を保存しました","subscription.storage":"このタブに金額を適用しました。ブラウザーには保存できません。","subscription.weeklyLabel":"週間枠の推定割合","subscription.costLabel":"サブスク配分"},
-  ru: {"projects.apiShare":"{n}% стоимости API","projects.weeklyShare":"≈ {n}% недельной квоты","projects.subscriptionCost":"≈ {amount} подписки/неделю","projects.weeklyMissing":"Недельная квота —","projects.subscriptionMissing":"Подписка —","projects.allocationHint":"На {date} использовано {used}% недельной квоты. Доли проектов рассчитаны по расходу квоты подписки. Подписка {plan}: {amount}/месяц → {weeklyAmount}/неделю (× 12 ÷ 52). Сумма = доля недельной квоты × недельная база.","projects.allocationUnavailable":"Оценка недоступна: неполная недельная квота или тарифы.","projects.amountMissing":"Укажите стоимость этой подписки в настройках.","subscription.title":"Месячная подписка","subscription.copy":"Месячная сумма переводится в недельную базу (× 12 ÷ 52). При 223 $/месяц 4% недельной квоты ≈ 2,06 $. Сумма сохраняется по тарифам в этом браузере.","subscription.amount":"Месячная сумма (USD)","subscription.saved":"Сумма сохранена","subscription.storage":"Сумма действует в этой вкладке; хранилище браузера недоступно.","subscription.weeklyLabel":"Оценка доли недельной квоты","subscription.costLabel":"Доля подписки"},
-  zh: {"projects.apiShare":"API费用占 {n}%","projects.weeklyShare":"约占每周额度的 {n}%","projects.subscriptionCost":"订阅分摊约 {amount}/周","projects.weeklyMissing":"每周额度 —","projects.subscriptionMissing":"订阅分摊 —","projects.allocationHint":"截至 {date} 已使用本周额度的 {used}%，按各项目的订阅额度用量分摊。 {plan} 订阅：{amount}/月 → {weeklyAmount}/周（× 12 ÷ 52）。金额 = 每周额度占比 × 每周基准金额。","projects.allocationUnavailable":"每周额度或价格信息不完整，无法估算。","projects.amountMissing":"请在设置中填写此订阅的金额。","subscription.title":"月度订阅","subscription.copy":"月度金额换算为每周基准金额（× 12 ÷ 52）。每月223美元时，每周额度的4%约为2.06美元。金额按套餐保存在此浏览器中。","subscription.amount":"月度金额（USD）","subscription.saved":"金额已保存","subscription.storage":"金额在此标签页生效，浏览器存储不可用。","subscription.weeklyLabel":"每周额度占比估算","subscription.costLabel":"订阅分摊"},
-  fr: {"projects.apiShare":"{n} % part API","projects.weeklyShare":"≈ {n} % du quota hebdo.","projects.subscriptionCost":"≈ {amount} de l’abonnement","projects.weeklyMissing":"Quota hebdo. —","projects.subscriptionMissing":"Abonnement —","projects.allocationHint":"Au {date}, {used} % du quota hebdomadaire étaient consommés. La part de chaque projet est estimée selon son usage du quota d’abonnement. Abonnement {plan} : {amount}/mois → {weeklyAmount}/semaine (× 12 ÷ 52). Montant = part du weekly × base hebdomadaire.","projects.allocationUnavailable":"Estimation indisponible si le relevé ou les tarifs sont incomplets, ou si le forfait a changé pendant la semaine.","projects.amountMissing":"Renseignez le montant de cet abonnement dans les paramètres.","subscription.title":"Abonnement mensuel","subscription.copy":"Le montant mensuel est ramené à une semaine (× 12 ÷ 52). Avec 223 $/mois, 4 % du weekly ≈ 2,06 $. La base par tier est mémorisée dans ce navigateur.","subscription.amount":"Montant mensuel (USD)","subscription.saved":"Montant enregistré","subscription.storage":"Le montant est appliqué pour cet onglet ; l’enregistrement dans ce navigateur est indisponible.","subscription.weeklyLabel":"Weekly estimé","subscription.costLabel":"Prorata abonnement"},
-  en: {"projects.apiShare":"{n}% API share","projects.weeklyShare":"≈ {n}% of weekly","projects.subscriptionCost":"≈ {amount} subscription/week","projects.weeklyMissing":"Weekly —","projects.subscriptionMissing":"Subscription —","projects.allocationHint":"As of {date}, {used}% of the weekly quota was used. Each project’s share is estimated using subscription quota weights. {plan} subscription: {amount}/month → {weeklyAmount}/week (× 12 ÷ 52). Project amount = weekly share × weekly base.","projects.allocationUnavailable":"Estimate unavailable if quota or pricing data is incomplete, or if the plan changed this week.","projects.amountMissing":"Set this subscription amount in settings.","subscription.title":"Monthly subscription","subscription.copy":"The monthly amount is converted to a weekly base (× 12 ÷ 52). At $223/month, 4% of weekly ≈ $2.06. The amount is saved per tier in this browser.","subscription.amount":"Monthly amount (USD)","subscription.saved":"Amount saved","subscription.storage":"The amount applies in this tab; browser storage is unavailable.","subscription.weeklyLabel":"Estimated weekly","subscription.costLabel":"Subscription allocation"},
-  de: {"projects.apiShare":"{n} % API-Anteil","projects.weeklyShare":"≈ {n} % des Wochenkontingents","projects.subscriptionCost":"≈ {amount} Abo/Woche","projects.weeklyMissing":"Woche —","projects.subscriptionMissing":"Abo —","projects.allocationHint":"Stand {date} sind {used} % des Wochenkontingents verbraucht. Die Projektanteile richten sich nach ihrem Kontingentverbrauch im Abo. Abo {plan}: {amount}/Monat → {weeklyAmount}/Woche (× 12 ÷ 52). Betrag = Wochenanteil × Wochenbasis.","projects.allocationUnavailable":"Schätzung nicht verfügbar: Wochenkontingent oder Tarife unvollständig.","projects.amountMissing":"Abonnementbetrag in den Einstellungen eingeben.","subscription.title":"Monatliches Abonnement","subscription.copy":"Der Monatsbetrag wird auf eine Woche umgerechnet (× 12 ÷ 52). Bei 223 $/Monat entsprechen 4 % des Wochenkontingents etwa 2,06 $. Der Betrag wird pro Tarif in diesem Browser gespeichert.","subscription.amount":"Monatsbetrag (USD)","subscription.saved":"Betrag gespeichert","subscription.storage":"Betrag gilt für diesen Tab; Browserspeicher nicht verfügbar.","subscription.weeklyLabel":"Geschätzter Wochenanteil","subscription.costLabel":"Abo-Anteil"},
+const PROJECT_SETTINGS_I18N = {
+  es: {"projects.apiShare":"{n}% del coste API","subscription.title":"Suscripción mensual","subscription.amount":"Importe mensual (USD)","subscription.saved":"Importe guardado","subscription.storage":"El importe se aplica en esta pestaña; no está disponible el almacenamiento del navegador."},
+  it: {"projects.apiShare":"{n}% del costo API","subscription.title":"Abbonamento mensile","subscription.amount":"Importo mensile (USD)","subscription.saved":"Importo salvato","subscription.storage":"L’importo vale per questa scheda; la memoria del browser non è disponibile."},
+  pt: {"projects.apiShare":"{n}% do custo API","subscription.title":"Subscrição mensal","subscription.amount":"Montante mensal (USD)","subscription.saved":"Montante guardado","subscription.storage":"O montante aplica-se neste separador; o armazenamento do navegador está indisponível."},
+  ja: {"projects.apiShare":"API費用の {n}%","subscription.title":"月額サブスクリプション","subscription.amount":"月額（USD）","subscription.saved":"金額を保存しました","subscription.storage":"このタブに金額を適用しました。ブラウザーには保存できません。"},
+  ru: {"projects.apiShare":"{n}% стоимости API","subscription.title":"Месячная подписка","subscription.amount":"Месячная сумма (USD)","subscription.saved":"Сумма сохранена","subscription.storage":"Сумма действует в этой вкладке; хранилище браузера недоступно."},
+  zh: {"projects.apiShare":"API费用占 {n}%","subscription.title":"月度订阅","subscription.amount":"月度金额（USD）","subscription.saved":"金额已保存","subscription.storage":"金额在此标签页生效，浏览器存储不可用。"},
+  fr: {"projects.apiShare":"{n} % part API","subscription.title":"Abonnement mensuel","subscription.amount":"Montant mensuel (USD)","subscription.saved":"Montant enregistré","subscription.storage":"Le montant est appliqué pour cet onglet ; l’enregistrement dans ce navigateur est indisponible."},
+  en: {"projects.apiShare":"{n}% API share","subscription.title":"Monthly subscription","subscription.amount":"Monthly amount (USD)","subscription.saved":"Amount saved","subscription.storage":"The amount applies in this tab; browser storage is unavailable."},
+  de: {"projects.apiShare":"{n} % API-Anteil","subscription.title":"Monatliches Abonnement","subscription.amount":"Monatsbetrag (USD)","subscription.saved":"Betrag gespeichert","subscription.storage":"Betrag gilt für diesen Tab; Browserspeicher nicht verfügbar."},
 };
-for (const language of Object.keys(I18N)) Object.assign(I18N[language], ALLOCATION_I18N[language] || ALLOCATION_I18N.en);
+for (const language of Object.keys(I18N)) Object.assign(I18N[language], PROJECT_SETTINGS_I18N[language] || PROJECT_SETTINGS_I18N.en);
 function loadProjectGroups() {
   try { return normalizeProjectGroups(JSON.parse(localStorage.getItem("codex-usage-project-groups") || "[]")); }
   catch { return []; }
@@ -622,26 +623,27 @@ function renderSubscriptionSettings() {
   const input = $("#subscriptionAmount");
   if (document.activeElement !== input) input.value = state.subscriptionAmounts[plan] ?? "";
   input.dataset.plan = plan;
+  const weekly = weeklySubscriptionAmount(state.subscriptionAmounts[plan]);
+  $("#subscriptionWeeklyBase").textContent = weekly === null ? t("subscription.baseHint") : t("subscription.weeklyBase", {
+    amount:new Intl.NumberFormat(locale(), {style:"currency", currency:"USD"}).format(weekly),
+  });
 }
 
-function currentProjectAllocation() {
-  if (state.data?.pageOnly) return state.data.pageData?.weeklyAllocation || null;
+function currentProjectQuota() {
+  if (state.data?.pageOnly) return state.data.pageData?.projectQuota || null;
   if (!state.data) return null;
-  const builder = createPageData(state.data, {view:"projects", projectGroups:effectiveProjectGroups(), pricing:state.pricing});
+  const builder = createPageData(state.data, pageQuery("projects"));
   for (const session of state.data.sessions) builder.addWeekly(session);
-  return builder.finish().pageData.weeklyAllocation;
+  return builder.finish().pageData.projectQuota;
 }
 
-function allocationMarkup(allocation, key, showObservation = false) {
-  const value = projectWeeklyAllocation(allocation, key, state.subscriptionAmounts);
-  const amount = state.subscriptionAmounts[allocation?.plan];
-  const money = n => new Intl.NumberFormat(locale(), {style:"currency", currency:"USD", minimumFractionDigits:2, maximumFractionDigits:2}).format(n);
-  const percent = n => new Intl.NumberFormat(locale(), {maximumFractionDigits:n > 0 && n < 0.01 ? 4 : 2}).format(n);
-  const weeklyAmount = weeklySubscriptionAmount(amount);
-  const date = value ? formatDate(new Date(allocation.observedAt)) : null;
-  const hint = value ? t("projects.allocationHint", {date, used:forecastPercent(allocation.usedPercent), plan:quotaPlanLabel(allocation.plan), amount:Number.isFinite(amount) ? money(amount) : "—", weeklyAmount:weeklyAmount === null ? "—" : money(weeklyAmount)}) : t("projects.allocationUnavailable");
-  const observation = showObservation && date ? `<time class="project-subscription" datetime="${escapeHtml(allocation.observedAt)}">${escapeHtml(t("quota.observedAt", { date }))}</time>` : "";
-  return `<span class="project-allocation" title="${escapeHtml(hint)}"><span class="project-weekly">${value ? escapeHtml(t("projects.weeklyShare", {n:percent(value.weeklyPercent)})) : t("projects.weeklyMissing")}</span><span class="project-subscription" ${value && value.subscriptionCost == null ? `title="${escapeHtml(t("projects.amountMissing"))}"` : ""}>${value?.subscriptionCost == null ? t("projects.subscriptionMissing") : escapeHtml(t("projects.subscriptionCost", {amount:money(value.subscriptionCost)}))}</span>${observation}</span>`;
+function projectQuotaMarkup(quota, key, showReadings = false) {
+  const reading = Date.parse(quota?.resetsAt) > Date.now() ? quota.projects?.[key] : null;
+  if (!reading) return showReadings ? `<span class="project-allocation project-subscription">${escapeHtml(t("projects.quotaUnavailable"))}</span>` : "";
+  const label = reading.belowResolution ? t("projects.quotaBelowResolution") : t("projects.quotaAccountChange", { n:forecastPercent(reading.delta) });
+  const formatPercent = n => new Intl.NumberFormat(locale(), {style:"percent", maximumFractionDigits:2}).format(n / 100);
+  const range = t("projects.quotaReadings", { before:formatPercent(reading.beforePercent), after:formatPercent(reading.afterPercent), start:formatDate(new Date(reading.beforeAt)), end:formatDate(new Date(reading.afterAt)) });
+  return `<span class="project-allocation" title="${escapeHtml(range)}"><span class="project-weekly">${escapeHtml(label)}</span>${showReadings ? `<span class="project-subscription">${escapeHtml(range)}</span>` : ""}</span>`;
 }
 
 function loadCustomRange() {
@@ -1453,7 +1455,7 @@ function renderProjectRows(selector, groups, { navigate = false, totalCost = nul
   const target = $(selector);
   if (!target) return;
   const total = totalCost ?? state.data?.pageData?.totals?.cost?.cost ?? groups.reduce((sum, group) => sum + group.cost.cost, 0);
-  const allocation = currentProjectAllocation();
+  const quota = currentProjectQuota();
   const max = Math.max(0.0001, ...groups.map((group) => group.cost.cost));
   if (!groups.length) {
     target.innerHTML = `<div class="project-empty">${t("projects.none")}</div>`;
@@ -1463,7 +1465,7 @@ function renderProjectRows(selector, groups, { navigate = false, totalCost = nul
     const active = isSelectedProject(group);
     const share = total ? group.cost.cost / total * 100 : 0;
     const tokens = sumUsage(group.calls).totalTokens;
-    return `<button class="project-row${active ? " active" : ""}" type="button" data-project-index="${index}" aria-pressed="${active}" aria-label="${escapeHtml(t("projects.filter", { name: group.name }))}"><span class="project-name">${escapeHtml(group.name)}</span><span class="project-value">${formatApiSummary(group.cost)}</span><span class="project-meta">${formatInt(group.sessionCount ?? group.sessions.length)} · ${escapeHtml(t("projects.apiShare", {n:new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(share)}))} · ${formatCompact(tokens)}</span>${allocationMarkup(allocation, group.key)}<progress class="project-bar" max="${max}" value="${group.cost.cost}" aria-label="${escapeHtml(group.name)}"></progress></button>`;
+    return `<button class="project-row${active ? " active" : ""}" type="button" data-project-index="${index}" aria-pressed="${active}" aria-label="${escapeHtml(t("projects.filter", { name: group.name }))}"><span class="project-name">${escapeHtml(group.name)}</span><span class="project-value">${formatApiSummary(group.cost)}</span><span class="project-meta">${formatInt(group.sessionCount ?? group.sessions.length)} · ${escapeHtml(t("projects.apiShare", {n:new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(share)}))} · ${formatCompact(tokens)}</span>${projectQuotaMarkup(quota, group.key)}<progress class="project-bar" max="${max}" value="${group.cost.cost}" aria-label="${escapeHtml(group.name)}"></progress></button>`;
   }).join("");
   $$(`${selector} .project-row`).forEach((row) => row.addEventListener("click", () => {
     selectProject(groups[Number(row.dataset.projectIndex)]);
@@ -1494,10 +1496,10 @@ function renderProjectDetail(group) {
   const modelMarkup = models.map((item) => `<div class="model-row"><div class="model-row-head"><strong>${escapeHtml(item.model)}</strong><span>${formatApiSummary(item.cost)} · ${formatCompact(item.tokens)}</span></div><progress class="project-bar" max="${maxCost}" value="${item.cost.cost}" aria-label="${escapeHtml(item.model)}"></progress></div>`).join("") || `<p class="kpi-meta">${t("projects.none")}</p>`;
   target.innerHTML = `
     <div><p class="eyebrow">${t("projects.label")}</p><h2>${escapeHtml(group.name)}</h2></div>
-    ${allocationMarkup(currentProjectAllocation(), group.key, true)}
+    ${projectQuotaMarkup(currentProjectQuota(), group.key, true)}
     <div class="project-detail-kpis">
       <div class="detail-kpi"><span>${t("table.cost")}</span><strong class="cost">${formatApiSummary(group.cost)}</strong></div>
-      <div class="detail-kpi"><span>${t("kpi.credits")}</span><strong class="credits">${formatCreditSummary(credits)}</strong></div>
+      <div class="detail-kpi"><span>${t("projects.creditEquivalent")}</span><strong class="credits">${formatCreditSummary(credits)}</strong></div>
       <div class="detail-kpi"><span>${t("table.tokens")}</span><strong>${formatCompact(usage.totalTokens)}</strong></div>
     </div>
     <section><h3 class="eyebrow">${t("projects.models")}</h3><div class="model-breakdown">${modelMarkup}</div></section>

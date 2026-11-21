@@ -6,7 +6,7 @@
 
 Local Usage turns the Codex session metadata stored on your computer into a fast, privacy-conscious usage dashboard. It can run entirely on one machine, or several machines can send signed, minimized usage snapshots to an optional central dashboard hosted with OpenAI Sites or on your own server.
 
-[**Stable release 1.7.5**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.5) · [Docker image 1.7.5](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
+[**Stable release 1.7.6**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.6) · [Docker image 1.7.6](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
 
 ![Local Usage dashboard showing API-equivalent cost, Codex credits, activity and a project breakdown](docs/screenshots/overview.png)
 
@@ -74,7 +74,7 @@ The same dashboard supports four complementary modes:
 | Headless reporting agent | `npm run start:agent` or the Docker `agent` target | None; no HTTP port | Signed minimized snapshots are sent to the selected hub |
 | Central hub | `sites-hub/` on OpenAI Sites, or `DASHBOARD_MODE=hub` locally | Aggregated web GUI and machine administration | D1 on Sites, or the self-hosted hub store |
 
-Published Docker tags are `capitaine/codex-usage-dashboard:1.7.5` / `:latest` for the dashboard and `:1.7.5-agent` / `:agent` for the headless collector. Both support Linux AMD64 and ARM64. The `1.7.4` and `1.7.4-agent` tags are the previous release for rollback.
+Published Docker tags are `capitaine/codex-usage-dashboard:1.7.6` / `:latest` for the dashboard and `:1.7.6-agent` / `:agent` for the headless collector. Both support Linux AMD64 and ARM64. The `1.7.5` and `1.7.5-agent` tags are the previous release for rollback.
 
 The “agent” in this README is a collector and reporter belonging to this project. It is not an autonomous Codex AI agent: it cannot execute tasks, read arbitrary files, or receive commands from the hub.
 
@@ -199,7 +199,7 @@ The dashboard image runs as a non-root user with all Linux capabilities removed.
 The public Linux AMD64/ARM64 image is:
 
 ```text
-capitaine/codex-usage-dashboard:1.7.5
+capitaine/codex-usage-dashboard:1.7.6
 ```
 
 The 1.0.2 release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.2`.
@@ -208,7 +208,7 @@ On Windows PowerShell:
 
 ```powershell
 $codexData = Join-Path $env:USERPROFILE ".codex"
-$image = "capitaine/codex-usage-dashboard:1.7.5"
+$image = "capitaine/codex-usage-dashboard:1.7.6"
 
 docker pull $image
 docker volume create codex-usage-dashboard-storage
@@ -232,7 +232,7 @@ docker run -d `
 On macOS or Linux:
 
 ```bash
-IMAGE="capitaine/codex-usage-dashboard:1.7.5"
+IMAGE="capitaine/codex-usage-dashboard:1.7.6"
 
 docker pull "$IMAGE"
 docker volume create codex-usage-dashboard-storage
@@ -538,7 +538,7 @@ Pricing references: [ChatGPT Codex plans and credits](https://learn.chatgpt.com/
 
 The main dollar amount is theoretical API-equivalent cost, not a bill or the subscription price. Observed cache writes are included with their dated rates. Tool fees and unobserved charges remain excluded. Analyzer v8 preserves optional cache-write counters; deploy the receiving hub before updating reporting agents.
 
-Project rows also show an **estimated share of the current weekly quota** and a separate **weekly subscription allocation**. The weekly quota's observed consumption is distributed proportionally to each project's estimated subscription quota consumption from the start of the current weekly window through the last quota observation, across all projects and machines in the selected data source. Search, the top-five overview and the selected activity period do not change this weekly denominator. The subscription amount entered in **Settings** is monthly: its average weekly base is `monthly amount × 12 ÷ 52`, equivalent to approximately 4.33 weeks per month. For example, projects representing 60% and 40% of a week with 10% consumed receive 6% and 4% of the full weekly quota. With $223/month, the weekly base is approximately $51.46, and the project amounts are $3.09 and $2.06. Calculations retain full precision until display. These are allocations, not measured project-level quota or charges. Missing quota, a mid-window plan change, unrated calls or consumed quota without recorded calls leave the estimates unavailable. Monthly amounts are saved per observed tier in this browser; existing saved amounts remain monthly. Pro starts at the user-provided $223/month base; Pro Lite starts at $100/month. You can adjust either amount or enter a monthly amount for another tier.
+Project rows show the account's weekly quota readings before and after activity in the selected period, within the current weekly window. When the reported whole-percent reading stays flat below saturation, the display reports less than 1% at that reporting resolution. An increase describes the account during that interval. Account observations can lag and can include activity outside the dashboard. Codex credit equivalents come from token prices. Settings preserve monthly amounts per plan and show the average weekly subscription base (monthly amount × 12 ÷ 52).
 
 ## Privacy and security
 
