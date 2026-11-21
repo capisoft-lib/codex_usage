@@ -88,7 +88,7 @@ export function createPageData(metadata, query, now = new Date()) {
   const rawSessions = [];
   const projectCatalog = new Map();
   const weekly = ['overview', 'projects'].includes(q.view) ? weeklyAllocationWindow(metadata, now) : null;
-  const weeklyAllocation = weekly ? { ...weekly, totalCost: 0, unratedCalls: 0, projects: {} } : null;
+  const weeklyAllocation = weekly ? { ...weekly, totalWeight: 0, unratedCalls: 0, projects: {} } : null;
   let matched = 0;
   const inRange = timestamp => { const n = Date.parse(timestamp); return n >= q.start && n <= q.end; };
   return {
@@ -102,10 +102,15 @@ export function createPageData(metadata, query, now = new Date()) {
       });
       if (!calls.length) return;
       const key = projectIdentity(session, q.unknownProject || 'No project', q.projectGroups).key;
-      const cost = summarizeCalls(calls).cost;
-      weeklyAllocation.totalCost += cost.cost;
-      weeklyAllocation.unratedCalls += cost.unratedCalls;
-      weeklyAllocation.projects[key] = (weeklyAllocation.projects[key] || 0) + cost.cost;
+      let weight = 0;
+      for (const call of calls) {
+        const count = call._count ?? 1;
+        const priced = codexCreditsOfCalls([{ ...call, usage: call._totals ?? call.usage }], { billing: 'subscription' });
+        weight += priced.credits * (call._totals ? 1 : count);
+        weeklyAllocation.unratedCalls += priced.unratedCalls * count;
+      }
+      weeklyAllocation.totalWeight += weight;
+      weeklyAllocation.projects[key] = (weeklyAllocation.projects[key] || 0) + weight;
     },
     add(session) {
       if (q.view === 'settings') return;

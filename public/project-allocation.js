@@ -1,4 +1,5 @@
 import { weeklyQuotaPeriods } from "./quota-display.js";
+import { quotaPlanSegment } from "./quota-plans.js";
 
 export const SUBSCRIPTION_AMOUNTS_KEY = "codex-usage-subscription-amounts-v1";
 // User-supplied amount, not an official subscription price catalog.
@@ -28,20 +29,22 @@ export function normalizeSubscriptionAmounts(value) {
 export function weeklyAllocationWindow(data, now = new Date()) {
   const quota = weeklyQuotaPeriods(data, now)[0];
   const reset = Date.parse(quota?.resetsAt);
-  const from = Date.parse(quota?.startsAt) || reset - (quota?.windowMinutes || 10080) * 60000;
-  if (!quota || quota.theoretical || !Number.isFinite(from) || from > +now || reset <= +now
-    || !Number.isFinite(reset) || !Number.isFinite(quota.usedPercent)
+  const from = Date.parse(quota?.startsAt);
+  const to = Date.parse(quota?.observedAt);
+  if (!quota || quota.theoretical || !Number.isFinite(from) || !Number.isFinite(to)
+    || !Number.isFinite(reset) || to < from || to > +now || to >= reset || reset <= +now
+    || quotaPlanSegment(quota).changed || !Number.isFinite(quota.usedPercent)
     || quota.usedPercent < 0 || quota.usedPercent > 100) return null;
-  return { from, to: +now, resetsAt: quota.resetsAt, usedPercent: quota.usedPercent,
-    observedAt: quota.observedAt || null, plan: subscriptionPlan(quota) };
+  return { from, to, resetsAt: quota.resetsAt, usedPercent: quota.usedPercent,
+    observedAt: quota.observedAt, plan: subscriptionPlan(quota) };
 }
 
 export function projectWeeklyAllocation(allocation, key, amounts, now = Date.now()) {
   if (!allocation || Date.parse(allocation.resetsAt) <= +now || allocation.unratedCalls > 0
-    || !Number.isFinite(allocation.usedPercent) || !Number.isFinite(allocation.totalCost)) return null;
-  if (allocation.totalCost <= 0 && allocation.usedPercent > 0) return null;
-  const projectCost = allocation.projects?.[key] || 0;
-  const weeklyPercent = allocation.totalCost > 0 ? projectCost / allocation.totalCost * allocation.usedPercent : 0;
+    || !Number.isFinite(allocation.usedPercent) || !Number.isFinite(allocation.totalWeight)) return null;
+  if (allocation.totalWeight <= 0 && allocation.usedPercent > 0) return null;
+  const projectWeight = allocation.projects?.[key] || 0;
+  const weeklyPercent = allocation.totalWeight > 0 ? projectWeight / allocation.totalWeight * allocation.usedPercent : 0;
   const amount = weeklySubscriptionAmount(amounts?.[allocation.plan]);
   return { weeklyPercent, subscriptionCost: amount === null ? null : weeklyPercent / 100 * amount };
 }

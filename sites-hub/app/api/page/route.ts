@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     if (!['settings','detail','pricing'].includes(q.view) && q.end-q.start >= 86400000) {
       await readSessionSlices(db(),owner,Number.isFinite(q.start)?new Date(q.start).toISOString():'0001-01-01',Number.isFinite(q.end)?new Date(q.end).toISOString():'9999-12-31',false,null,()=>{},false,{aggregate:true,prepareOnly:true});
     }
-    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(metadata.revision + raw));
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([metadata.revision, raw, builder.weekly])));
     const etag = `"${Array.from(new Uint8Array(hash), b=>b.toString(16).padStart(2,'0')).join('')}"`;
     const headers = {ETag:etag, 'Cache-Control':'private, no-cache', Vary:'Cookie, OAI-Authenticated-User-Id'};
     if(matchesQuotaEtag(request.headers.get('if-none-match'),etag)) return new Response(null,{status:304,headers});

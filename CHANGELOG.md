@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.7.5 — 2026-11-21
+
+- Allocate observed weekly quota using subscription weights, including the subscription-specific speed multipliers, through the last quota observation.
+- Show the observation time in project details and withhold allocation when the plan changes during the quota window.
+- Keep monthly subscription settings and the calculation of the average weekly base.
+
+Docker: `capitaine/codex-usage-dashboard:1.7.5` / `:latest` (dashboard) and `:1.7.5-agent` / `:agent` (headless collector) for Linux AMD64 and ARM64. Use the `1.7.4` and `1.7.4-agent` tags for rollback.
+
 ## 1.7.4 — 2026-11-17
 
 - Add the dated GPT-6.2 Astra and Sol API and Codex credit rates, including the Ultrafast promotion and the separate quota multiplier.
