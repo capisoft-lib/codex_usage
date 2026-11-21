@@ -157,7 +157,7 @@ async function routeApi(request, response, url) {
     if (database && !['settings','detail','pricing'].includes(q.view) && q.end-q.start >= 86400000) {
       await readSessionSlices(database,LOCAL_OWNER,Number.isFinite(q.start)?new Date(q.start).toISOString():'0001-01-01',Number.isFinite(q.end)?new Date(q.end).toISOString():'9999-12-31',false,null,()=>{},false,{aggregate:true,prepareOnly:true});
     }
-    const etag = `"${createHash("sha256").update(JSON.stringify([data.generatedAt, data.analyzerVersion, data.revision, raw])).digest("hex")}"`;
+    const etag = `"${createHash("sha256").update(JSON.stringify([data.generatedAt, data.analyzerVersion, data.revision, raw, builder.weekly])).digest("hex")}"`;
     response.setHeader("ETag", etag);
     response.setHeader("Cache-Control", "private, no-cache");
     if (matchesQuotaEtag(request.headers["if-none-match"], etag)) { send(response, 304, ""); return true; }

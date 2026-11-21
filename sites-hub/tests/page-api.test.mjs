@@ -4,6 +4,7 @@ import { stripTypeScriptTypes } from "node:module";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { projectWeeklyAllocation } from "../../public/project-allocation.js";
+import { codexCreditsOfCalls } from "../../public/usage-pricing.js";
 
 test("page API aggregates bounded batches, isolates owners, paginates and loads details on demand", async () => {
   const database = new DatabaseSync(":memory:");
@@ -34,7 +35,7 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
     const quota = { startsAt: start, resetsAt: reset, usedPercent: 30, remainingPercent: 70, windowMinutes: 10080, observedAt: now };
     const insertNode = database.prepare("INSERT INTO mesh_nodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     for (const [node, owner, revoked] of [["a", "owner", null], ["b", "other", null], ["c", "owner", now]]) insertNode.run(node, owner, node, start, now, revoked, "{}", null, JSON.stringify(quota), JSON.stringify([quota]), 10, now);
-    const value = { timestamp: now, model: "gpt-5", serviceTier: "default", usage: { inputTokens: 1000, outputTokens: 100 } };
+    const value = { timestamp: now, model: "gpt-6.1-sol", serviceTier: "default", usage: { inputTokens: 1000, outputTokens: 100 } };
     const insertSession = database.prepare("INSERT INTO mesh_sessions VALUES (?, ?, ?)");
     for (let i = 0; i < 501; i++) insertSession.run("a", String(i).padStart(4, "0"), JSON.stringify({ startedAt: "2020-01-01", title: "never-return-this-title", projectName:i<300?"Alpha":"Beta", ...(i<300?{projectGitHubUrl:"https://github.com/example/alpha"}:{}), calls: [{ ...value, timestamp: "2020-01-01T00:00:00Z" }, value], turns: [{ private: "omit" }] }));
     for(let i=0;i<501;i++) insertSession.run("a",String(i).padStart(4,"0")+"-old",JSON.stringify({startedAt:"2020-01-01",models:["old-model"],cwd:"old-project",calls:[{...value,timestamp:"2020-01-01T00:00:00Z"}],turns:[]}));
@@ -68,7 +69,8 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
     const response=await route.GET(request(query));assert.equal(response.status,200);
     const data=await response.json();assert.equal(data.pageData.totals.count,501);assert.equal(data.sessions.length,6);assert.equal(sessionQueries,2);assert.equal(materializedRows,1002);
     assert.equal(data.pageData.weeklyAllocation.usedPercent,30);
-    assert.ok(Math.abs(data.pageData.weeklyAllocation.totalCost-data.pageData.totals.cost.cost)<1e-9);
+    const expectedWeight = 501 * codexCreditsOfCalls([value], { billing: 'subscription' }).credits;
+    assert.ok(Math.abs(data.pageData.weeklyAllocation.totalWeight-expectedWeight)<1e-9);
     assert.equal(Object.keys(data.pageData.weeklyAllocation.projects).length,2);
     assert.ok(!Object.hasOwn(data.pageData.weeklyAllocation.projects,'no-project'));
     for(const [key,count] of [['github:https://github.com/example/alpha',300],['name:beta',201]]) {
@@ -80,7 +82,7 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
     const unchanged=await route.GET(request(query,{"If-None-Match":`W/${response.headers.get("etag")}`}));assert.equal(unchanged.status,304);assert.equal(sessionQueries,2);
     const grouped = await (await route.GET(request({...query,view:'projects',projectGroups:[{id:'all',name:'Both',members:['github:https://github.com/example/alpha','name:beta']}]}))).json();
     assert.deepEqual(Object.keys(grouped.pageData.weeklyAllocation.projects),['group:all']);
-    assert.ok(Math.abs(grouped.pageData.weeklyAllocation.projects['group:all']-grouped.pageData.weeklyAllocation.totalCost)<1e-9);
+    assert.ok(Math.abs(grouped.pageData.weeklyAllocation.projects['group:all']-grouped.pageData.weeklyAllocation.totalWeight)<1e-9);
     const list=await (await route.GET(request({...query,view:"conversations",page:2,pageSize:20}))).json();
     assert.equal(list.sessions.length,20);assert.equal(list.pageData.total,501);assert.equal(list.pageData.page,2);assert.ok(list.pageData.filters.models.includes("old-model"));
     const detail=await (await route.GET(request({...query,view:"detail",id:"a:0001"}))).json();assert.equal(detail.sessions.length,1);assert.equal(detail.sessions[0].calls.length,1);
@@ -98,7 +100,7 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
     const allData = await allResponse.json();
     assert.equal(allData.pageData.totals.count,1503);
     assert.equal(allData.pageData.matched,1002);
-    assert.ok(Math.abs(allData.pageData.weeklyAllocation.totalCost-data.pageData.weeklyAllocation.totalCost)<1e-9);
+    assert.ok(Math.abs(allData.pageData.weeklyAllocation.totalWeight-data.pageData.weeklyAllocation.totalWeight)<1e-9);
     onSessionRead = () => {};
     // Date bounds must track edits and new snapshots, including malformed dates.
     database.prepare("UPDATE mesh_sessions SET snapshot_json=? WHERE node_id='a' AND session_id='0001'").run(JSON.stringify({calls:[{...value,timestamp:'2020-01-01'}, {...value,timestamp:'invalid'}]}));

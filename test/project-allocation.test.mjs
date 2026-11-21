@@ -42,6 +42,28 @@ test("weekly weights ignore the page period, filters and top-five truncation", (
   near(projectWeeklyAllocation(overview.weeklyAllocation,overview.projects[0].key,{pro:223},now).weeklyPercent,1.25);
 });
 
+test("weekly weights use subscription multipliers and stop at the quota observation", () => {
+  const observedAt = "2026-11-20T17:00:00Z";
+  const metadata = {weeklyQuota:{...quota, startsAt:"2026-11-15T12:00:00Z", resetsAt:"2026-11-22T12:00:00Z", observedAt}};
+  const current = new Date("2026-11-21T12:00:00Z");
+  const builder = createPageData(metadata, {view:"projects"}, current);
+  const sol = call(100, observedAt, "gpt-6.2-sol");
+  for (const session of [
+    {projectName:"Standard", calls:[sol]},
+    {projectName:"Ultrafast", calls:[{...sol, serviceTier:"ultrafast", _count:2, _totals:call(200).usage}]},
+    {projectName:"Later", calls:[call(1000, current.toISOString(), "unknown")]},
+  ]) builder.addWeekly(session);
+  const allocation = builder.finish().pageData.weeklyAllocation;
+  const standard = projectWeeklyAllocation(allocation, "name:standard", {pro:223}, current);
+  const ultrafast = projectWeeklyAllocation(allocation, "name:ultrafast", {pro:223}, current);
+  assert.equal(allocation.to, Date.parse(observedAt));
+  assert.equal(allocation.unratedCalls, 0);
+  assert.equal(allocation.projects["name:later"], undefined);
+  near(standard.weeklyPercent, 10 / 13);
+  near(ultrafast.weeklyPercent, 120 / 13);
+  near(standard.subscriptionCost + ultrafast.subscriptionCost, 0.1 * weeklySubscriptionAmount(223));
+});
+
 test("grouped projects, cross-machine sessions and SQL aggregates keep full allocation", () => {
   const projectGroups = [{id:"combined",name:"Combined",members:["name:alpha","name:beta"]}];
   const grouped = build(fixtures,{projectGroups}).weeklyAllocation;
@@ -49,13 +71,14 @@ test("grouped projects, cross-machine sessions and SQL aggregates keep full allo
   const raw = Array.from({length:10},(_,i)=>({id:String(i),nodeId:i%2?"a":"b",projectName:i<6?"Alpha":"Beta",calls:[call(1)]}));
   const aggregated = fixtures.map((s,i)=>({...s,calls:[{...call(1),_count:i===0?6:4,_totals:call(i===0?6:4).usage}]}));
   const rawAllocation = build(raw).weeklyAllocation, aggregateAllocation = build(aggregated).weeklyAllocation;
-  near(rawAllocation.totalCost,aggregateAllocation.totalCost);
+  near(rawAllocation.totalWeight,aggregateAllocation.totalWeight);
   for (const key of Object.keys(rawAllocation.projects)) near(rawAllocation.projects[key],aggregateAllocation.projects[key]);
   assert.equal(rawAllocation.unratedCalls,aggregateAllocation.unratedCalls);
 });
 
 test("missing, expired, theoretical, unrated and empty consumption never invent allocations", () => {
-  for (const weeklyQuota of [null,{...quota,usedPercent:null},{...quota,theoretical:true},{...quota,resetsAt:"2026-10-09T00:00:00Z"}]) {
+  for (const weeklyQuota of [null,{...quota,usedPercent:null},{...quota,theoretical:true},{...quota,resetsAt:"2026-10-09T00:00:00Z"},
+    {...quota,observedAt:null},{...quota,observedAt:"2026-10-12T00:00:00Z"},{...quota,planTypes:["plus","pro"]}]) {
     assert.equal(weeklyAllocationWindow({weeklyQuota},now),null);
     assert.equal(build(fixtures,{}, {weeklyQuota}).weeklyAllocation,null);
   }
@@ -81,7 +104,7 @@ test("saved monthly amounts persist per tier and convert to weekly bases", () =>
 
 test("52 fully consumed weeks allocate exactly 12 monthly subscription payments", () => {
   for (const monthly of [0,25,223,250]) {
-    const allocation = {...build().weeklyAllocation,usedPercent:100,projects:{single:1},totalCost:1};
+    const allocation = {...build().weeklyAllocation,usedPercent:100,projects:{single:1},totalWeight:1};
     const result = projectWeeklyAllocation(allocation,"single",{pro:monthly},now);
     near(result.subscriptionCost*52,monthly*12);
     near(weeklySubscriptionAmount(monthly),result.subscriptionCost);
