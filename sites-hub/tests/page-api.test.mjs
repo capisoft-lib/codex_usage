@@ -35,7 +35,7 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
     const quota = { startsAt: start, resetsAt: reset, usedPercent: 30, remainingPercent: 70, windowMinutes: 10080, observedAt: now };
     const insertNode = database.prepare("INSERT INTO mesh_nodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     for (const [node, owner, revoked] of [["a", "owner", null], ["b", "other", null], ["c", "owner", now]]) insertNode.run(node, owner, node, start, now, revoked, "{}", null, JSON.stringify(quota), JSON.stringify([quota]), 10, now);
-    const value = { timestamp: now, model: "gpt-5", serviceTier: "default", usage: { inputTokens: 1000, outputTokens: 100 } };
+    const value = { timestamp: now, model: "gpt-6.1-sol", serviceTier: "default", usage: { inputTokens: 1000, outputTokens: 100 } };
     const insertSession = database.prepare("INSERT INTO mesh_sessions VALUES (?, ?, ?)");
     for (let i = 0; i < 501; i++) insertSession.run("a", String(i).padStart(4, "0"), JSON.stringify({ startedAt: "2020-01-01", title: "never-return-this-title", projectName:i<300?"Alpha":"Beta", ...(i<300?{projectGitHubUrl:"https://github.com/example/alpha"}:{}), calls: [{ ...value, timestamp: "2020-01-01T00:00:00Z" }, value], turns: [{ private: "omit" }] }));
     for(let i=0;i<501;i++) insertSession.run("a",String(i).padStart(4,"0")+"-old",JSON.stringify({startedAt:"2020-01-01",models:["old-model"],cwd:"old-project",calls:[{...value,timestamp:"2020-01-01T00:00:00Z"}],turns:[]}));
