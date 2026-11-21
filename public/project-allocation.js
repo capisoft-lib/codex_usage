@@ -9,6 +9,12 @@ export function weeklySubscriptionAmount(monthlyAmount) {
   return Number.isFinite(monthlyAmount) && monthlyAmount >= 0 ? monthlyAmount * 12 / 52 : null;
 }
 
+export function projectSubscriptionCost(reading, monthlyAmount) {
+  const base = weeklySubscriptionAmount(monthlyAmount);
+  const percent = reading.belowResolution ? 1 : reading.attributedPercent;
+  return base !== null && Number.isFinite(percent) ? base * percent / 100 : null;
+}
+
 export function subscriptionPlan(quota) {
   if (quota?.planType) return String(quota.planType).trim().toLowerCase();
   const plans = [...new Set((quota?.planTypes?.length ? quota.planTypes : [quota?.planType])
@@ -42,10 +48,24 @@ export function projectQuotaWindow(data, start, end, now = new Date()) {
       points.set(time, usedPercent);
   }
   if (points.size < 2) return null;
-  return { from, to, resetsAt: quota.resetsAt, points: [...points].sort(([a], [b]) => a - b) };
+  const ordered = [...points].sort(([a], [b]) => a - b);
+  return { from, to, resetsAt: quota.resetsAt, plan:subscriptionPlan(quota), points:ordered,
+    scanFrom:ordered.findLast(([time]) => time < from)?.[0] ?? from,
+    scanTo:ordered.find(([time]) => time > to)?.[0] ?? to };
 }
 
-export function projectQuotaReading(points, [firstCall, lastCall]) {
+// Calls at an observation timestamp are recorded with that observation.
+export function quotaObservationInterval(points, time) {
+  let low = 1, high = points.length;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (points[middle][0] < time) low = middle + 1;
+    else high = middle;
+  }
+  return time > points[0][0] && low < points.length ? low : null;
+}
+
+export function projectQuotaReading(points, [firstCall, lastCall], activity, key) {
   const start = points.findLastIndex(([time]) => time < firstCall);
   const end = points.findIndex(([time]) => time > lastCall);
   if (start < 0 || end <= start) return null;
@@ -56,6 +76,11 @@ export function projectQuotaReading(points, [firstCall, lastCall]) {
   const delta = afterPercent - beforePercent;
   // At 100% the counter can stay saturated. A flat saturated reading gives no bound.
   if (delta === 0 && beforePercent === 100) return null;
-  return { beforeAt, afterAt, beforePercent, afterPercent, delta,
+  const attributable = delta > 0 && enclosed.every(([, percent], i) => {
+    if (!i || percent === enclosed[i - 1][1]) return true;
+    const interval = activity.get(start + i);
+    return interval?.key === key && !interval.shared && !interval.outsideSelection;
+  });
+  return { beforeAt, afterAt, beforePercent, afterPercent, delta, attributedPercent:attributable ? delta : null,
     belowResolution: delta === 0 && enclosed.every(([, percent]) => Number.isInteger(percent)) };
 }

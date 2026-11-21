@@ -58,7 +58,7 @@ export async function readSessionSlices(
     ? Date.parse(to)
     : 8640000000000000;
   const range = `(c.timestamp_ms BETWEEN ${lower} AND ${upper}${includeInvalid ? " OR c.timestamp_ms IS NULL" : ""})`;
-  const model = !options.callBounds && options.model && options.model !== "all" ? options.model : null;
+  const model = !options.callTimes && options.model && options.model !== "all" ? options.model : null;
   // Totals plus per-call context bands retain prices, including historical day,
   // fast tiers, long-context bands and cache-write evidence. Invalid usage stays
   // one row per event. Group boundaries also preserve arbitrary graph buckets.
@@ -95,7 +95,7 @@ export async function readSessionSlices(
   const groupedTurn = `json_object('_count',COUNT(*),'startedAt',MAX(t.started_at),'model',t.model,'durationMs',SUM(t.duration_ms))`;
   const now = new Date();
   const cutoff = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  const useRollups = options.aggregate && !options.callBounds && !includeInvalid && options.rollups !== false && database.batch && lower < cutoff && upper-lower >= DAY_MS;
+  const useRollups = options.aggregate && !options.callTimes && !includeInvalid && options.rollups !== false && database.batch && lower < cutoff && upper-lower >= DAY_MS;
   const signature = `v1_${thresholds.join('_')}`;
   let eligible = '';
   if (useRollups) {
@@ -119,8 +119,8 @@ export async function readSessionSlices(
     AND (t.started_ms BETWEEN ${lower} AND ${upper}${includeInvalid ? " OR t.started_ms IS NULL" : ""})
     ${rawOnly('t','t.started_ms')} ${model ? "AND t.model=?" : ""} ${options.aggregate ? "GROUP BY t.model" : ''} ORDER BY sort_ordinal))`;
   const models = `(SELECT json_group_array(model) FROM usage_session_models m WHERE m.node_id=s.node_id AND m.session_id=s.session_id)`;
-  const projection = options.callBounds ? `json_patch(s.snapshot_json,json_object('_callBounds',json((
-    SELECT json_array(MIN(c.timestamp_ms),MAX(c.timestamp_ms)) FROM usage_calls c
+  const projection = options.callTimes ? `json_patch(s.snapshot_json,json_object('_callTimes',json((
+    SELECT json_group_array(DISTINCT c.timestamp_ms) FROM usage_calls c
     WHERE c.node_id=s.node_id AND c.session_id=s.session_id AND ${range}))))` : callsOnly
     ? `json_object('calls',json(${calls}))`
     : `json_patch(s.snapshot_json,json_object('models',json(${models}),'calls',json(${calls}),'turns',json(${turns})))`;
@@ -128,7 +128,7 @@ export async function readSessionSlices(
     cursorSession = "";
   // Summary pages transfer compact aggregates, so use fewer D1 round trips.
   // Raw detail/export reads keep the smaller memory-bounded batches.
-  const batchSize = options.aggregate ? 1024 : 128;
+  const batchSize = options.callTimes ? 512 : options.aggregate ? 1024 : 128;
   for (;;) {
     const values = model ? (callsOnly ? [model] : [model, model]) : [];
     values.push(owner, cursorNode, cursorSession);

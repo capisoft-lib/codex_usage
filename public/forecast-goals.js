@@ -28,8 +28,10 @@ export function forecastGoalValue(forecast, at) {
   if (!Number.isFinite(time) || !Number.isFinite(start) || !Number.isFinite(end)) return { kind: "unavailable", percent: null, inRange: false };
   if (time < start || time > end) return { kind: "outside", percent: null, inRange: false };
   const projected = time > Date.parse(forecast?.actual?.at(-1)?.timestamp);
+  const series = projected ? (forecast?.projected?.length ? forecast.projected : forecast?.forecasts?.historical?.projected) : forecast?.actual;
   const percent = forecast?.status === "ready"
-    ? interpolateForecastPercent(projected ? forecast.projected : forecast.actual, time, { clamp: false }) : null;
+    ? !projected && forecast.reportedOnly ? (series.find(point => Date.parse(point.timestamp) === time)?.percent ?? null)
+      : interpolateForecastPercent(series, time, { clamp: false }) : null;
   const kind = percent === null ? "unavailable" : projected ? "projected" : forecast.historySource === "estimated" ? "estimated" : "observed";
   return { kind, percent, inRange: true };
 }

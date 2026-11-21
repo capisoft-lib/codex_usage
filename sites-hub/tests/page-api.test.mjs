@@ -70,6 +70,7 @@ test("page API aggregates bounded batches, isolates owners, paginates and loads 
     const data=await response.json();assert.equal(data.pageData.totals.count,501);assert.equal(data.sessions.length,6);assert.equal(sessionQueries,2);assert.equal(materializedRows,1002);
     assert.equal(Object.keys(data.pageData.projectQuota.projects).length,2);
     assert.equal(data.pageData.projectQuota.projects['github:https://github.com/example/alpha'].delta,1);
+    assert.equal(data.pageData.projectQuota.projects['github:https://github.com/example/alpha'].attributedPercent,1);
     assert.equal(data.pageData.projectQuota.projects['name:beta'].belowResolution,true);
     assert.equal(data.weeklyQuota.observations,undefined);
     assert.ok(data.sessions.every(s=>s.calls.length===0 && s.turns.length===0));

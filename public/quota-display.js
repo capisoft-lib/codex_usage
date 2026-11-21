@@ -36,9 +36,16 @@ export function shortQuotaDisplay(quota, now = Date.now()) {
   const expired = Number.isFinite(reset) && reset <= Number(now);
   return {
     expired,
-    remainingPercent: !expired && Number.isFinite(quota?.remainingPercent) ? quota.remainingPercent : null,
+    remainingPercent: expired ? null : quotaRemainingPercent(quota),
     resetsAt: !expired && Number.isFinite(reset) ? new Date(reset) : null,
   };
+}
+
+export function quotaRemainingPercent(quota) {
+  if (quota?.theoretical) return null;
+  const valid = value => Number.isFinite(value) && value >= 0 && value <= 100;
+  if (valid(quota?.usedPercent)) return 100 - quota.usedPercent;
+  return valid(quota?.remainingPercent) ? quota.remainingPercent : null;
 }
 
 export function quotaCountdownText(resetAt, locale, now = new Date()) {

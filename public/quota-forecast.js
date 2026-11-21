@@ -336,6 +336,42 @@ export function measuredHistoricalQuotaPace(periods, from, to, planType = null, 
   return coveredHours >= 24 ? { percentPerHour: increase / coveredHours, historyHours: coveredHours } : null;
 }
 
+// The dashboard presents reported samples and extrapolates only measured pace.
+// Keeping the last real timestamp prevents a stale reading becoming a new sample.
+export function buildObservedQuotaForecast({ quota, periods = [], rangeStart, rangeEnd, now = new Date(), current }) {
+  const start = validTime(rangeStart), end = validTime(rangeEnd);
+  if (!quota || start === null || end === null || start >= end) return {status:"unavailable"};
+  const anchor = Math.min(end, +now);
+  const byTime = new Map();
+  for (const point of [...(quota.observations || []), quota]) {
+    const time = validTime(point.observedAt), percent = point.usedPercent;
+    if (time !== null && time >= start && time <= anchor && Number.isFinite(percent) && percent >= 0 && percent <= 100)
+      byTime.set(time, { timestamp:new Date(time).toISOString(), percent });
+  }
+  const actual = [...byTime.entries()].sort(([a], [b]) => a - b).map(([, point]) => point);
+  const last = actual.at(-1);
+  if (!last) return {status:"insufficient"};
+  const segment = quotaPlanSegment(quota);
+  const segmentTime = validTime(segment.startsAt);
+  const recent = segment.changed ? actual.filter(point => validTime(point.timestamp) >= segmentTime) : actual;
+  const latestTime = validTime(last.timestamp);
+  const canProject = current && anchor < end && latestTime <= anchor && anchor - latestTime <= 24 * FORECAST_HOUR_MS && last.percent < 100;
+  const recentPace = canProject ? measuredQuotaPace(recent, anchor) : null;
+  const history = canProject ? measuredHistoricalQuotaPace(periods, anchor - DEFAULT_LOOKBACK_HOURS * FORECAST_HOUR_MS, anchor, quota.planType, quota.nodeId) : null;
+  const projection = (pace) => Number.isFinite(pace?.percentPerHour) ? {
+    ...pace, source:"observations",
+    expectedFinalPercent:last.percent + (end - latestTime) / FORECAST_HOUR_MS * pace.percentPerHour,
+    projected:projectedPoints(latestTime, end, last.percent, pace.percentPerHour),
+  } : null;
+  const currentForecast = projection(recentPace), historical = projection(history);
+  const expectedFinalPercent = currentForecast?.expectedFinalPercent ?? last.percent;
+  return { status:"ready", historySource:"observed", reportedOnly:true, actual, observedAt:last.timestamp,
+    rangeStart:new Date(start).toISOString(), rangeEnd:new Date(end).toISOString(), completed:!current,
+    projected:currentForecast?.projected || [], expectedFinalPercent, marginPercent:100 - expectedFinalPercent,
+    forecasts:{current:currentForecast, historical}, projectionUnavailable:current && !currentForecast && !historical,
+    provisional:segment.changed && latestTime - segmentTime < 24 * FORECAST_HOUR_MS };
+}
+
 // Keep the old EMA fields for consumers of the API; the dashboard displays these
 // two explicitly named, independent projections instead.
 export function buildQuotaForecast(options = {}) {

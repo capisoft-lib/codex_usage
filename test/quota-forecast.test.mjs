@@ -1,6 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildQuotaForecast, estimateQuotaCapacityCredits, exponentialWeightedAverage, FORECAST_HOUR_MS, interpolateForecastPercent, weeklyForecastTicks } from "../public/quota-forecast.js";
+import { buildQuotaForecast, buildObservedQuotaForecast, estimateQuotaCapacityCredits, exponentialWeightedAverage, FORECAST_HOUR_MS, interpolateForecastPercent, weeklyForecastTicks } from "../public/quota-forecast.js";
+
+test("dashboard history ends at the last real reading and projects only a measured pace", () => {
+  const rangeStart = "2026-11-20T00:00:00Z", rangeEnd = "2026-11-27T00:00:00Z";
+  const now = new Date("2026-11-21T10:00:00Z");
+  const quota = {observedAt:"2026-11-21T09:00:00Z",usedPercent:30,
+    observations:[{observedAt:"2026-11-21T07:00:00Z",usedPercent:20}]};
+  const forecast = buildObservedQuotaForecast({quota,rangeStart,rangeEnd,now,current:true});
+  assert.equal(forecast.reportedOnly,true);
+  assert.deepEqual(forecast.actual.map(p=>p.percent),[20,30]);
+  assert.equal(forecast.actual.at(-1).timestamp,"2026-11-21T09:00:00.000Z");
+  assert.equal(forecast.forecasts.current.percentPerHour,5);
+  const single = buildObservedQuotaForecast({quota:{...quota,observations:[]},rangeStart,rangeEnd,now,current:true});
+  assert.equal(single.actual.length,1);
+  assert.deepEqual(single.projected,[]);
+});
 
 test("exponential weighting gives more influence to recent credit consumption", () => {
   const olderSpike = exponentialWeightedAverage([100, 0, 0, 0], 2);

@@ -1,4 +1,4 @@
-import { shortQuotaDisplay, quotaCountdownText } from "../public/quota-display.js";
+import { shortQuotaDisplay, quotaCountdownText, quotaRemainingPercent } from "../public/quota-display.js";
 import { sameQuotaReset } from "../public/quota-periods.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -8,6 +8,7 @@ import { quotaCountdownParts } from "../public/date-range.js";
 
 const source = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 const renderSource = source.slice(source.indexOf("function formatQuotaCountdown("), source.indexOf("function renderQuotaPage("));
+const formatSource = source.slice(source.indexOf("function reportedQuotaPercent("), source.indexOf("function renderQuotaCreditChart("));
 const clockStart = source.indexOf("function syncQuotaClock(");
 const clockSource = source.slice(clockStart, source.indexOf("\nsetInterval(", clockStart));
 const resetTime = Date.parse("2026-08-31T12:00:00.000Z");
@@ -28,7 +29,7 @@ function navigation(quota) {
   const context = vm.createContext({
     Date: ClockDate, Intl, Number, state, quotaCountdownParts, sameQuotaReset,
     shortQuotaDisplay: (quota) => shortQuotaDisplay(quota, now),
-    quotaCountdownText,
+    quotaCountdownText, quotaRemainingPercent,
     clockOptions: (options) => options,
     locale: () => "en-GB", quotaPeriods: () => [weeklyQuota], currentQuotaResetAt: () => new ClockDate(weeklyQuota.resetsAt),
     t: (key, values) => key === "kpi.remaining" ? `${values.n}% remaining` : messages[key] || key,
@@ -37,7 +38,7 @@ function navigation(quota) {
       return [elements.get(selector)];
     },
   });
-  vm.runInContext(renderSource + "\n" + clockSource, context);
+  vm.runInContext(renderSource + "\n" + formatSource + "\n" + clockSource, context);
   return {
     state,
     tick(time) { now = time; vm.runInContext("syncQuotaClock()", context); },

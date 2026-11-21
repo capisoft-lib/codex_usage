@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { shortQuotaDisplay } from "../public/dashboard/quota-display.js";
 
 type Node = { id: string; alias: string; lastSeen: string | null; revokedAt: string | null; privacy: { projectMode: string; includeTitles: boolean } };
 type Session = { nodeId: string; modelCalls?: number; usage?: { totalTokens?: number } };
-type Usage = { nodes: Node[]; sessions: Session[]; weeklyQuota: { remainingPercent?: number | null } | null; generatedAt: string };
+type Usage = { nodes: Node[]; sessions: Session[]; weeklyQuota: { remainingPercent?: number | null; usedPercent?: number | null; resetsAt?: string; observedAt?: string } | null; generatedAt: string };
 
 function relative(value: string | null): string {
   if (!value) return "jamais synchronisée";
@@ -37,6 +38,9 @@ export default function MeshDashboard({ displayName, signOutPath }: { displayNam
     calls: sum.calls + (session.modelCalls || 0),
     tokens: sum.tokens + (session.usage?.totalTokens || 0),
   }), { calls: 0, tokens: 0 }), [usage]);
+  const weeklyQuota = usage?.weeklyQuota;
+  const remaining = shortQuotaDisplay(weeklyQuota).remainingPercent;
+  const observed = Date.parse(weeklyQuota?.observedAt || "");
 
   async function createEnrollment() {
     setError("");
@@ -76,7 +80,7 @@ export default function MeshDashboard({ displayName, signOutPath }: { displayNam
         <article><span>Machines actives</span><strong>{active.length}</strong><small>{usage?.nodes.filter((node) => node.revokedAt).length || 0} révoquée(s)</small></article>
         <article><span>Sessions observées</span><strong>{usage ? usage.sessions.length.toLocaleString("fr-FR") : "—"}</strong><small>Filtrables par machine dans le dashboard</small></article>
         <article><span>Appels modèle</span><strong>{usage ? totals.calls.toLocaleString("fr-FR") : "—"}</strong><small>{usage ? `${totals.tokens.toLocaleString("fr-FR")} tokens` : "Chargement…"}</small></article>
-        <article><span>Quota hebdomadaire restant</span><strong>{usage?.weeklyQuota?.remainingPercent == null ? "—" : `${usage.weeklyQuota.remainingPercent} %`}</strong><small>Dernière observation, jamais une somme</small></article>
+        <article><span>Quota hebdomadaire restant</span><strong>{remaining === null ? "—" : `${remaining.toLocaleString("fr-FR", {maximumFractionDigits:4})} %`}</strong><small>{remaining !== null && Number.isFinite(observed) ? `Relevé du ${new Date(observed).toLocaleString("fr-FR", {dateStyle:"short", timeStyle:"short"})}` : "Dernier relevé du compte"}</small></article>
       </section>
       <section className="mesh-panel">
         <div className="panel-heading"><div><p className="eyebrow">RÉSEAU</p><h2>Machines enrôlées</h2></div><button type="button" onClick={createEnrollment}>Ajouter une machine</button></div>

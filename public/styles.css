@@ -696,6 +696,7 @@ body[data-page="quota"] .cost-chart.is-hourly .chart-column:first-child label { 
 .forecast-heading { min-height: 62px; }
 .forecast-legend { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; white-space: nowrap; }
 .forecast-key { width: 22px; height: 0; margin-left: 7px; border-top: 2px solid var(--accent); }
+.forecast-key.actual { width: 8px; height: 8px; margin-inline: 14px 7px; border: 0; border-radius: 50%; background: var(--accent); }
 .forecast-key.projected { border-color: var(--cached); border-top-style: dashed; }
 .forecast-key.limit { border-color: var(--danger); border-top-style: dotted; }
 .forecast-summary {
@@ -721,7 +722,7 @@ body[data-page="quota"] .cost-chart.is-hourly .chart-column:first-child label { 
 .quota-forecast-svg text { fill: var(--subtle); font-family: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace; font-size: 10px; }
 .quota-axis-grid line { stroke: var(--axis); stroke-width: 1; opacity: .5; vector-effect: non-scaling-stroke; }
 .quota-axis-time line { stroke: var(--axis); stroke-width: 1; opacity: .18; vector-effect: non-scaling-stroke; }
-.quota-actual-line, .quota-projected-line {
+.quota-projected-line {
   fill: none;
   stroke: var(--accent);
   stroke-width: 3;
