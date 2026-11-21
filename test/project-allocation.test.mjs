@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createPageData } from "../public/page-data.js";
-import { normalizeSubscriptionAmounts, subscriptionPlan, weeklySubscriptionAmount, projectQuotaWindow } from "../public/project-allocation.js";
+import { normalizeSubscriptionAmounts, subscriptionPlan, weeklySubscriptionAmount, projectQuotaWindow, projectSubscriptionCost } from "../public/project-allocation.js";
 
 const now = new Date("2026-11-21T20:00:00Z");
 const day = "2026-11-21";
@@ -24,7 +24,7 @@ test("unchanged integer account readings around activity stay below the reportin
   const result = build();
   assert.deepEqual(result.projectQuota.projects["name:alpha"], {
     beforeAt:Date.parse(at("12:33")), afterAt:Date.parse(at("18:44")),
-    beforePercent:75, afterPercent:75, delta:0, belowResolution:true,
+    beforePercent:75, afterPercent:75, delta:0, attributedPercent:null, belowResolution:true,
   });
   assert.equal(result.projectQuota.projects["name:beta"].delta,1);
   assert.equal(result.projectQuota.projects["name:beta"].belowResolution,false);
@@ -38,8 +38,21 @@ test("selected dates, project grouping and compact SQL bounds determine the acti
   const filtered = build([alpha,beta], {start:at("18:00"), end:at("18:45")}).projectQuota.projects;
   assert.deepEqual(Object.keys(filtered),["name:alpha"]);
   assert.equal(filtered["name:alpha"].beforeAt,Date.parse(at("17:45")));
-  const compact = {...alpha, _callBounds:[Date.parse(at("17:31")),Date.parse(at("18:32"))]};
+  const compact = {...alpha, _callTimes:[Date.parse(at("17:31")),Date.parse(at("18:32"))]};
   assert.deepEqual(build([compact]).projectQuota,build([alpha]).projectQuota);
+});
+
+test("a ten-point reading is attributed only when the rise is isolated to the selected project", () => {
+  const later = point("18:44",85);
+  const metered = {...quota,...later,observations:[point("17:00",75),later]};
+  const exclusive = build([alpha],{},metered).projectQuota.projects["name:alpha"];
+  assert.equal(exclusive.attributedPercent,10);
+  assert.equal(projectSubscriptionCost(exclusive,100).toFixed(2),"2.31");
+  const competitor = {...beta,calls:[call("17:10")]};
+  const shared = build([alpha,competitor],{start:at("17:30")},metered).projectQuota.projects["name:alpha"];
+  assert.equal(shared.delta,10);
+  assert.equal(shared.attributedPercent,null);
+  assert.equal(projectSubscriptionCost(shared,100),null);
 });
 
 test("unbracketed, saturated, decreasing and ambiguous readings never claim a sub-percent result", () => {

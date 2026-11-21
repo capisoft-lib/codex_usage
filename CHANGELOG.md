@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.7.7 — 2026-11-21
+
+- Attribute observed weekly quota increases to a project when it is the only project recorded in every contributing interval. Derive the subscription proration from the attributable quota share, or show the reporting threshold for a flat reading.
+- Use the latest account reading for balances. Display only real observations in quota history, and base clearly marked forecasts on measured pace.
+
+Docker: `capitaine/codex-usage-dashboard:1.7.7` / `:latest` and `:1.7.7-agent` / `:agent` for Linux AMD64 and ARM64. Use `1.7.6` and `1.7.6-agent` for rollback.
+
 ## 1.7.6 — 2026-11-21
 
 - Compare account quota readings before and after each project's activity in the selected period. Show unchanged whole-percent readings at their reporting resolution and identify observed increases as account-wide.

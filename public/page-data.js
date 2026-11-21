@@ -2,7 +2,7 @@ import { conversationTitle } from './conversation-title.js';
 import { apiCostOfCalls, mergeApiPricing } from './api-pricing.js';
 import { codexCreditsOfCalls, usageProfilesOfCalls, compareUsageProfiles } from './usage-pricing.js';
 import { projectIdentity, normalizeProjectGroups, OVERVIEW_PROJECT_LIMIT } from './project-identity.js';
-import { projectQuotaWindow, projectQuotaReading } from './project-allocation.js';
+import { projectQuotaWindow, projectQuotaReading, quotaObservationInterval } from './project-allocation.js';
 
 export function parsePageQuery(value) {
   const q = typeof value === 'string' ? JSON.parse(value) : value;
@@ -89,6 +89,7 @@ export function createPageData(metadata, query, now = new Date()) {
   const projectCatalog = new Map();
   const weekly = ['overview', 'projects'].includes(q.view) ? projectQuotaWindow(metadata, q.start, q.end, now) : null;
   const projectCallBounds = new Map();
+  const quotaActivity = new Map();
   let matched = 0;
   const inRange = timestamp => { const n = Date.parse(timestamp); return n >= q.start && n <= q.end; };
   return {
@@ -96,20 +97,25 @@ export function createPageData(metadata, query, now = new Date()) {
     weekly,
     addWeekly(session) {
       if (!weekly) return;
-      let [first, last] = session._callBounds || [Infinity, -Infinity];
-      if (!session._callBounds) {
-        for (const call of session.calls || []) {
-          const time = Date.parse(call.timestamp);
-          if (time >= weekly.from && time <= weekly.to) {
-            first = Math.min(first, time);
-            last = Math.max(last, time);
-          }
+      const key = projectIdentity(session, q.unknownProject || 'No project', q.projectGroups).key;
+      const times = session._callTimes || (session.calls || []).map(call => Date.parse(call.timestamp));
+      const bounds = projectCallBounds.get(key) || [Infinity, -Infinity];
+      for (const time of times) {
+        if (!Number.isFinite(time) || time < weekly.scanFrom || time > weekly.scanTo) continue;
+        const selected = time >= weekly.from && time <= weekly.to;
+        if (selected) {
+          bounds[0] = Math.min(bounds[0], time);
+          bounds[1] = Math.max(bounds[1], time);
+        }
+        const index = quotaObservationInterval(weekly.points, time);
+        if (index !== null) {
+          const interval = quotaActivity.get(index) || { key, shared:false, outsideSelection:false };
+          interval.shared ||= interval.key !== key;
+          interval.outsideSelection ||= !selected;
+          quotaActivity.set(index, interval);
         }
       }
-      if (!Number.isFinite(first) || !Number.isFinite(last) || first > last) return;
-      const key = projectIdentity(session, q.unknownProject || 'No project', q.projectGroups).key;
-      const previous = projectCallBounds.get(key) || [first, last];
-      projectCallBounds.set(key, [Math.min(previous[0], first), Math.max(previous[1], last)]);
+      if (bounds[0] <= bounds[1]) projectCallBounds.set(key, bounds);
     },
     add(session) {
       if (q.view === 'settings') return;
@@ -169,8 +175,8 @@ export function createPageData(metadata, query, now = new Date()) {
         return { ...data, sessions: rows.slice((page-1)*q.pageSize, page*q.pageSize), pageData: { view: q.view, total, page, pageSize: q.pageSize, filters } };
       }
       const projects = [...groups.values()].sort((a,b) => b.summary.cost.cost - a.summary.cost.cost);
-      const projectQuota = weekly ? { resetsAt: weekly.resetsAt, projects: Object.fromEntries([...projectCallBounds].flatMap(([key, bounds]) => {
-        const reading = projectQuotaReading(weekly.points, bounds);
+      const projectQuota = weekly ? { resetsAt: weekly.resetsAt, plan:weekly.plan, projects: Object.fromEntries([...projectCallBounds].flatMap(([key, bounds]) => {
+        const reading = projectQuotaReading(weekly.points, bounds, quotaActivity, key);
         return reading ? [[key, reading]] : [];
       })) } : null;
       const serializeGroup = g => ({ ...g, paths: [...g.paths], sessions: g.key === q.project ? g.sessions : [], models: [...g.models].map(([model, summary]) => ({model, summary})), cost: g.summary.cost, calls: [] });

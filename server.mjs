@@ -173,11 +173,11 @@ async function routeApi(request, response, url) {
           const filters = await readFilters(database,LOCAL_OWNER);
           for(const cwd of filters.folders) builder.add({cwd,models:filters.models,calls:[],turns:[]});
         }
-        if (builder.weekly) await readSessionSlices(database,LOCAL_OWNER,new Date(builder.weekly.from).toISOString(),new Date(builder.weekly.to).toISOString(),false,null,row => {
+        if (builder.weekly) await readSessionSlices(database,LOCAL_OWNER,new Date(builder.weekly.scanFrom).toISOString(),new Date(builder.weekly.scanTo).toISOString(),false,null,row => {
           let session = JSON.parse(row.snapshot_json);
           if(meshHub) session = {...session,id:`${row.node_id}:${row.session_id}`,sourceSessionId:row.session_id,nodeId:row.node_id};
-          builder.addWeekly({...toPublicUsage({sessions:[session]}).sessions[0], _callBounds:session._callBounds});
-        },false,{aggregate:true,callBounds:true,prepareCache:false});
+          builder.addWeekly({...toPublicUsage({sessions:[session]}).sessions[0], _callTimes:session._callTimes});
+        },false,{aggregate:true,callTimes:true,prepareCache:false});
       } else for (const session of data.sessions) {
         const safeSession = toPublicUsage({ sessions: [session] }).sessions[0];
         builder.add(safeSession);

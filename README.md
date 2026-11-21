@@ -6,7 +6,7 @@
 
 Local Usage turns the Codex session metadata stored on your computer into a fast, privacy-conscious usage dashboard. It can run entirely on one machine, or several machines can send signed, minimized usage snapshots to an optional central dashboard hosted with OpenAI Sites or on your own server.
 
-[**Stable release 1.7.6**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.6) · [Docker image 1.7.6](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
+[**Stable release 1.7.7**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.7) · [Docker image 1.7.7](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
 
 ![Local Usage dashboard showing API-equivalent cost, Codex credits, activity and a project breakdown](docs/screenshots/overview.png)
 
@@ -74,7 +74,7 @@ The same dashboard supports four complementary modes:
 | Headless reporting agent | `npm run start:agent` or the Docker `agent` target | None; no HTTP port | Signed minimized snapshots are sent to the selected hub |
 | Central hub | `sites-hub/` on OpenAI Sites, or `DASHBOARD_MODE=hub` locally | Aggregated web GUI and machine administration | D1 on Sites, or the self-hosted hub store |
 
-Published Docker tags are `capitaine/codex-usage-dashboard:1.7.6` / `:latest` for the dashboard and `:1.7.6-agent` / `:agent` for the headless collector. Both support Linux AMD64 and ARM64. The `1.7.5` and `1.7.5-agent` tags are the previous release for rollback.
+Published Docker tags are `capitaine/codex-usage-dashboard:1.7.7` / `:latest` for the dashboard and `:1.7.7-agent` / `:agent` for the headless collector. Both support Linux AMD64 and ARM64. The `1.7.6` and `1.7.6-agent` tags are the previous release for rollback.
 
 The “agent” in this README is a collector and reporter belonging to this project. It is not an autonomous Codex AI agent: it cannot execute tasks, read arbitrary files, or receive commands from the hub.
 
@@ -199,7 +199,7 @@ The dashboard image runs as a non-root user with all Linux capabilities removed.
 The public Linux AMD64/ARM64 image is:
 
 ```text
-capitaine/codex-usage-dashboard:1.7.6
+capitaine/codex-usage-dashboard:1.7.7
 ```
 
 The 1.0.2 release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.2`.
@@ -208,7 +208,7 @@ On Windows PowerShell:
 
 ```powershell
 $codexData = Join-Path $env:USERPROFILE ".codex"
-$image = "capitaine/codex-usage-dashboard:1.7.6"
+$image = "capitaine/codex-usage-dashboard:1.7.7"
 
 docker pull $image
 docker volume create codex-usage-dashboard-storage
@@ -232,7 +232,7 @@ docker run -d `
 On macOS or Linux:
 
 ```bash
-IMAGE="capitaine/codex-usage-dashboard:1.7.6"
+IMAGE="capitaine/codex-usage-dashboard:1.7.7"
 
 docker pull "$IMAGE"
 docker volume create codex-usage-dashboard-storage
@@ -538,7 +538,7 @@ Pricing references: [ChatGPT Codex plans and credits](https://learn.chatgpt.com/
 
 The main dollar amount is theoretical API-equivalent cost, not a bill or the subscription price. Observed cache writes are included with their dated rates. Tool fees and unobserved charges remain excluded. Analyzer v8 preserves optional cache-write counters; deploy the receiving hub before updating reporting agents.
 
-Project rows show the account's weekly quota readings before and after activity in the selected period, within the current weekly window. When the reported whole-percent reading stays flat below saturation, the display reports less than 1% at that reporting resolution. An increase describes the account during that interval. Account observations can lag and can include activity outside the dashboard. Codex credit equivalents come from token prices. Settings preserve monthly amounts per plan and show the average weekly subscription base (monthly amount × 12 ÷ 52).
+Within the current weekly window, project cards compare account quota readings around the selected activity. A rise is attributed when the project is the only recorded activity in every interval where the account counter increased. Shared intervals or missing activity leave the rise at account level. Flat whole-percent readings below saturation show less than 1% at the reporting resolution. The approximate subscription proration uses the attributable percent of the configured weekly base (monthly amount × 12 ÷ 52). Flat readings show the one-point cost threshold. Account readings may lag and cannot identify activity outside the dashboard. Codex credits and API prices are tariff equivalents.
 
 ## Privacy and security
 
