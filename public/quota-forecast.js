@@ -336,8 +336,13 @@ export function measuredHistoricalQuotaPace(periods, from, to, planType = null, 
   return coveredHours >= 24 ? { percentPerHour: increase / coveredHours, historyHours: coveredHours } : null;
 }
 
-// The dashboard presents reported samples and extrapolates only measured pace.
-// Keeping the last real timestamp prevents a stale reading becoming a new sample.
+function quotaWindowRate(used, observed, start, baseline = 0) {
+  const elapsed = (observed - start) / FORECAST_HOUR_MS;
+  const consumed = used - baseline;
+  return elapsed >= 1 && used < 100 && consumed >= 0 ? consumed / elapsed : null;
+}
+
+// The chart keeps the reported history and projects from the last real reading.
 export function buildObservedQuotaForecast({ quota, periods = [], rangeStart, rangeEnd, now = new Date(), current }) {
   const start = validTime(rangeStart), end = validTime(rangeEnd);
   if (!quota || start === null || end === null || start >= end) return {status:"unavailable"};
@@ -353,17 +358,16 @@ export function buildObservedQuotaForecast({ quota, periods = [], rangeStart, ra
   if (!last) return {status:"insufficient"};
   const segment = quotaPlanSegment(quota);
   const segmentTime = validTime(segment.startsAt);
-  const recent = segment.changed ? actual.filter(point => validTime(point.timestamp) >= segmentTime) : actual;
   const latestTime = validTime(last.timestamp);
   const canProject = current && anchor < end && latestTime <= anchor && anchor - latestTime <= 24 * FORECAST_HOUR_MS && last.percent < 100;
-  const recentPace = canProject ? measuredQuotaPace(recent, anchor) : null;
+  const currentRate = canProject ? quotaWindowRate(last.percent, latestTime, segment.changed ? segmentTime : start, segment.baselinePercent ?? 0) : null;
   const history = canProject ? measuredHistoricalQuotaPace(periods, anchor - DEFAULT_LOOKBACK_HOURS * FORECAST_HOUR_MS, anchor, quota.planType, quota.nodeId) : null;
   const projection = (pace) => Number.isFinite(pace?.percentPerHour) ? {
     ...pace, source:"observations",
     expectedFinalPercent:last.percent + (end - latestTime) / FORECAST_HOUR_MS * pace.percentPerHour,
     projected:projectedPoints(latestTime, end, last.percent, pace.percentPerHour),
   } : null;
-  const currentForecast = projection(recentPace), historical = projection(history);
+  const currentForecast = projection({percentPerHour:currentRate}), historical = projection(history);
   const expectedFinalPercent = currentForecast?.expectedFinalPercent ?? last.percent;
   return { status:"ready", historySource:"observed", reportedOnly:true, actual, observedAt:last.timestamp,
     rangeStart:new Date(start).toISOString(), rangeEnd:new Date(end).toISOString(), completed:!current,
@@ -394,9 +398,7 @@ export function buildQuotaForecast(options = {}) {
   const anchor = validTime(result.asOf), end = validTime(options.rangeEnd);
   const used = Number(options.usedPercent);
   const fresh = observed !== null && anchor - observed <= 24 * FORECAST_HOUR_MS;
-  const elapsed = (observed - start) / FORECAST_HOUR_MS;
-  const consumed = used - (options.baselinePercent || 0);
-  const currentRate = fresh && elapsed >= 1 && used < 100 && consumed >= 0 ? consumed / elapsed : null;
+  const currentRate = fresh ? quotaWindowRate(used, observed, start, options.baselinePercent || 0) : null;
   const makeProjection = rate => rate === null || !Number.isFinite(rate) ? null : ({
     percentPerHour: rate, expectedFinalPercent: used + (end - anchor) / FORECAST_HOUR_MS * rate,
     projected: projectedPoints(anchor, end, used, rate),

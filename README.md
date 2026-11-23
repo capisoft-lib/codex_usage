@@ -6,7 +6,7 @@
 
 Local Usage turns the Codex session metadata stored on your computer into a fast, privacy-conscious usage dashboard. It can run entirely on one machine, or several machines can send signed, minimized usage snapshots to an optional central dashboard hosted with OpenAI Sites or on your own server.
 
-[**Stable release 1.7.8**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.8) · [Docker image 1.7.8](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
+[**Stable release 1.7.9**](https://github.com/capisoft-lib/codex_usage/releases/tag/v1.7.9) · [Docker image 1.7.9](https://hub.docker.com/r/capitaine/codex-usage-dashboard) · [AGPL-3.0-or-later](LICENSE) · [Changelog](CHANGELOG.md) · [CI status](https://github.com/capisoft-lib/codex_usage/actions/workflows/ci.yml)
 
 ![Local Usage dashboard showing API-equivalent cost, Codex credits, activity and a project breakdown](docs/screenshots/overview.png)
 
@@ -35,8 +35,8 @@ When Codex reports a finite account credit balance, the weekly quota page shows 
 ### Weekly quota chart behavior
 
 - The activity bars show hourly API-equivalent cost. The forecast chart below uses the percentage of the account's weekly quota consumed. The credit balance has its own chart and units.
-- A solid line connects the observed quota readings across the selected week. Each marker is a reported reading. The line starts at the first reading and ends at the last. A single reading appears as a marker, and a week without readings shows an unavailable state. Chart hover reports the date and value of an actual reading along the observed trace.
-- Dashed projections begin at the latest reported reading for the current week and are marked as approximate. The quota history and project subscription proration use observed data. Project proration requires an attributable quota increase or a reported threshold.
+- The quota and credit balance charts each connect all readings within the selected week, including gaps of more than a day. Each solid line spans the first through last reading and marks only the latest reading. A single quota reading appears as a marker, and a week without readings shows an unavailable state. Quota hover reports the date and value of the nearest actual reading.
+- Dashed projections begin at the latest reported reading for the current week and are marked as approximate. The current projection uses average quota consumption since the reset or the latest plan change. The rolling projection uses historical account readings. Project proration requires an attributable quota increase or a reported threshold.
 - The browser regression check covers the solid line, sparse weekly readings, forecast goals and mobile overflow. Run `node scripts/verify-forecast-goals.mjs --dist` after `npm run build:ui`, with the desktop dependencies and Chrome installed. CI runs this check before the native desktop tests.
 
 **Target dates → Add a date** also lets you name personal deadlines, such as a project delivery. Dates are entered and displayed in UTC and saved in this browser. Each date within the displayed quota period gets a numbered vertical guide and the corresponding usage estimate. Dates outside that period remain listed; forecasts do not extend across a reset. Targets can be edited or deleted and do not change the quota or simulate a reset.
@@ -81,7 +81,7 @@ The same dashboard supports four complementary modes:
 | Headless reporting agent | `npm run start:agent` or the Docker `agent` target | None; no HTTP port | Signed minimized snapshots are sent to the selected hub |
 | Central hub | `sites-hub/` on OpenAI Sites, or `DASHBOARD_MODE=hub` locally | Aggregated web GUI and machine administration | D1 on Sites, or the self-hosted hub store |
 
-Published Docker tags are `capitaine/codex-usage-dashboard:1.7.8` / `:latest` for the dashboard and `:1.7.8-agent` / `:agent` for the headless collector. Both support Linux AMD64 and ARM64. The `1.7.7` and `1.7.7-agent` tags are the previous release for rollback.
+Published Docker tags are `capitaine/codex-usage-dashboard:1.7.9` / `:latest` for the dashboard and `:1.7.9-agent` / `:agent` for the headless collector. Both support Linux AMD64 and ARM64. The `1.7.8` and `1.7.8-agent` tags are the previous release for rollback.
 
 The “agent” in this README is a collector and reporter belonging to this project. It is not an autonomous Codex AI agent: it cannot execute tasks, read arbitrary files, or receive commands from the hub.
 
@@ -206,7 +206,7 @@ The dashboard image runs as a non-root user with all Linux capabilities removed.
 The public Linux AMD64/ARM64 image is:
 
 ```text
-capitaine/codex-usage-dashboard:1.7.8
+capitaine/codex-usage-dashboard:1.7.9
 ```
 
 The 1.0.2 release is also mirrored at `ghcr.io/capisoft-lib/codex-usage-dashboard:1.0.2`.
@@ -215,7 +215,7 @@ On Windows PowerShell:
 
 ```powershell
 $codexData = Join-Path $env:USERPROFILE ".codex"
-$image = "capitaine/codex-usage-dashboard:1.7.8"
+$image = "capitaine/codex-usage-dashboard:1.7.9"
 
 docker pull $image
 docker volume create codex-usage-dashboard-storage
@@ -239,7 +239,7 @@ docker run -d `
 On macOS or Linux:
 
 ```bash
-IMAGE="capitaine/codex-usage-dashboard:1.7.8"
+IMAGE="capitaine/codex-usage-dashboard:1.7.9"
 
 docker pull "$IMAGE"
 docker volume create codex-usage-dashboard-storage

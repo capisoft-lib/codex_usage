@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.7.9 — 2026-11-23
+
+- Connect all weekly quota and credit balance readings within the selected reset window, including multi-day gaps, with a single marker at the latest reading.
+- Restore the orange projection based on the average pace since the weekly reset or the latest plan change. Quota history and project attribution continue to use reported observations.
+
 ## 1.7.8 — 2026-11-23
 
 - Restore the solid line joining reported weekly quota readings and the matching legend on desktop and mobile.
