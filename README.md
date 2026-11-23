@@ -32,6 +32,13 @@ Available Codex reset credits automatically appear under the quota forecast with
 
 When Codex reports a finite account credit balance, the weekly quota page shows that balance and its observation time. The consumption panel plots the balance on a separate credit scale using readings from Codex session logs and the local App Server. It shows the net balance change over the observed part of the selected week. Readings can include complimentary and purchased credits in a single balance.
 
+### Weekly quota chart behavior
+
+- The activity bars show hourly API-equivalent cost. The forecast chart below uses the percentage of the account's weekly quota consumed. The credit balance has its own chart and units.
+- A solid line connects the observed quota readings across the selected week. Each marker is a reported reading. The line starts at the first reading and ends at the last. A single reading appears as a marker, and a week without readings shows an unavailable state. Chart hover reports the date and value of an actual reading along the observed trace.
+- Dashed projections begin at the latest reported reading for the current week and are marked as approximate. The quota history and project subscription proration use observed data. Project proration requires an attributable quota increase or a reported threshold.
+- The browser regression check covers the solid line, sparse weekly readings, forecast goals and mobile overflow. Run `node scripts/verify-forecast-goals.mjs --dist` after `npm run build:ui`, with the desktop dependencies and Chrome installed. CI runs this check before the native desktop tests.
+
 **Target dates → Add a date** also lets you name personal deadlines, such as a project delivery. Dates are entered and displayed in UTC and saved in this browser. Each date within the displayed quota period gets a numbered vertical guide and the corresponding usage estimate. Dates outside that period remain listed; forecasts do not extend across a reset. Targets can be edited or deleted and do not change the quota or simulate a reset.
 
 Choose **Settings → Appearance** for the original green theme or the blue, violet and amber palettes. The choice applies immediately to the dashboard and its charts, persists in this browser and synchronizes across tabs on the same origin. Local and hosted dashboards share the same themes. See [UI themes](docs/ui-themes.md) to add a palette.

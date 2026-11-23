@@ -1228,6 +1228,7 @@ function quotaForecastSvg(forecast) {
     <line class="quota-limit-line" x1="${plot.left}" y1="${limitY}" x2="${width - plot.right}" y2="${limitY}"></line>
     <text class="quota-limit-label" x="${width - plot.right - 4}" y="${limitY - 7}" text-anchor="end">${escapeHtml(t("quota.limit"))}</text>
     ${observedMarker}
+    ${forecast.actual.length > 1 ? `<polyline class="quota-actual-line" points="${polyline(forecast.actual)}"></polyline>` : ""}
     ${forecast.actual.map(point => `<circle class="quota-actual-point" cx="${x(point.timestamp)}" cy="${y(point.percent)}" r="2.5"></circle>`).join("")}
     ${projectedLine}
     ${forecast.forecasts?.historical ? `<polyline class="quota-history-line" points="${polyline(forecast.forecasts.historical.projected)}"><title>${escapeHtml(t("quota.historyPace"))}</title></polyline>` : ""}
