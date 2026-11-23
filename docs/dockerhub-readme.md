@@ -73,7 +73,7 @@ Restore historical usage from Codex's compressed `.jsonl.zst` archives without e
 
 The public image supports Linux AMD64 and ARM64 and runs as a non-root user:
 
-Dashboard tags: `1.7.9`, `latest`. Headless collector tags: `1.7.9-agent`, `agent`. The previous `1.7.7` and `1.7.8-agent` tags are available for rollback.
+Dashboard tags: `1.7.9`, `latest`. Headless collector tags: `1.7.9-agent`, `agent`. The previous `1.7.8` and `1.7.8-agent` tags are available for rollback.
 
 ```text
 capitaine/codex-usage-dashboard:1.7.9
