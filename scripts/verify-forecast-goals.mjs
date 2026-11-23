@@ -139,6 +139,9 @@ try {
     observations: [[4, 75], [4.1, 75], [5.8, 77], [6, 77]].map(([offset, usedPercent]) => ({
       observedAt: iso(start + offset * day), usedPercent,
     })),
+    creditBalanceObservations: [[4, 43000], [6, 41500]].map(([offset, balance]) => ({
+      observedAt: iso(start + offset * day), balance,
+    })),
   };
   await context.addInitScript(key => {
     localStorage.removeItem(key);
@@ -158,15 +161,21 @@ try {
     assert.equal(trace.count, 4);
     assert.ok(Math.abs(trace.first - (62 + (trace.width - 84) * 4 / 7)) < .01);
     assert.ok(Math.abs(trace.last - (62 + (trace.width - 84) * 6 / 7)) < .01);
+    assert.equal(await page.locator(".quota-actual-point").count(), 1);
+    assert.match(await page.locator(".quota-endpoint-label").textContent(), /≈ 90 %/);
+    const balance = page.locator("#quotaCreditChart");
+    assert.match(await balance.locator("path").getAttribute("d"), /^M[\d.,]+ L[\d.,]+$/);
+    assert.equal(await balance.locator("circle").count(), 1);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     const hover = page.locator(".quota-hover-target");
     const bounds = await hover.boundingBox();
     await hover.hover({ position: { x: bounds.width * 4.5 / 7, y: bounds.height / 2 } });
     assert.match(await hover.getAttribute("aria-valuetext"), /75 %/);
     await page.mouse.move(0, 0);
-    await page.locator("#quotaForecastChart").screenshot({ path: path.join(output, name) });
+    const capture = width > 480 ? ".quota-forecast-panel" : "#quotaForecastChart";
+    await page.locator(capture).screenshot({ path: path.join(output, name) });
   }
-  checks.push("Sparse history on desktop and mobile: four readings connected, unobserved days left blank");
+  checks.push("Sparse quota and credit histories on desktop and mobile: continuous lines, one marker each, and the original 90% projection");
   assert.deepEqual(errors, []);
   await writeFile(path.join(output, "result.json"), JSON.stringify({ scenarioTime: now.toISOString(), synthetic: true, source, checks, errors, captures: ["desktop.png", "mobile.png", "sparse-desktop.png", "sparse-mobile.png"] }, null, 2) + "\n");
   console.log(JSON.stringify({ passed: checks.length, checks, errors, output }, null, 2));

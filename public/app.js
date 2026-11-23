@@ -1164,14 +1164,13 @@ function renderQuotaCreditChart(quota, start, end) {
   const dates = ticks.filter((_, index) => width > 480 || index % 2 === (ticks.length - 1) % 2).map(time => `<text x="${x(time)}" y="${height - 12}" text-anchor="middle">${escapeHtml(forecastDateLabel(time))}</text>`).join("");
   const path = points.map((point, index) => {
     const time = Date.parse(point.observedAt);
-    const gap = index === 0 || time - Date.parse(points[index - 1].observedAt) > 24 * 60 * 60_000;
-    return `${gap ? "M" : "L"}${x(time).toFixed(2)},${y(point.balance).toFixed(2)}`;
+    return `${index === 0 ? "M" : "L"}${x(time).toFixed(2)},${y(point.balance).toFixed(2)}`;
   }).join(" ");
-  const dots = points.filter((point, index) => index === points.length - 1 || Date.parse(points[index + 1].observedAt) - Date.parse(point.observedAt) > 24 * 60 * 60_000).map(point => `<circle cx="${x(Date.parse(point.observedAt))}" cy="${y(point.balance)}" r="4"><title>${escapeHtml(`${forecastDateTimeLabel(Date.parse(point.observedAt))} · ${formatCredits(point.balance)}`)}</title></circle>`).join("");
+  const dot = `<circle cx="${x(Date.parse(last.observedAt))}" cy="${y(last.balance)}" r="4"><title>${escapeHtml(`${forecastDateTimeLabel(Date.parse(last.observedAt))} · ${formatCredits(last.balance)}`)}</title></circle>`;
   const delta = new Intl.NumberFormat(locale(), { signDisplay: "exceptZero", maximumFractionDigits: 2 }).format(last.balance - first.balance);
   const summary = points.length > 1 ? t("credit.change", { amount: delta, date: forecastDateLabel(Date.parse(first.observedAt)) }) : forecastDateTimeLabel(Date.parse(last.observedAt));
   chart.innerHTML = `<div class="quota-credit-heading"><h3 id="quotaCreditTitle">${escapeHtml(t("credit.chart"))}</h3><p id="quotaCreditSummary">${escapeHtml(summary)}</p></div>
-    <svg viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="quotaCreditTitle" aria-describedby="quotaCreditSummary">${grid}${dates}<path d="${path}"></path>${dots}</svg>`;
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="quotaCreditTitle" aria-describedby="quotaCreditSummary">${grid}${dates}<path d="${path}"></path>${dot}</svg>`;
 }
 
 function forecastDateLabel(value) {
@@ -1229,7 +1228,6 @@ function quotaForecastSvg(forecast) {
     <text class="quota-limit-label" x="${width - plot.right - 4}" y="${limitY - 7}" text-anchor="end">${escapeHtml(t("quota.limit"))}</text>
     ${observedMarker}
     ${forecast.actual.length > 1 ? `<polyline class="quota-actual-line" points="${polyline(forecast.actual)}"></polyline>` : ""}
-    ${forecast.actual.map(point => `<circle class="quota-actual-point" cx="${x(point.timestamp)}" cy="${y(point.percent)}" r="2.5"></circle>`).join("")}
     ${projectedLine}
     ${forecast.forecasts?.historical ? `<polyline class="quota-history-line" points="${polyline(forecast.forecasts.historical.projected)}"><title>${escapeHtml(t("quota.historyPace"))}</title></polyline>` : ""}
     <circle class="quota-actual-point" cx="${x(actualPoint.timestamp)}" cy="${y(actualPoint.percent)}" r="4"><title>${escapeHtml(`${t("quota.actual")} · ${reportedQuotaPercent(actualPoint.percent)} %`)}</title></circle>
@@ -1421,7 +1419,7 @@ function renderQuotaForecast() {
   const currentPace = forecast.forecasts?.current;
   const historicalPace = forecast.forecasts?.historical;
   const card = (title, pace, hint) => `<article class="forecast-stat forecast-outcome${pace && pace.expectedFinalPercent > 100 ? " is-over" : ""}"><span>${escapeHtml(title)}</span><strong>${pace ? `≈ ${forecastPercent(pace.expectedFinalPercent)} %` : "—"}</strong><small>${escapeHtml(pace ? hint : t("quota.paceUnavailable"))}</small></article>`;
-  summary.innerHTML = card(t(segment.changed ? "quota.sincePlanChange" : "quota.currentPace"), currentPace, t("quota.recentObservedPace"))
+  summary.innerHTML = card(t(segment.changed ? "quota.sincePlanChange" : "quota.currentPace"), currentPace, t("quota.windowAveragePace"))
     + card(t("quota.historyPace"), historicalPace, t("quota.observedHistoricalPace")) + historyNote;
   chart.innerHTML = quotaForecastSvg(forecast);
   bindQuotaForecastHover(chart, forecast);
