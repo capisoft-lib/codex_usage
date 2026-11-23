@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.7.8 — 2026-11-23
+
+- Restore the solid line joining reported weekly quota readings and the matching legend on desktop and mobile.
+- Document the expected chart behavior and verify sparse readings, hover, and mobile layout in browser CI.
+
 ## 1.7.7 — 2026-11-21
 
 - Attribute observed weekly quota increases to a project when it is the only project recorded in every contributing interval. Derive the subscription proration from the attributable quota share, or show the reporting threshold for a flat reading.
