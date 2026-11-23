@@ -24,6 +24,9 @@ jobs:
         run: npm audit --audit-level=low --prefix desktop
       - name: Build shared UI for native smoke test
         run: npm run build:ui
+      - name: Verify rendered quota charts on desktop and mobile
+        timeout-minutes: 2
+        run: node scripts/verify-forecast-goals.mjs --dist
       - name: Validate native window and server lifecycle
         timeout-minutes: 4
         run: npm test --prefix desktop

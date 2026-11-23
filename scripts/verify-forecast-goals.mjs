@@ -14,8 +14,9 @@ const require = createRequire(new URL("../desktop/package.json", import.meta.url
 const { chromium } = require("playwright");
 const root = fileURLToPath(new URL("../", import.meta.url));
 const source = path.join(root, process.argv.includes("--dist") ? "dist/dashboard" : "public");
-const output = path.join(root, ".cache/forecast-goals");
+const output = process.env.QUOTA_BROWSER_QA_OUTPUT || path.join(root, ".cache/forecast-goals");
 const now = new Date("2026-10-27T20:00:00Z"), hour = 3_600_000, day = 24 * hour;
+let fixtureNow = now;
 const iso = time => new Date(time).toISOString();
 const start = Date.parse("2026-10-25T20:00:00Z");
 const quota = (from, to, percent) => ({
@@ -38,7 +39,7 @@ const server = createServer(async (request, response) => {
       let body;
       if (url.pathname === "/api/capabilities") body = { apiVersion: 1, runtime: "local", sources: ["local"], defaultSource: "local", canRefresh: true };
       else if (url.pathname === "/api/page") body = createPageData(data, url.searchParams.get("query")).finish();
-      else if (url.pathname === "/api/quota") body = url.searchParams.has("detail") ? createQuotaDetail(data, url.searchParams.get("period"), now).finish() : quotaMetadata(data);
+      else if (url.pathname === "/api/quota") body = url.searchParams.has("detail") ? createQuotaDetail(data, url.searchParams.get("period"), fixtureNow).finish() : quotaMetadata(data);
       else if (url.pathname === "/api/usage") body = data;
       else { response.writeHead(404).end(); return; }
       response.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" }).end(JSON.stringify(body)); return;
@@ -65,6 +66,11 @@ try {
   const base = `http://127.0.0.1:${server.address().port}`;
   await page.goto(`${base}/#quota`);
   await page.locator(".quota-projected-line").waitFor();
+  const observedLine = page.locator(".quota-actual-line");
+  await observedLine.waitFor({ state: "visible" });
+  assert.equal(await observedLine.evaluate(line => line.points.numberOfItems), data.weeklyQuota.observations.length);
+  assert.equal(await observedLine.evaluate(line => getComputedStyle(line).strokeDasharray), "none");
+  checks.push("Observed quota readings form a solid line without synthetic points");
   const rows = page.locator(".forecast-goal-row"), markers = page.locator(".quota-goal-marker");
   async function saveGoal(name, date) {
     await page.locator("#addForecastGoal").click();
@@ -127,8 +133,42 @@ try {
   assert.equal(await rows.count(), 3);
   assert.equal(await page.locator("#forecastGoalError").isVisible(), true);
   checks.push("Denied storage writes are reported and preserve existing goals");
+  fixtureNow = new Date(start + 6 * day);
+  data.weeklyQuota = {
+    ...quota(start, +fixtureNow, 77),
+    observations: [[4, 75], [4.1, 75], [5.8, 77], [6, 77]].map(([offset, usedPercent]) => ({
+      observedAt: iso(start + offset * day), usedPercent,
+    })),
+  };
+  await context.addInitScript(key => {
+    localStorage.removeItem(key);
+    localStorage.setItem("codex-usage-theme", "blue");
+  }, FORECAST_GOALS_KEY);
+  await page.clock.setFixedTime(fixtureNow);
+  for (const [width, height, name] of [[1440, 1100, "sparse-desktop.png"], [390, 844, "sparse-mobile.png"]]) {
+    await page.setViewportSize({ width, height });
+    await page.reload();
+    await observedLine.waitFor({ state: "visible" });
+    const trace = await observedLine.evaluate(line => ({
+      count: line.points.numberOfItems,
+      first: line.points.getItem(0).x,
+      last: line.points.getItem(line.points.numberOfItems - 1).x,
+      width: line.ownerSVGElement.viewBox.baseVal.width,
+    }));
+    assert.equal(trace.count, 4);
+    assert.ok(Math.abs(trace.first - (62 + (trace.width - 84) * 4 / 7)) < .01);
+    assert.ok(Math.abs(trace.last - (62 + (trace.width - 84) * 6 / 7)) < .01);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    const hover = page.locator(".quota-hover-target");
+    const bounds = await hover.boundingBox();
+    await hover.hover({ position: { x: bounds.width * 4.5 / 7, y: bounds.height / 2 } });
+    assert.match(await hover.getAttribute("aria-valuetext"), /75 %/);
+    await page.mouse.move(0, 0);
+    await page.locator("#quotaForecastChart").screenshot({ path: path.join(output, name) });
+  }
+  checks.push("Sparse history on desktop and mobile: four readings connected, unobserved days left blank");
   assert.deepEqual(errors, []);
-  await writeFile(path.join(output, "result.json"), JSON.stringify({ scenarioTime: now.toISOString(), synthetic: true, source, checks, errors, captures: ["desktop.png", "mobile.png"] }, null, 2) + "\n");
+  await writeFile(path.join(output, "result.json"), JSON.stringify({ scenarioTime: now.toISOString(), synthetic: true, source, checks, errors, captures: ["desktop.png", "mobile.png", "sparse-desktop.png", "sparse-mobile.png"] }, null, 2) + "\n");
   console.log(JSON.stringify({ passed: checks.length, checks, errors, output }, null, 2));
 } finally {
   await browser?.close();
